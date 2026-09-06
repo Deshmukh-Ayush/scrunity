@@ -1,6 +1,6 @@
 import { db } from "@/utils/db";
 import { project, projectMember, projectInvitation, organization } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import crypto from "crypto";
@@ -102,8 +102,7 @@ export async function POST(req: NextRequest) {
       return process.env.BASE_URL || "http://localhost:3000";
     };
     const baseUrl = getBaseUrl();
-
-    const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/invite/${token}`;
+    const inviteLink = `${baseUrl}/invite/${token}`;
 
     await sendProjectInvitationEmail(
       clientEmail, 

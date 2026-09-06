@@ -20,3 +20,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - **Do not delete or rewrite historical migration files (`0000`, `0001`, `0002`, etc.)** — migrations represent immutable linear history recorded in `drizzle/meta/_journal.json` and tracked in `drizzle.__drizzle_migrations`.
 <!-- END:database-migration-rules -->
 
+<!-- BEGIN:render-architecture-rules -->
+# Render Architecture Rules
+
+- **`layout.tsx` files must contain zero business logic, zero `await` calls, and zero database queries.** Layouts serve purely as structural chrome, shell UI, and provider containers.
+- **`page.tsx` files must contain only structural markup.** Any data-dependent section must be encapsulated in its own distinct component wrapped in its own React `<Suspense>` boundary with a purpose-built loading skeleton.
+- **`page.tsx` is NEVER a Client Component.** Page roots must remain React Server Components (RSC) to preserve streaming, metadata, and server-side cache boundaries.
+- **Authorization is resolved in `src/proxy.ts`, NOT in React layouts.** Route protection, role verification, and redirect policies execute at the proxy/middleware layer before any React rendering begins, eliminating layout-level DB waterfalls and client-side flash.
+<!-- END:render-architecture-rules -->
+
+

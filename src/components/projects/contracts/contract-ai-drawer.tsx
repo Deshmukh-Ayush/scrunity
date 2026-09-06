@@ -6,7 +6,7 @@ import axios from "axios";
 import { useAIStore } from "@/store/ai-store";
 import { ContractAIDrawerTabs } from "./contract-ai-drawer-tabs";
 import { ContractAIDrawerContent } from "./contract-ai-drawer-content";
-import { XIcon, Loader2Icon } from "lucide-react";
+import { XIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ThinkingOrb } from "thinking-orbs";
 

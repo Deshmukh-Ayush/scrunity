@@ -7,7 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 import axios from "axios";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Trash2, Send, CornerDownRight } from "lucide-react";
+import { Trash2, Send } from "lucide-react";
 import posthog from "posthog-js";
 
 type CommentType = {

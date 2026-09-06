@@ -1,7 +1,4 @@
 import Link from "next/link";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { Container } from "@/components/landing/container";
 import Image from "next/image";
@@ -24,14 +21,7 @@ export const metadata: Metadata = {
 
 const newsreader = Instrument_Serif({ subsets: ["latin"], weight: ["400"] });
 
-
-export default async function Page() {
-  const reqHeaders = await headers();
-  const session = await auth.api.getSession({ headers: reqHeaders });
-
-  // if (session?.user) {
-  //   redirect("/dashboard");
-  // }
+export default function Page() {
 
   return (
       <div className="dark min-h-screen w-full bg-neutral-950">

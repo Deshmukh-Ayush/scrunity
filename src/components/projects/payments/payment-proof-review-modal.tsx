@@ -41,14 +41,12 @@ interface PaymentProofReviewModalProps {
   proof: PaymentProofItem | null;
   isOpen: boolean;
   onClose: () => void;
-  formatMoney: (amountInUnits: number, curr?: string) => string;
 }
 
 export function PaymentProofReviewModal({
   proof,
   isOpen,
   onClose,
-  formatMoney,
 }: PaymentProofReviewModalProps) {
   const router = useRouter();
 

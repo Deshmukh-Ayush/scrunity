@@ -335,6 +335,10 @@ export const ContextReasoningUsage = ({
   children,
   ...props
 }: ContextReasoningUsageProps) => {
+  if (children) {
+    return children;
+  }
+
   const { usage, modelId } = useContextValue();
   const reasoningTokens = (usage as any)?.reasoningTokens ?? 0;
   if (!reasoningTokens) {

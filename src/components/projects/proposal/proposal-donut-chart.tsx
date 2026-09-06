@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { ChartPieSliceIcon, FilesIcon } from "@phosphor-icons/react";
+import { FilesIcon } from "@phosphor-icons/react";
 
 type Proposal = {
   price?: number;

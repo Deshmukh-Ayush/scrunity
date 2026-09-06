@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, FileText, DownloadSimple, CheckCircle, PaperPlaneTilt, Clock, Eye, ShieldCheck } from "@phosphor-icons/react";
+import { Plus, FileText, DownloadSimple, Eye, ShieldCheck } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import axios from "axios";
 import { useRouter } from "next/navigation";
@@ -406,7 +406,6 @@ export function PaymentsViewClient({
         proof={reviewProof}
         isOpen={!!reviewProof}
         onClose={() => setReviewProof(null)}
-        formatMoney={formatMoney}
       />
 
       {/* Invoice Document Preview Modal */}

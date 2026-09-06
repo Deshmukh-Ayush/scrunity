@@ -16,7 +16,7 @@ const dodo = new DodoPayments({
   environment,
 });
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
     const reqHeaders = await headers();
     const { user, organizationId } = await getTenantContext(reqHeaders);

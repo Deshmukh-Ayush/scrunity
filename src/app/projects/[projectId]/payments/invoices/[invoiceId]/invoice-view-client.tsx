@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { InvoiceData } from "@/lib/invoices/types";
 import { InvoiceDocumentView } from "@/components/invoices/invoice-document-view";
 import { PaymentConfirmModal } from "@/components/projects/payments/payment-confirm-modal";
@@ -32,7 +31,6 @@ export function InvoiceViewClient({
   projectId,
   isAgency,
 }: InvoiceViewClientProps) {
-  const router = useRouter();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
 
@@ -275,7 +273,6 @@ export function InvoiceViewClient({
             proof={proof}
             isOpen={isReviewOpen}
             onClose={() => setIsReviewOpen(false)}
-            formatMoney={formatMoney}
           />
         )}
       </div>

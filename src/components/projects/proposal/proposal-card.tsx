@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Eye, Send, Trash2, Clock, XCircle, ArrowRight } from "lucide-react";
+import { Eye, Trash2, Clock, XCircle, ArrowRight } from "lucide-react";
 import { SealCheckIcon, PaperPlaneTiltIcon } from "@phosphor-icons/react";
 
 interface ProposalCardProps {

@@ -1,5 +1,5 @@
 import { db } from "@/utils/db";
-import { organization, project, projectInvitation } from "@/db/schema";
+import { organization, projectInvitation } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { canManageProject, getProjectAccess } from "@/lib/project-auth";

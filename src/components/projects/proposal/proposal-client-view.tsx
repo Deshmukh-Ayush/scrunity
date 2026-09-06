@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, XCircle, Clock, Send, ShieldCheck, AlertCircle } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";

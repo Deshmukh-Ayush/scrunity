@@ -124,7 +124,7 @@ export default async function DocsPage() {
               ['Charts & Analytics', 'EvilCharts Component Suite', 'EChartsRadialChart, EChartsAreaChart, EChartsBarChart with next/dynamic lazy loading'],
               ['Database', 'Neon (Serverless Postgres)', 'Stateless HTTP driver @neondatabase/serverless'],
               ['ORM', 'Drizzle ORM', 'Schema defined in src/db/schema.ts'],
-              ['Auth', 'Better Auth', 'Google OAuth + organization plugin'],
+              ['Auth & Proxy Layer', 'Better Auth + src/proxy.ts', 'Google OAuth + organization plugin. Route protection and role headers resolved in proxy.ts before RSC render'],
               ['State Management', 'Zustand & Torch Context', 'Context provider with JSON Event Stream parser + Zustand stores'],
               ['Icons', 'Phosphor Icons & Lucide', '@phosphor-icons/react in client components, Lucide in RSC'],
               ['Styling', 'Tailwind CSS v4 & CSS Variables', 'Brand color #00AAF7 (bg-brand), dark mode, custom neutral tokens'],
@@ -153,6 +153,7 @@ export default async function DocsPage() {
 │   ├── api/
 │   │   ├── ai/torch/           # Streaming SSE agent endpoint & confirmation handler
 │   │   ├── billing/            # Checkout, Customer Portal & Webhook handlers
+│   │   ├── webhooks/dodo/      # Dodo Payments webhook alias
 │   │   ├── contracts/          # Contract uploads, e-signatures & private download streams
 │   │   └── files/              # Private project attachments & download proxies
 │   └── projects/[projectId]/   # Project workspace routes
@@ -167,7 +168,7 @@ export default async function DocsPage() {
 │   └── evilcharts/             # EvilCharts Visualization Library
 │
 ├── lib/
-│   ├── ai/torch-tools.ts       # Centralized Torch agent tool registry (queries, scope audit, addendum, drafts)
+│   ├── ai/torch-tools.ts       # Centralized 9-tool Torch agent registry
 │   ├── tenant-context.ts       # React.cache() deduplicated tenant context & auth resolver
 │   ├── project-auth.ts         # Centralized project authorization policy
 │   ├── currency.ts             # Multi-currency engine (Live 24h-cached FX rates via open.er-api & Frankfurter)
@@ -181,22 +182,22 @@ export default async function DocsPage() {
           </P>
           <ul className="my-2 pl-5 text-sm text-muted-foreground leading-relaxed space-y-1.5 list-disc">
             <li><strong className="text-foreground font-medium">Compound Architecture (<Code>&lt;Torch.Root&gt;</Code>):</strong> Coordinates <Code>&lt;Torch.Messages&gt;</Code>, <Code>&lt;Torch.Input&gt;</Code>, and <Code>&lt;Torch.Artifact&gt;</Code> through a unified <Code>TorchProvider</Code> context parsing JSON event streams.</li>
-            <li><strong className="text-foreground font-medium">Streaming Agent Route (<Code>/api/ai/torch</Code>):</strong> Executes multi-step tool calling loops using Groq (<Code>openai/gpt-oss-120b</Code>) with automated fallback to <Code>openai/gpt-oss-20b</Code>. Streams partial results over SSE with live tool status and date-sanitized ISO payloads.</li>
-            <li><strong className="text-foreground font-medium">Centralized Tool Registry (<Code>src/lib/ai/torch-tools.ts</Code>):</strong>
+            <li><strong className="text-foreground font-medium">Streaming Agent Route (<Code>/api/ai/torch</Code>):</strong> Executes multi-step tool calling loops using Groq (<Code>openai/gpt-oss-120b</Code>) with live SSE streaming, tool execution status badges, and date-sanitized ISO payloads. Structured model fallback (<Code>openai/gpt-oss-20b</Code>) is leveraged in contract parsing and classifier tasks via <Code>generateStructuredWithFallback</Code>.</li>
+            <li><strong className="text-foreground font-medium">Centralized 9-Tool Registry (<Code>src/lib/ai/torch-tools.ts</Code>):</strong>
               <ul className="pl-5 pt-1 space-y-1 list-circle text-xs">
-                <li><Code>queryWorkspaceOverview</Code> — Fetches active projects, pending deliverables, and financial totals.</li>
-                <li><Code>auditProjectScope</Code> — Inspects SOW revision limits against deliverable counts and renders structured contract terms.</li>
-                <li><Code>analyzeFinancials</Code> — Aggregates collected vs outstanding milestone cashflows.</li>
+                <li><Code>queryWorkspaceOverview</Code> — Fetches high-level summary of active projects, deliverables in review, proposals, and workspace financial totals.</li>
+                <li><Code>auditProjectScope</Code> — Audits project revision history against signed contract scope terms, checking for scope creep, revision limits, and exclusions.</li>
+                <li><Code>generateAddendumDraft</Code> — Generates formal Change Order SOW addendum with itemized pricing when scope creep is detected.</li>
+                <li><Code>analyzeFinancials</Code> — Aggregates collected revenue, due amounts, outstanding cashflow, and payment milestones across projects or for a specific project.</li>
                 <li><Code>generateClientDigest</Code> — Compiles weekly progress digest per project with deliverable status breakdown.</li>
-                <li><Code>queryInvoiceStatus</Code> — Queries invoice counts by status, outstanding balance, and overdue days.</li>
+                <li><Code>createDeliverableDraft</Code> — Prepares actionable deliverable submission drafts with title, description, and due date.</li>
+                <li><Code>queryInvoiceStatus</Code> — Queries invoice counts by status (draft, sent, viewed, paid, overdue, void), outstanding balances, and overdue days.</li>
                 <li><Code>draftInvoiceForMilestone</Code> — Drafts compliant invoices for verified milestones requiring human confirmation.</li>
-                <li><Code>generateAddendumDraft</Code> — Generates Change Order SOW addendum with itemized price delta.</li>
-                <li><Code>createDeliverableDraft</Code> — Prepares actionable deliverable submission drafts.</li>
-                <li><Code>webSearch</Code> — Licensed external web search (Firecrawl /v2/search with fallback chain) for market rates and benchmarks. Strictly barred from querying internal workspace projects.</li>
+                <li><Code>webSearch</Code> — External web search (Firecrawl /v2/search with fallback chain) for market rates and benchmarks; strictly barred from querying internal workspace projects.</li>
               </ul>
             </li>
             <li><strong className="text-foreground font-medium">Structured Result Cards:</strong> Dedicated visual components for informational tools (<Code>ScopeAuditResult</Code>, <Code>ClientDigestResult</Code>, <Code>InvoiceStatusResult</Code>, <Code>FinancialsResult</Code>, <Code>WorkspaceOverviewResult</Code>) rendered before synthesized text summaries.</li>
-            <li><strong className="text-foreground font-medium">Human-in-the-Loop Actions (<Code>ApprovalCard</Code>):</strong> Draft-creating tools return interactive proposal and deliverable cards. Agency owners can approve or reject with one click, dispatching to <Code>/api/ai/torch/confirm</Code> to execute DB mutations safely.</li>
+            <li><strong className="text-foreground font-medium">Human-in-the-Loop Actions (<Code>ApprovalCard</Code>):</strong> Draft-creating tools return interactive proposal, invoice, and deliverable cards. Agency owners can approve or reject with one click, dispatching to <Code>/api/ai/torch/confirm</Code> to execute DB mutations safely.</li>
             <li><strong className="text-foreground font-medium">Lexical Rich Input (<Code>LexicalAIInput</Code>):</strong> Centered <Code>max-w-3xl</Code> input container with floating <Code>/</Code> slash command menu and <Code>@</Code> project mention context injection.</li>
           </ul>
         </Section>
@@ -228,12 +229,12 @@ export default async function DocsPage() {
         </Section>
 
         {/* ─── CLIENT ACCESS SAFEGUARDS ─── */}
-        <Section id="client-safeguards" title="Client Access Safeguards & Automatic Redirection">
+        <Section id="client-safeguards" title="Client Access Safeguards & Proxy-Based Auth">
           <P>
             Scrunity enforces 100% strict isolation between agency operations and client stakeholders:
           </P>
           <ul className="my-2 pl-5 text-sm text-muted-foreground leading-relaxed space-y-1 list-disc">
-            <li><strong className="text-foreground font-medium">Automatic Client Redirection (<Code>DashboardLayout</Code>):</strong> Users who are strictly clients (<Code>memberRole === &apos;client&apos;</Code> without agency owner/member role) are **automatically blocked** from accessing <Code>/dashboard</Code> and redirected to <Code>/projects/[firstProjectId]</Code>.</li>
+            <li><strong className="text-foreground font-medium">Proxy-Level Client Redirection (<Code>src/proxy.ts</Code>):</strong> User authentication and role isolation are resolved at the proxy layer before React layouts render. Non-agency clients accessing <Code>/dashboard</Code> routes are intercepted and redirected to <Code>/projects/[firstProjectId]</Code>, eliminating data waterfalls and layout-level DB queries.</li>
             <li><strong className="text-foreground font-medium">Dual-Role Persona Switcher (<Code>DashboardTopbar</Code>):</strong> Agency owners who are also clients on another agency&apos;s project receive a topbar link (<Code>Switch to Client View →</Code>) to toggle context seamlessly.</li>
             <li><strong className="text-foreground font-medium">White-Labeled Project Onboarding (<Code>/invite/project/[inviteId]</Code>):</strong> White-labeled onboarding flow where clients sign up with Google and stay inside their assigned project view.</li>
           </ul>
@@ -388,14 +389,17 @@ export default async function DocsPage() {
               ['/api/billing/checkout', 'POST', 'Generate subscription checkout session with organization binding'],
               ['/api/billing/portal', 'POST', 'Generate auth-gated customer billing portal redirect'],
               ['/api/billing/webhook', 'POST', 'Idempotent webhook handler syncing subscription lifecycle state to DB'],
-              ['/api/milestones', 'GET/POST/PATCH/DELETE', 'Fetch, create, update, or delete payment milestones'],
+              ['/api/webhooks/dodo', 'POST', 'Dodo Payments webhook alias routing to billing webhook processor'],
+              ['/api/milestones', 'POST/PATCH/DELETE', 'Create, update, or delete payment milestones (queries use direct Server Component DB access)'],
               ['/api/milestones/mark-paid', 'POST', 'Record manual payment verification & UTR reference note'],
               ['/api/contracts', 'GET/POST/PATCH/DELETE', 'Upload agreements, fetch contracts, update status'],
               ['/api/contracts/download', 'GET', 'Auth-gated private stream proxy for downloading contract PDFs'],
               ['/api/contracts/sign', 'POST', 'Execute e-signature and generate cryptographic SHA-256 seal'],
               ['/api/deliverables', 'POST/PATCH', 'Create deliverable, update status & trigger linked milestones'],
               ['/api/deliverables/bulk', 'PATCH', 'Bulk update deliverables within a single project atomically'],
-              ['/api/proposals', 'GET/POST/PATCH/DELETE', 'Manage proposals and convert line items to deliverables/milestones'],
+              ['/api/proposals', 'POST/PATCH/DELETE', 'Create, update, send, or delete proposals (queries use direct Server Component DB access)'],
+              ['/api/payments/proof/upload', 'POST', 'Upload payment receipt / screenshot proof for verification'],
+              ['/api/payments/proof/review', 'POST', 'Review and approve/reject submitted payment proof with AI OCR extraction'],
               ['/api/files', 'POST/DELETE', 'Upload and manage project files'],
               ['/api/files/download', 'GET', 'Auth-gated private stream proxy for downloading project files'],
               ['/api/organizations/invites/accept', 'POST', 'Process and accept organization teammate invitations'],

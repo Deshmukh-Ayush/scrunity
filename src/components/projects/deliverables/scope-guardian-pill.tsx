@@ -1,6 +1,6 @@
 "use client";
 
-import { ShieldCheckIcon, ShieldAlertIcon, SparklesIcon } from "lucide-react";
+import { ShieldCheckIcon, ShieldAlertIcon } from "lucide-react";
 import type { ScopeEvaluation } from "@/lib/ai/schemas";
 import { ThinkingOrb } from "thinking-orbs";
 

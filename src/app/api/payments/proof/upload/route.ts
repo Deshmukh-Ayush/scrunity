@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/utils/db";
 import { paymentMilestone, invoice, paymentProof } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getProjectAccess } from "@/lib/project-auth";
 import { putBlob } from "@/lib/blob";
 import { extractPaymentProof } from "@/lib/ai/payment-extractor";

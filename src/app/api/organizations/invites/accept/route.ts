@@ -1,5 +1,5 @@
 import { db } from "@/utils/db";
-import { invitation, member, organization, user } from "@/db/schema";
+import { invitation, member, organization } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";

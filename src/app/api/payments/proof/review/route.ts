@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/utils/db";
 import { paymentMilestone, payment, invoice, paymentProof } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getProjectAccess, canManageProject } from "@/lib/project-auth";
 import { logActivity } from "@/lib/activity";
 import { revalidatePath } from "next/cache";

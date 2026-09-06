@@ -25,9 +25,6 @@ import { checkSearchCircuitBreaker } from "./search-circuit-breaker";
 import { convertAmount, convertAndAggregate, getUsdToInrRate } from "@/lib/currency";
 import crypto from "crypto";
 
-const isRecord = (v: unknown): v is Record<string, unknown> =>
-  typeof v === "object" && v !== null;
-
 const toIsoDate = (d: unknown): string | null => {
   if (d == null) return null;
   if (d instanceof Date) return d.toISOString();

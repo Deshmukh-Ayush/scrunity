@@ -9,17 +9,6 @@ import { cn } from "@/lib/utils"
 import Image from "next/image"
 import posthog from "posthog-js"
 
-// Define strict types to fix TypeErrors
-interface User {
-  name?: string | null
-  image?: string | null
-  role?: string | null
-}
-
-interface SessionData {
-  user?: User | null
-}
-
 export function ProfileMenu() {
   const router = useRouter()
   const { data: sessionData } = useSession()

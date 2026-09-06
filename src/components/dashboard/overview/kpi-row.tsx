@@ -78,10 +78,7 @@ export async function DashboardKpiRow() {
   // Generate 7-day trend micro sparklines
   const days = Array.from({ length: 7 }, (_, i) => subDays(today, 6 - i))
 
-  const trendData1 = days.map((d, idx) => {
-    const dayCount = proposalsList.filter(
-      (p) => p.status === "accepted"
-    ).length
+  const trendData1 = days.map((_, idx) => {
     return {
       day: idx,
       value: Math.round((totalIncome / (7 - idx)) * (1 + (idx * 0.05))),

@@ -52,28 +52,6 @@ function buildLineItems(proposalId: string, lineItems: z.infer<typeof lineItemSc
   }));
 }
 
-export async function GET(req: NextRequest) {
-  try {
-    const projectId = new URL(req.url).searchParams.get("projectId");
-    if (!projectId) return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
-
-    const session = await currentUser();
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const access = await getProjectAccess(projectId, session.user.id);
-    if (!access.isAuthorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
-    const proposals = await db.query.proposal.findMany({
-      where: eq(proposal.projectId, projectId),
-      with: { lineItems: { orderBy: (items, { asc }) => [asc(items.sortOrder)] } },
-      orderBy: (items, { desc }) => [desc(items.createdAt)],
-    });
-    return NextResponse.json({ proposals });
-  } catch (error) {
-    console.error("GET proposal error:", error);
-    return NextResponse.json({ error: "Failed to fetch proposals" }, { status: 500 });
-  }
-}
-
 export async function POST(req: NextRequest) {
   try {
     const input = proposalInputSchema.safeParse(await req.json());

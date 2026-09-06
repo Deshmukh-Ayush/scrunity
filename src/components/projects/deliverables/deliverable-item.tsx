@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { Clock, MessageSquare, Zap } from "lucide-react";
 import { format, isPast } from "date-fns";
 import { AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -15,7 +14,7 @@ import type { ScopeEvaluation } from "@/lib/ai/schemas";
 
 type DeliverableItemProps = {
   item: DeliverableType;
-  index: number;
+  index?: number;
   commentCount: number;
   memberRole: string;
   scopeEvaluation?: ScopeEvaluation | null;
@@ -24,7 +23,6 @@ type DeliverableItemProps = {
 
 export function DeliverableItem({
   item,
-  index,
   commentCount,
   memberRole,
   scopeEvaluation,

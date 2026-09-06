@@ -1,6 +1,6 @@
 import { db } from "@/utils/db";
-import { deliverable, payment, paymentMilestone } from "@/db/schema";
-import { asc, eq } from "drizzle-orm";
+import { deliverable, paymentMilestone } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { canManageProject, getProjectAccess } from "@/lib/project-auth";
 import { headers } from "next/headers";
@@ -38,26 +38,6 @@ async function ensureDeliverableBelongsToProject(deliverableId: string | null | 
   if (!deliverableId) return true;
   const [linkedDeliverable] = await db.select({ projectId: deliverable.projectId }).from(deliverable).where(eq(deliverable.id, deliverableId));
   return linkedDeliverable?.projectId === projectId;
-}
-
-export async function GET(req: NextRequest) {
-  try {
-    const projectId = new URL(req.url).searchParams.get("projectId");
-    if (!projectId) return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
-    const session = await currentUser();
-    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const access = await getProjectAccess(projectId, session.user.id);
-    if (!access.isAuthorized) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
-    const [milestones, payments] = await Promise.all([
-      db.select().from(paymentMilestone).where(eq(paymentMilestone.projectId, projectId)).orderBy(asc(paymentMilestone.sortOrder), asc(paymentMilestone.createdAt)),
-      db.select().from(payment).where(eq(payment.projectId, projectId)),
-    ]);
-    return NextResponse.json({ milestones, payments });
-  } catch (error) {
-    console.error("GET milestones error:", error);
-    return NextResponse.json({ error: "Failed to fetch milestones" }, { status: 500 });
-  }
 }
 
 export async function POST(req: NextRequest) {
@@ -103,7 +83,8 @@ export async function PATCH(req: NextRequest) {
     if (!access.isAuthorized || !canManageProject(access.role)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     if (input.data.status === "paid") return NextResponse.json({ error: "Use the payment confirmation flow to mark a milestone paid" }, { status: 400 });
 
-    const { milestoneId: _milestoneId, ...updates } = input.data;
+    const updates = { ...input.data };
+    delete (updates as { milestoneId?: string }).milestoneId;
     if (Object.keys(updates).length === 0) return NextResponse.json({ error: "No changes supplied" }, { status: 400 });
     await db.update(paymentMilestone).set({ ...updates, updatedAt: new Date() }).where(eq(paymentMilestone.id, existing.id));
     revalidatePath(`/projects/${existing.projectId}`);

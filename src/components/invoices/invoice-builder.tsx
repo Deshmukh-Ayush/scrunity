@@ -5,7 +5,6 @@ import axios from "axios";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import {
-  Buildings,
   FileText,
   Plus,
   Trash,
@@ -13,7 +12,6 @@ import {
   PaperPlaneTilt,
   FloppyDisk,
   CaretDown,
-  CaretUp,
   X,
   SpinnerGap,
   Image as PhImage,
@@ -22,8 +20,6 @@ import {
   Eye,
   PencilSimple,
   TextAa,
-  Palette,
-  Stack,
 } from "@phosphor-icons/react";
 import {
   InvoiceData,
@@ -201,6 +197,9 @@ export function InvoiceBuilder({
           setClientEmail(clientPrefill.email || "");
           setClientPhone(clientPrefill.phone || "");
           setClientAddress(clientPrefill.address || "");
+          if (clientPrefill.contactMethod) {
+            setContactMethod(clientPrefill.contactMethod);
+          }
 
           setAvailableMilestones(milestones || []);
 

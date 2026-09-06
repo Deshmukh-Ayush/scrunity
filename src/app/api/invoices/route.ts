@@ -3,7 +3,6 @@ import {
   invoice,
   invoiceLineItem,
   invoiceDefaults,
-  project,
   projectMember,
   projectInvitation,
   user as userTable,
@@ -11,13 +10,12 @@ import {
   paymentMilestone,
   payment,
 } from "@/db/schema";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { getProjectAccess, canManageProject } from "@/lib/project-auth";
-import { getTenantContext } from "@/lib/tenant-context";
 import { putBlob } from "@/lib/blob";
 import { generateInvoicePdf } from "@/lib/invoices/pdf-generator";
 import { calculateInvoiceTotals, InvoiceData } from "@/lib/invoices/types";

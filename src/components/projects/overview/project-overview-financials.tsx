@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileText, IndianRupee, DollarSign, Euro, CheckCircle2, Clock, FileSignature } from "lucide-react";
+import { FileText, CheckCircle2, Clock, FileSignature } from "lucide-react";
 import type { OverviewProposal, OverviewContract } from "./project-overview-types";
 import { ProjectOverviewCard } from "./project-overview-card";
 
@@ -8,12 +8,6 @@ type ProjectOverviewFinancialsProps = {
   proposal: OverviewProposal | null;
   contract: OverviewContract | null;
   userRole: string;
-};
-
-const CURRENCY_ICONS: Record<string, typeof DollarSign> = {
-  INR: IndianRupee,
-  USD: DollarSign,
-  EUR: Euro,
 };
 
 const PROPOSAL_STATUS: Record<string, { label: string; className: string }> = {
@@ -44,7 +38,6 @@ export function ProjectOverviewFinancials({
   contract,
   userRole,
 }: ProjectOverviewFinancialsProps) {
-  const CurrencyIcon = proposal ? (CURRENCY_ICONS[proposal.currency] ?? DollarSign) : IndianRupee;
   const proposalStatus = proposal ? (PROPOSAL_STATUS[proposal.status] ?? PROPOSAL_STATUS.draft) : null;
   const contractStatus = contract
     ? (CONTRACT_STATUS[contract.status] ?? CONTRACT_STATUS.draft)

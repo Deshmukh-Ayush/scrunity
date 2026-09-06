@@ -1,6 +1,6 @@
 import { db } from "@/utils/db";
 import { deliverable, paymentMilestone } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import crypto from "crypto";

@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import axios from "axios";
 import { SparklesIcon, XIcon, Loader2Icon, CheckCircle2Icon } from "lucide-react";
 import type { Addendum } from "@/lib/ai/schemas";
 import { ThinkingOrb } from "thinking-orbs";

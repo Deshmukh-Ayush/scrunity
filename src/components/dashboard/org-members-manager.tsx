@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,7 +25,6 @@ export function OrgMembersManager({
   const [members, setMembers] = useState<any[]>(initialMembers);
   const [email, setEmail] = useState("");
   const [isInviting, setIsInviting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   const canInvite = org.plan === "agency";
   const activeMembersCount = members.length;
@@ -46,7 +45,7 @@ export function OrgMembersManager({
 
     setIsInviting(true);
     try {
-      const { data, error } = await authClient.organization.inviteMember({
+      const { error } = await authClient.organization.inviteMember({
         email,
         role: "member",
       });
@@ -129,13 +128,8 @@ export function OrgMembersManager({
 
         <div className="space-y-4 pt-4 border-t border-border/40">
           <h3 className="text-sm font-medium">Active Members</h3>
-          {isLoading ? (
-            <div className="flex items-center justify-center p-8">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="divide-y divide-border/40 border rounded-lg overflow-hidden">
-              {members.map((m) => (
+          <div className="divide-y divide-border/40 border rounded-lg overflow-hidden">
+            {members.map((m) => (
                 <div key={m.id} className="flex items-center justify-between p-4 bg-background group">
                   <div className="flex items-center gap-3">
                     <Avatar className="w-8 h-8">
@@ -173,7 +167,6 @@ export function OrgMembersManager({
                 </div>
               )}
             </div>
-          )}
         </div>
       </CardContent>
     </Card>

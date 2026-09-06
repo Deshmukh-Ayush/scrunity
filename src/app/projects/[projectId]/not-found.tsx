@@ -1,4 +1,3 @@
-import { Button } from "@/components/ui/button";
 import { FileQuestion } from "lucide-react";
 
 export default function ProjectNotFound() {

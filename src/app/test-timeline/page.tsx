@@ -7,10 +7,8 @@ import {
   Mail, 
   AlertCircle, 
   Loader2,
-  Check,
   ExternalLink
 } from "lucide-react"
-import { motion, AnimatePresence } from "motion/react"
 
 export default function TorchTimelineFeed() {
   const [approvals, setApprovals] = useState({

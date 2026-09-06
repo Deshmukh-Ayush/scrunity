@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { DownloadSimple, X, CheckCircle, PaperPlaneTilt, SpinnerGap, FileText, Prohibit } from "@phosphor-icons/react";
+import { DownloadSimple, X, CheckCircle, PaperPlaneTilt, SpinnerGap, FileText } from "@phosphor-icons/react";
 import { InvoiceData } from "@/lib/invoices/types";
 import { InvoiceDocumentView, getContrastTextColor } from "./invoice-document-view";
 

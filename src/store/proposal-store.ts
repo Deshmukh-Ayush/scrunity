@@ -36,7 +36,7 @@ const DEFAULT_LINE_ITEMS: ProposalLineItem[] = [
   { description: "Full-Stack Development & API Integration", quantity: 1, unitPrice: 50000 },
 ];
 
-export const useProposalStore = create<ProposalState>((set, get) => ({
+export const useProposalStore = create<ProposalState>((set) => ({
   selectedProposal: null,
   title: "Project Scope Proposal",
   scopeSummary: "",
