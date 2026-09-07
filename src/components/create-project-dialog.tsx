@@ -17,7 +17,7 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 
-import { Plus } from "lucide-react";
+import { Plus } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 
 interface CreateProjectDialogProps {
@@ -57,15 +57,15 @@ export function CreateProjectDialog({ defaultCurrency = "USD" }: CreateProjectDi
       <DialogTrigger asChild>
         <Button
           size="sm"
-          className="h-9 px-3.5 rounded-lg bg-brand text-white font-medium text-xs sm:text-sm flex items-center gap-1.5 shadow-xs hover:bg-brand-hover border-none active:scale-[0.96] transition-transform select-none"
+          className="h-9 px-4 rounded-full bg-brand text-white font-medium text-xs sm:text-sm flex items-center gap-1.5 shadow-xs hover:bg-brand-hover border-none active:scale-[0.96] transition-transform select-none"
         >
-          <Plus className="size-4 shrink-0 stroke-[2.25]" />
-          <span>Create Project</span>
+          <Plus className="size-4 shrink-0" />
+          <span>Create project</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Create Project</DialogTitle>
+          <DialogTitle>Create project</DialogTitle>
           <DialogDescription>
             Start a new project and invite your client to collaborate.
           </DialogDescription>
@@ -79,7 +79,7 @@ export function CreateProjectDialog({ defaultCurrency = "USD" }: CreateProjectDi
             )}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="name" className="text-xs font-medium text-foreground">
-                Project Name
+                Project name
               </Label>
               <Input
                 id="name"
@@ -92,7 +92,7 @@ export function CreateProjectDialog({ defaultCurrency = "USD" }: CreateProjectDi
             </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="clientEmail" className="text-xs font-medium text-foreground">
-                Client Email
+                Client email
               </Label>
               <Input
                 id="clientEmail"
@@ -105,7 +105,7 @@ export function CreateProjectDialog({ defaultCurrency = "USD" }: CreateProjectDi
             </div>
             <div className="flex flex-col gap-2">
               <Label className="text-xs font-medium text-foreground">
-                Project Currency
+                Project currency
               </Label>
               <input type="hidden" name="currency" value={currency} />
               <div className="grid grid-cols-2 gap-1.5 p-1 rounded-lg bg-muted/60 border border-border/40">
@@ -156,7 +156,7 @@ export function CreateProjectDialog({ defaultCurrency = "USD" }: CreateProjectDi
               disabled={isLoading}
               className="bg-brand hover:bg-brand-hover text-white border-none shadow-xs active:scale-[0.96] transition-transform"
             >
-              {isLoading ? "Creating..." : "Create Project"}
+              {isLoading ? "Creating..." : "Create project"}
             </Button>
           </DialogFooter>
         </form>
