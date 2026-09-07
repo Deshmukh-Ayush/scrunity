@@ -1,5 +1,5 @@
 import { DashboardKpiRow } from "@/components/dashboard/overview/kpi-row"
-import { DashboardHeroChart } from "@/components/dashboard/overview/hero-chart"
+import { DashboardAttentionTable } from "@/components/dashboard/overview/attention-table"
 import { Suspense } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -15,12 +15,12 @@ export default function DashboardPage() {
       </div>
 
       <div className="flex flex-col gap-6">
-        <Suspense fallback={<Skeleton className="h-[180px] w-full rounded-md" />}>
+        <Suspense fallback={<Skeleton className="h-[140px] w-full rounded-md" />}>
           <DashboardKpiRow />
         </Suspense>
 
-        <Suspense fallback={<Skeleton className="h-[320px] w-full rounded-md" />}>
-          <DashboardHeroChart />
+        <Suspense fallback={<Skeleton className="h-[280px] w-full rounded-md" />}>
+          <DashboardAttentionTable />
         </Suspense>
       </div>
     </div>
