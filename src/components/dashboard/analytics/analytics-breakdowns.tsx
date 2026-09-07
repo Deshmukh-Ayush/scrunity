@@ -1,16 +1,17 @@
 import { headers } from "next/headers"
 import { db } from "@/utils/db"
 import { proposal, deliverable } from "@/db/schema"
-import { inArray } from "drizzle-orm"
+import { inArray, and, gte } from "drizzle-orm"
 import { getTenantContext } from "@/lib/tenant-context"
 import { getCachedOrgProjects } from "@/utils/cached-org-queries"
+import { subDays, subMonths, startOfYear } from "date-fns"
 import {
   AnalyticsBreakdownsUI,
   ProposalBreakdownItem,
   DeliverableHealthItem,
 } from "./analytics-breakdowns-client"
 
-export async function AnalyticsBreakdowns() {
+export async function AnalyticsBreakdowns({ range = "6m" }: { range?: string }) {
   const reqHeaders = await headers()
   const ctx = await getTenantContext(reqHeaders)
 
@@ -20,7 +21,6 @@ export async function AnalyticsBreakdowns() {
 
   // Fetch workspace projects (cached across sibling components)
   const orgProjects = await getCachedOrgProjects(ctx.organizationId)
-
   const projectIds = orgProjects.map((p) => p.id)
 
   if (projectIds.length === 0) {
@@ -44,16 +44,23 @@ export async function AnalyticsBreakdowns() {
     )
   }
 
+  const today = new Date()
+  let startDate: Date | null = null
+
+  if (range === "30d") startDate = subDays(today, 30)
+  else if (range === "90d") startDate = subDays(today, 90)
+  else if (range === "ytd") startDate = startOfYear(today)
+  else if (range === "6m") startDate = subMonths(today, 5)
+
+  const proposalWhere =
+    startDate !== null
+      ? and(inArray(proposal.projectId, projectIds), gte(proposal.createdAt, startDate))
+      : inArray(proposal.projectId, projectIds)
+
   // Execute database queries concurrently (Promise.all)
   const [proposalsList, deliverablesList] = await Promise.all([
-    db
-      .select({ status: proposal.status })
-      .from(proposal)
-      .where(inArray(proposal.projectId, projectIds)),
-    db
-      .select({ status: deliverable.status })
-      .from(deliverable)
-      .where(inArray(deliverable.projectId, projectIds)),
+    db.select({ status: proposal.status }).from(proposal).where(proposalWhere),
+    db.select({ status: deliverable.status }).from(deliverable).where(inArray(deliverable.projectId, projectIds)),
   ])
 
   // Single-pass proposal counts

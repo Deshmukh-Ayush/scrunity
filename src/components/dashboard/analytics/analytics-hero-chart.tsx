@@ -4,7 +4,16 @@ import { proposal, organization } from "@/db/schema"
 import { inArray, gte, and, eq } from "drizzle-orm"
 import { getTenantContext } from "@/lib/tenant-context"
 import { getCachedOrgProjects } from "@/utils/cached-org-queries"
-import { format, subMonths, startOfMonth, isSameMonth } from "date-fns"
+import {
+  format,
+  subMonths,
+  startOfMonth,
+  isSameMonth,
+  subDays,
+  startOfYear,
+  differenceInCalendarMonths,
+  isSameDay,
+} from "date-fns"
 import dynamic from "next/dynamic"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { MonthlyVelocityPoint } from "./analytics-hero-chart-client"
@@ -17,7 +26,7 @@ const DynamicAnalyticsHeroChartUI = dynamic(
   }
 )
 
-export async function AnalyticsHeroChart() {
+export async function AnalyticsHeroChart({ range = "6m" }: { range?: string }) {
   const reqHeaders = await headers()
   const ctx = await getTenantContext(reqHeaders)
 
@@ -26,7 +35,40 @@ export async function AnalyticsHeroChart() {
   }
 
   const today = new Date()
-  const sixMonthsAgo = startOfMonth(subMonths(today, 5))
+
+  // Determine date bounds and bucket points according to range
+  let startDate: Date
+  let windowLabel = "Last 6 Months"
+  let bucketMode: "daily" | "monthly" = "monthly"
+  let bucketCount = 6
+
+  if (range === "30d") {
+    startDate = subDays(today, 29)
+    windowLabel = "Last 30 Days"
+    bucketMode = "daily"
+    bucketCount = 30
+  } else if (range === "90d") {
+    startDate = startOfMonth(subMonths(today, 2))
+    windowLabel = "Last 90 Days"
+    bucketMode = "monthly"
+    bucketCount = 3
+  } else if (range === "ytd") {
+    startDate = startOfYear(today)
+    windowLabel = "Year to Date"
+    bucketMode = "monthly"
+    bucketCount = Math.max(1, differenceInCalendarMonths(today, startDate) + 1)
+  } else if (range === "all") {
+    startDate = new Date(0) // All time
+    windowLabel = "All Time"
+    bucketMode = "monthly"
+    bucketCount = 12
+  } else {
+    // default: 6m
+    startDate = startOfMonth(subMonths(today, 5))
+    windowLabel = "Last 6 Months"
+    bucketMode = "monthly"
+    bucketCount = 6
+  }
 
   const orgProjects = await getCachedOrgProjects(ctx.organizationId)
 
@@ -39,8 +81,11 @@ export async function AnalyticsHeroChart() {
   const projectIds = orgProjects.map((p) => p.id)
 
   if (projectIds.length === 0) {
-    const emptyChart: MonthlyVelocityPoint[] = Array.from({ length: 6 }, (_, i) => ({
-      month: format(subMonths(today, 5 - i), "MMM yyyy"),
+    const emptyChart: MonthlyVelocityPoint[] = Array.from({ length: bucketCount }, (_, i) => ({
+      month:
+        bucketMode === "daily"
+          ? format(subDays(today, bucketCount - 1 - i), "MMM d")
+          : format(subMonths(today, bucketCount - 1 - i), "MMM yyyy"),
       revenue: 0,
       pipeline: 0,
     }))
@@ -52,9 +97,16 @@ export async function AnalyticsHeroChart() {
         monthlyAvgRevenue={0}
         totalWon={0}
         currency={targetCurrency}
+        windowLabel={windowLabel}
       />
     )
   }
+
+  // Execute database queries with genuine date window bounding
+  const whereCondition =
+    range === "all"
+      ? inArray(proposal.projectId, projectIds)
+      : and(inArray(proposal.projectId, projectIds), gte(proposal.createdAt, startDate))
 
   const [proposalsList, usdToInrRate] = await Promise.all([
     db
@@ -65,59 +117,102 @@ export async function AnalyticsHeroChart() {
         createdAt: proposal.createdAt,
       })
       .from(proposal)
-      .where(and(inArray(proposal.projectId, projectIds), gte(proposal.createdAt, sixMonthsAgo))),
+      .where(whereCondition),
     getUsdToInrRate(),
   ])
 
-  const months = Array.from({ length: 6 }, (_, i) => subMonths(today, 5 - i))
-
   let totalWon = 0
   let maxRevenue = 0
-  let peakMonthLabel = format(today, "MMM yyyy")
+  let peakMonthLabel =
+    bucketMode === "daily" ? format(today, "MMM d") : format(today, "MMM yyyy")
 
-  const velocityData: MonthlyVelocityPoint[] = months.map((m) => {
-    const monthLabel = format(m, "MMM yyyy")
-    let revenue = 0
-    let pipeline = 0
+  let velocityData: MonthlyVelocityPoint[] = []
 
-    proposalsList.forEach((p) => {
-      if (isSameMonth(new Date(p.createdAt), m)) {
-        const { total: convertedAmount } = convertAndAggregate(
-          [{ amount: p.price, currency: p.currency }],
-          targetCurrency,
-          usdToInrRate
-        )
-        if (p.status === "accepted") {
-          revenue += convertedAmount
-        } else if (p.status === "sent") {
-          pipeline += convertedAmount
+  if (bucketMode === "daily") {
+    // 30 daily buckets
+    const days = Array.from({ length: bucketCount }, (_, i) => subDays(today, bucketCount - 1 - i))
+    velocityData = days.map((d) => {
+      const dayLabel = format(d, "MMM d")
+      let revenue = 0
+      let pipeline = 0
+
+      proposalsList.forEach((p) => {
+        if (isSameDay(new Date(p.createdAt), d)) {
+          const { total: convertedAmount } = convertAndAggregate(
+            [{ amount: p.price, currency: p.currency }],
+            targetCurrency,
+            usdToInrRate
+          )
+          if (p.status === "accepted") {
+            revenue += convertedAmount
+          } else if (p.status === "sent") {
+            pipeline += convertedAmount
+          }
         }
+      })
+
+      totalWon += revenue
+      if (revenue > maxRevenue) {
+        maxRevenue = revenue
+        peakMonthLabel = dayLabel
+      }
+
+      return {
+        month: dayLabel,
+        revenue,
+        pipeline,
       }
     })
+  } else {
+    // Monthly buckets
+    const months = Array.from({ length: bucketCount }, (_, i) =>
+      subMonths(today, bucketCount - 1 - i)
+    )
+    velocityData = months.map((m) => {
+      const monthLabel = format(m, "MMM yyyy")
+      let revenue = 0
+      let pipeline = 0
 
-    totalWon += revenue
-    if (revenue > maxRevenue) {
-      maxRevenue = revenue
-      peakMonthLabel = monthLabel
-    }
+      proposalsList.forEach((p) => {
+        if (isSameMonth(new Date(p.createdAt), m)) {
+          const { total: convertedAmount } = convertAndAggregate(
+            [{ amount: p.price, currency: p.currency }],
+            targetCurrency,
+            usdToInrRate
+          )
+          if (p.status === "accepted") {
+            revenue += convertedAmount
+          } else if (p.status === "sent") {
+            pipeline += convertedAmount
+          }
+        }
+      })
 
-    return {
-      month: monthLabel,
-      revenue,
-      pipeline,
-    }
-  })
+      totalWon += revenue
+      if (revenue > maxRevenue) {
+        maxRevenue = revenue
+        peakMonthLabel = monthLabel
+      }
 
-  const monthlyAvgRevenue = Math.round(totalWon / 6)
+      return {
+        month: monthLabel,
+        revenue,
+        pipeline,
+      }
+    })
+  }
+
+  const periodAvg = Math.round(totalWon / Math.max(1, bucketCount))
 
   return (
     <DynamicAnalyticsHeroChartUI
       velocityData={velocityData}
       peakMonthLabel={peakMonthLabel}
       peakMonthRevenue={maxRevenue}
-      monthlyAvgRevenue={monthlyAvgRevenue}
+      monthlyAvgRevenue={periodAvg}
       totalWon={totalWon}
       currency={targetCurrency}
+      windowLabel={windowLabel}
     />
   )
 }
