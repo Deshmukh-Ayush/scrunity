@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { ArrowRight, CheckCircle2, Clock } from "lucide-react"
+import { ArrowRightIcon, CheckCircleIcon, ClockIcon } from "@phosphor-icons/react"
 import { format } from "date-fns"
 import { DataTableShell } from "@/components/dashboard/shared/data-table-shell"
 import { DeliverableProgressBar } from "@/components/dashboard/shared/deliverable-progress-bar"
@@ -40,7 +40,7 @@ export function TeamWorkflowsTableClient({ workflows }: { workflows: WorkflowIte
   const completedCount = workflows.filter((w) => w.status === "completed").length
 
   const tabs = [
-    { id: "all" as const, label: "All Workflows", count: workflows.length },
+    { id: "all" as const, label: "All workflows", count: workflows.length },
     { id: "active" as const, label: "Active", count: activeCount },
     { id: "completed" as const, label: "Completed", count: completedCount },
   ]
@@ -95,7 +95,7 @@ export function TeamWorkflowsTableClient({ workflows }: { workflows: WorkflowIte
                 <div className="flex items-center gap-2">
                   <div className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full border bg-muted">
                     {w.creator?.image ? (
-                      <Image src={w.creator.image} alt={w.creator.name} fill className="object-cover" unoptimized />
+                      <Image src={w.creator.image} alt={w.creator.name || "Team member"} fill className="object-cover" unoptimized />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-[9px] font-semibold text-brand bg-brand/10">
                         {(w.creator?.name || w.creator?.email || "T").charAt(0).toUpperCase()}
@@ -127,11 +127,11 @@ export function TeamWorkflowsTableClient({ workflows }: { workflows: WorkflowIte
               <td className="px-4 py-3.5 whitespace-nowrap">
                 {w.status === "completed" ? (
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                    <CheckCircle2 className="h-3 w-3" /> Completed
+                    <CheckCircleIcon className="h-3.5 w-3.5" /> Completed
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/10 px-2 py-0.5 text-xs font-medium text-sky-600 dark:text-sky-400">
-                    <Clock className="h-3 w-3" /> Active
+                    <ClockIcon className="h-3.5 w-3.5" /> Active
                   </span>
                 )}
               </td>
@@ -148,7 +148,7 @@ export function TeamWorkflowsTableClient({ workflows }: { workflows: WorkflowIte
                   className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:text-brand-hover transition-colors active:scale-[0.96] origin-center"
                 >
                   <span>Open workflow</span>
-                  <ArrowRight className="h-3.5 w-3.5" />
+                  <ArrowRightIcon className="h-3.5 w-3.5" />
                 </Link>
               </td>
             </tr>

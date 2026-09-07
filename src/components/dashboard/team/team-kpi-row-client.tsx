@@ -11,6 +11,8 @@ export interface TeamKpiData {
   adminCount: number
   memberCount: number
   teamPace: number
+  periodLabel?: string
+  periodDescription?: string
 }
 
 export function TeamKpiRowClient({ data }: { data: TeamKpiData }) {
@@ -98,7 +100,7 @@ export function TeamKpiRowClient({ data }: { data: TeamKpiData }) {
               <Zap className="h-3.5 w-3.5 text-sky-500" /> Team Pace
             </span>
             <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-sky-600 uppercase dark:text-sky-400 tabular-nums">
-              Monthly
+              {data.periodLabel || "Monthly"}
             </span>
           </div>
         }
@@ -109,7 +111,7 @@ export function TeamKpiRowClient({ data }: { data: TeamKpiData }) {
             {data.teamPace} Actions
           </div>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Total team operations this month
+            Total team operations {data.periodDescription || "in this period"}
           </p>
         </div>
       </ConcentricCard>

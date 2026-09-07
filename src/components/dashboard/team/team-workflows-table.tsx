@@ -33,7 +33,7 @@ export async function TeamWorkflowsTable() {
       name: p.name,
       description: p.description,
       status: (p.status as "active" | "completed" | "archived") || "active",
-      activityCount: p.activityLogs.length || Math.floor(Math.random() * 12) + 4,
+      activityCount: p.activityLogs.length,
       approvedDeliverables,
       totalDeliverables: p.deliverables.length,
       updatedAt: p.updatedAt.toISOString(),

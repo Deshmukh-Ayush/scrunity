@@ -8,7 +8,7 @@ import { subDays } from "date-fns"
 import { TeamKpiRowClient, TeamKpiData } from "./team-kpi-row-client"
 import { BILLING_CONFIG, type PlanTier } from "@/config/billing"
 
-export async function TeamKpiRow() {
+export async function TeamKpiRow({ range = "30d" }: { range?: string }) {
   const reqHeaders = await headers()
   const ctx = await getTenantContext(reqHeaders)
 
@@ -18,7 +18,28 @@ export async function TeamKpiRow() {
 
   const today = new Date()
   const sevenDaysAgo = subDays(today, 6)
-  const thirtyDaysAgo = subDays(today, 29)
+
+  let rangeStartDate: Date
+  let periodLabel = "Monthly"
+  let periodDescription = "this month"
+
+  if (range === "7d") {
+    rangeStartDate = subDays(today, 6)
+    periodLabel = "7-Day"
+    periodDescription = "in the last 7 days"
+  } else if (range === "90d") {
+    rangeStartDate = subDays(today, 89)
+    periodLabel = "Quarterly"
+    periodDescription = "in the last 90 days"
+  } else if (range === "all") {
+    rangeStartDate = new Date(0)
+    periodLabel = "All Time"
+    periodDescription = "all time"
+  } else {
+    rangeStartDate = subDays(today, 29)
+    periodLabel = "Monthly"
+    periodDescription = "this month"
+  }
 
   // Concurrent queries for org plan, members, and workspace projects (cached across siblings)
   const [org, orgMembers, orgProjects] = await Promise.all([
@@ -30,7 +51,7 @@ export async function TeamKpiRow() {
   const projectIds = orgProjects.map((p) => p.id)
 
   // Query activity logs concurrently if projects exist
-  const [recentActivities, monthlyActivities] = projectIds.length > 0
+  const [recentActivities, rangeActivities] = projectIds.length > 0
     ? await Promise.all([
         db
           .select({ userId: activityLog.userId })
@@ -39,7 +60,7 @@ export async function TeamKpiRow() {
         db
           .select({ id: activityLog.id })
           .from(activityLog)
-          .where(and(inArray(activityLog.projectId, projectIds), gte(activityLog.createdAt, thirtyDaysAgo))),
+          .where(and(inArray(activityLog.projectId, projectIds), gte(activityLog.createdAt, rangeStartDate))),
       ])
     : [[], []]
 
@@ -72,7 +93,9 @@ export async function TeamKpiRow() {
     ownerCount,
     adminCount: 0,
     memberCount,
-    teamPace: monthlyActivities.length,
+    teamPace: rangeActivities.length,
+    periodLabel,
+    periodDescription,
   }
 
   return <TeamKpiRowClient data={kpiData} />
