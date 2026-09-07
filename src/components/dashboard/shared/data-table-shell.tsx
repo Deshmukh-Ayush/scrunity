@@ -21,11 +21,11 @@ export function DataTableShell({
   return (
     <div
       className={cn(
-        "flex flex-col rounded-md border border-border/40 bg-neutral-100 p-1 shadow-xs dark:bg-neutral-900",
+        "flex flex-col rounded-xl border border-border/40 bg-neutral-100 p-1 shadow-xs dark:bg-neutral-900 transition-shadow",
         className
       )}
     >
-      <div className="overflow-hidden rounded-md bg-white dark:bg-neutral-950">
+      <div className="overflow-hidden rounded-lg bg-white dark:bg-neutral-950">
         {title ? (
           <div className="px-5 py-4 border-b border-border/40 flex items-center justify-between">
             <div>
