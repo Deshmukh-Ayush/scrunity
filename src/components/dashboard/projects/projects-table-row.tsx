@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight } from "lucide-react"
+import { ArrowRightIcon } from "@phosphor-icons/react"
 import { format } from "date-fns"
 import { ProjectTableItem } from "./projects-table-types"
 import { ProjectsStatusBadge } from "./projects-status-badge"
@@ -26,7 +26,7 @@ export function ProjectsTableRow({ project }: ProjectsTableRowProps) {
             {project.name}
           </Link>
           {project.description ? (
-            <span className="text-xs text-muted-foreground truncate max-w-xs">
+            <span className="text-xs text-muted-foreground truncate max-w-xs mt-0.5">
               {project.description}
             </span>
           ) : null}
@@ -35,7 +35,7 @@ export function ProjectsTableRow({ project }: ProjectsTableRowProps) {
 
       {/* Status Badge */}
       <td className="px-4 py-3.5 whitespace-nowrap">
-        <ProjectsStatusBadge status={project.status} />
+        <ProjectsStatusBadge status={project.status} healthStatus={project.healthStatus} />
       </td>
 
       {/* Financial Value */}
@@ -65,10 +65,10 @@ export function ProjectsTableRow({ project }: ProjectsTableRowProps) {
       <td className="px-4 py-3.5 text-right whitespace-nowrap">
         <Link
           href={`/projects/${project.id}`}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:text-brand-hover transition-colors active:scale-[0.96] origin-center"
+          className="group/btn inline-flex items-center gap-1.5 text-xs font-semibold text-brand hover:text-brand-hover transition-[color,transform] active:scale-[0.96] origin-center"
         >
           <span>Open project</span>
-          <ArrowRight className="h-3.5 w-3.5" />
+          <ArrowRightIcon className="h-3.5 w-3.5 transition-transform duration-150 group-hover/btn:translate-x-0.5" />
         </Link>
       </td>
     </tr>

@@ -18,4 +18,5 @@ export interface ProjectTableItem {
     total: number
     approved: number
   }
+  healthStatus?: "on_track" | "action_required" | "blocked" | "completed"
 }
