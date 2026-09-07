@@ -7,7 +7,7 @@ import { getCachedOrgProjects } from "@/utils/cached-org-queries"
 import { ClientsTableClient, ClientTableItem } from "./clients-table-client"
 import { convertAndAggregate, getUsdToInrRate } from "@/lib/currency"
 
-export async function ClientsTable() {
+export async function ClientsTable({ status = "all" }: { status?: string }) {
   const reqHeaders = await headers()
   const ctx = await getTenantContext(reqHeaders)
 
@@ -115,5 +115,10 @@ export async function ClientsTable() {
 
   const clientsData = Array.from(clientMap.values())
 
-  return <ClientsTableClient clients={clientsData} />
+  return (
+    <ClientsTableClient
+      clients={clientsData}
+      initialStatus={status as "all" | "active" | "invited"}
+    />
+  )
 }

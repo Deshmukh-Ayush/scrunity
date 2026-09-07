@@ -11,13 +11,24 @@ export type { ClientTableItem }
 
 interface ClientsTableClientProps {
   clients: ClientTableItem[]
+  initialStatus?: "all" | "active" | "invited"
 }
 
 const TABLE_HEADERS = ["Client", "Status", "Projects", "Total Value", "Joined / Invited", "Action"]
 
-export function ClientsTableClient({ clients }: ClientsTableClientProps) {
+export function ClientsTableClient({ clients, initialStatus = "all" }: ClientsTableClientProps) {
   const [searchQuery, setSearchQuery] = React.useState("")
-  const [statusFilter, setStatusFilter] = React.useState<"all" | "active" | "invited">("all")
+  const [statusFilter, setStatusFilter] = React.useState<"all" | "active" | "invited">(
+    initialStatus === "active" || initialStatus === "invited" ? initialStatus : "all"
+  )
+
+  React.useEffect(() => {
+    if (initialStatus === "active" || initialStatus === "invited") {
+      setStatusFilter(initialStatus)
+    } else {
+      setStatusFilter("all")
+    }
+  }, [initialStatus])
 
   const filteredClients = React.useMemo(() => {
     return clients.filter((c) => {
@@ -51,14 +62,14 @@ export function ClientsTableClient({ clients }: ClientsTableClientProps) {
 
       {/* Table Shell */}
       {clients.length === 0 ? (
-        <div className="rounded-md border border-border/40 bg-neutral-100 p-1 shadow-xs dark:bg-neutral-900">
-          <div className="rounded-md bg-white dark:bg-neutral-950">
+        <div className="rounded-xl border border-border/40 bg-neutral-100 p-1 shadow-xs dark:bg-neutral-900 transition-shadow">
+          <div className="rounded-lg bg-white dark:bg-neutral-950">
             <WorkspaceClientEmptyState />
           </div>
         </div>
       ) : filteredClients.length === 0 ? (
-        <div className="rounded-md border border-border/40 bg-neutral-100 p-1 shadow-xs dark:bg-neutral-900">
-          <div className="rounded-md bg-white dark:bg-neutral-950">
+        <div className="rounded-xl border border-border/40 bg-neutral-100 p-1 shadow-xs dark:bg-neutral-900 transition-shadow">
+          <div className="rounded-lg bg-white dark:bg-neutral-950">
             <FilterClientEmptyState
               searchQuery={searchQuery}
               onClear={() => {
