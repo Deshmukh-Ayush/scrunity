@@ -1,19 +1,27 @@
 "use client"
 
-import { FolderKanban } from "lucide-react"
+import { FolderDashedIcon, FunnelXIcon } from "@phosphor-icons/react"
+import { motion, useReducedMotion } from "framer-motion"
 import { CreateProjectDialog } from "@/components/create-project-dialog"
 
 export function WorkspaceEmptyState() {
+  const reduceMotion = useReducedMotion()
+
   return (
     <div className="flex flex-col items-center justify-center p-12 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand/10 text-brand mb-4">
-        <FolderKanban className="h-6 w-6" />
-      </div>
-      <h3 className="text-base font-semibold text-foreground">No projects yet</h3>
+      <motion.div
+        initial={reduceMotion ? { opacity: 1 } : { scale: 0.92, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        className="flex h-12 w-12 items-center justify-center rounded-full bg-brand/10 text-brand mb-3.5"
+      >
+        <FolderDashedIcon className="h-6 w-6" />
+      </motion.div>
+      <h3 className="text-sm font-semibold text-foreground">No projects yet</h3>
       <p className="mt-1 text-xs text-muted-foreground max-w-sm">
-        Projects keep your contracts, deliverables, and client collaboration organized in one place.
+        Projects organize your client contracts, deliverables, and payments in one workspace.
       </p>
-      <div className="mt-5">
+      <div className="mt-4">
         <CreateProjectDialog />
       </div>
     </div>
@@ -28,16 +36,22 @@ interface FilterEmptyStateProps {
 export function FilterEmptyState({ searchQuery, onClear }: FilterEmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center p-12 text-center">
-      <h3 className="text-sm font-medium text-foreground">No matching projects</h3>
-      <p className="mt-1 text-xs text-muted-foreground">
-        No projects match &quot;{searchQuery}&quot;. Try clearing your search or filter.
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground mb-3">
+        <FunnelXIcon className="h-5 w-5" />
+      </div>
+      <h3 className="text-sm font-semibold text-foreground">No matching projects</h3>
+      <p className="mt-1 text-xs text-muted-foreground max-w-sm">
+        {searchQuery
+          ? `No projects match "${searchQuery}". Try adjusting your keywords or clearing the filter.`
+          : "No projects match the selected filter. Try switching back to all projects."}
       </p>
       <button
         onClick={onClear}
-        className="mt-4 text-xs font-semibold text-brand hover:text-brand-hover hover:underline active:scale-[0.96] transition-transform"
+        className="mt-4 inline-flex items-center justify-center h-8 px-3.5 rounded-full border border-border/60 bg-background text-xs font-semibold text-foreground hover:bg-neutral-100 dark:hover:bg-neutral-900 active:scale-[0.96] transition-[background-color,color,border-color,box-shadow,transform] duration-150 shadow-xs"
       >
         Clear filters
       </button>
     </div>
   )
 }
+

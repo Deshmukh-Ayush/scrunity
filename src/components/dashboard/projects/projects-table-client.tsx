@@ -11,59 +11,50 @@ export type { ProjectTableItem }
 
 interface ProjectsTableClientProps {
   projects: ProjectTableItem[]
+  totalWorkspaceCount?: number
 }
 
 const TABLE_HEADERS = ["Project", "Status", "Contract Value", "Deliverables", "Team", "Updated", "Action"]
 
-export function ProjectsTableClient({ projects }: ProjectsTableClientProps) {
+export function ProjectsTableClient({
+  projects,
+  totalWorkspaceCount = projects.length,
+}: ProjectsTableClientProps) {
   const [searchQuery, setSearchQuery] = React.useState("")
-  const [statusFilter, setStatusFilter] = React.useState<"all" | "active" | "completed">("all")
 
   const filteredProjects = React.useMemo(() => {
+    if (!searchQuery.trim()) return projects
+    const q = searchQuery.toLowerCase()
     return projects.filter((p) => {
-      const matchesSearch =
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase()))
-
-      const matchesStatus =
-        statusFilter === "all" ? true : p.status === statusFilter
-
-      return matchesSearch && matchesStatus
+      const nameMatch = p.name.toLowerCase().includes(q)
+      const descMatch = p.description ? p.description.toLowerCase().includes(q) : false
+      return nameMatch || descMatch
     })
-  }, [projects, searchQuery, statusFilter])
-
-  const activeCount = projects.filter((p) => p.status === "active").length
-  const completedCount = projects.filter((p) => p.status === "completed").length
+  }, [projects, searchQuery])
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Search & Status Filter Controls */}
-      <ProjectsSearchFilters
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        totalCount={projects.length}
-        activeCount={activeCount}
-        completedCount={completedCount}
-      />
+    <div className="flex flex-col gap-3.5">
+      {/* Search & Status & Sort Command Toolbar */}
+      {totalWorkspaceCount > 0 && (
+        <ProjectsSearchFilters
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+        />
+      )}
 
       {/* Table Container */}
-      {projects.length === 0 ? (
-        <div className="rounded-md border border-border/40 bg-neutral-100 p-1 shadow-xs dark:bg-neutral-900">
-          <div className="rounded-md bg-white dark:bg-neutral-950">
+      {totalWorkspaceCount === 0 ? (
+        <div className="rounded-xl border border-border/40 bg-neutral-100 p-1 shadow-xs dark:bg-neutral-900 transition-shadow">
+          <div className="rounded-lg bg-white dark:bg-neutral-950">
             <WorkspaceEmptyState />
           </div>
         </div>
       ) : filteredProjects.length === 0 ? (
-        <div className="rounded-md border border-border/40 bg-neutral-100 p-1 shadow-xs dark:bg-neutral-900">
-          <div className="rounded-md bg-white dark:bg-neutral-950">
+        <div className="rounded-xl border border-border/40 bg-neutral-100 p-1 shadow-xs dark:bg-neutral-900 transition-shadow">
+          <div className="rounded-lg bg-white dark:bg-neutral-950">
             <FilterEmptyState
               searchQuery={searchQuery}
-              onClear={() => {
-                setSearchQuery("")
-                setStatusFilter("all")
-              }}
+              onClear={() => setSearchQuery("")}
             />
           </div>
         </div>
