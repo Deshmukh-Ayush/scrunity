@@ -23,7 +23,7 @@ export function DeliverableProgressBar({ approved, total, className }: Deliverab
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full rounded-full bg-brand transition-all duration-300"
+          className="h-full rounded-full bg-brand transition-[width] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]"
           style={{ width: `${progressPct}%` }}
         />
       </div>
