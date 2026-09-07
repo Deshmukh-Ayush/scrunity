@@ -17,6 +17,7 @@ interface ClientsHeroChartUIProps {
   totalProposalsSent: number
   totalClientsClosed: number
   avgConversionRate: number
+  periodLabel?: string
 }
 
 export function ClientsHeroChartUI({
@@ -24,6 +25,7 @@ export function ClientsHeroChartUI({
   totalProposalsSent,
   totalClientsClosed,
   avgConversionRate,
+  periodLabel = "6 Months",
 }: ClientsHeroChartUIProps) {
   const chartConfig = {
     proposalsSent: {
@@ -40,7 +42,7 @@ export function ClientsHeroChartUI({
     <ConcentricCard
       headerExtra={
         <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          <UsersThree className="h-4 w-4 text-sky-500" /> Client Acquisition Velocity (6 Months)
+          <UsersThree className="h-4 w-4 text-sky-500" /> Client Acquisition Velocity ({periodLabel})
         </span>
       }
     >

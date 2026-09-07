@@ -16,7 +16,7 @@ const DynamicClientsHeroChartUI = dynamic(
   }
 )
 
-export async function ClientsHeroChart() {
+export async function ClientsHeroChart({ range = "6m" }: { range?: string }) {
   const reqHeaders = await headers()
   const ctx = await getTenantContext(reqHeaders)
 
@@ -25,15 +25,29 @@ export async function ClientsHeroChart() {
   }
 
   const today = new Date()
-  const sixMonthsAgo = startOfMonth(subMonths(today, 5))
+
+  let monthCount = 6
+  let periodLabel = "Last 6 Months"
+
+  if (range === "90d") {
+    monthCount = 3
+    periodLabel = "Last 90 Days"
+  } else if (range === "1y") {
+    monthCount = 12
+    periodLabel = "Last 1 Year"
+  } else if (range === "all") {
+    monthCount = 12
+    periodLabel = "All Time"
+  }
+
+  const startDate = startOfMonth(subMonths(today, monthCount - 1))
 
   const orgProjects = await getCachedOrgProjects(ctx.organizationId)
-
   const projectIds = orgProjects.map((p) => p.id)
 
   if (projectIds.length === 0) {
-    const emptyChart: MonthlyClientConversionPoint[] = Array.from({ length: 6 }, (_, i) => ({
-      month: format(subMonths(today, 5 - i), "MMM yyyy"),
+    const emptyChart: MonthlyClientConversionPoint[] = Array.from({ length: monthCount }, (_, i) => ({
+      month: format(subMonths(today, monthCount - 1 - i), "MMM yyyy"),
       proposalsSent: 0,
       clientsClosed: 0,
     }))
@@ -43,6 +57,7 @@ export async function ClientsHeroChart() {
         totalProposalsSent={0}
         totalClientsClosed={0}
         avgConversionRate={0}
+        periodLabel={periodLabel}
       />
     )
   }
@@ -54,17 +69,17 @@ export async function ClientsHeroChart() {
         createdAt: proposal.createdAt,
       })
       .from(proposal)
-      .where(and(inArray(proposal.projectId, projectIds), gte(proposal.createdAt, sixMonthsAgo))),
+      .where(and(inArray(proposal.projectId, projectIds), gte(proposal.createdAt, startDate))),
     db
       .select({
         status: contract.status,
         createdAt: contract.createdAt,
       })
       .from(contract)
-      .where(and(inArray(contract.projectId, projectIds), gte(contract.createdAt, sixMonthsAgo))),
+      .where(and(inArray(contract.projectId, projectIds), gte(contract.createdAt, startDate))),
   ])
 
-  const months = Array.from({ length: 6 }, (_, i) => subMonths(today, 5 - i))
+  const months = Array.from({ length: monthCount }, (_, i) => subMonths(today, monthCount - 1 - i))
 
   let totalProposalsSent = 0
   let totalClientsClosed = 0
@@ -109,6 +124,7 @@ export async function ClientsHeroChart() {
       totalProposalsSent={totalProposalsSent}
       totalClientsClosed={totalClientsClosed}
       avgConversionRate={avgConversionRate}
+      periodLabel={periodLabel}
     />
   )
 }
