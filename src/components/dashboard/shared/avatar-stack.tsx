@@ -20,7 +20,7 @@ export function AvatarStack({ members, max = 3 }: AvatarStackProps) {
       {members.slice(0, max).map((m) => (
         <div
           key={m.id}
-          className="relative h-6 w-6 rounded-full border-2 border-background bg-muted overflow-hidden shrink-0"
+          className="relative h-6 w-6 rounded-full border-2 border-background ring-1 ring-black/[0.08] dark:ring-white/[0.12] bg-muted overflow-hidden shrink-0"
           title={m.name || m.email}
         >
           {m.image ? (
@@ -33,7 +33,7 @@ export function AvatarStack({ members, max = 3 }: AvatarStackProps) {
         </div>
       ))}
       {members.length > max && (
-        <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-muted text-[9px] font-medium text-muted-foreground shrink-0">
+        <div className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-background ring-1 ring-black/[0.08] dark:ring-white/[0.12] bg-muted text-[9px] font-medium text-muted-foreground shrink-0 tabular-nums">
           +{members.length - max}
         </div>
       )}
