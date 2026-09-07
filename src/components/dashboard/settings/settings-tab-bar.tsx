@@ -1,6 +1,6 @@
 "use client"
 
-import { User, Users, Palette, CreditCard, Bell } from "lucide-react"
+import { UserIcon, UsersIcon, PaintBrushIcon, CreditCardIcon, BellIcon } from "@phosphor-icons/react"
 import { SlidingPillTabs } from "@/components/dashboard/shared/sliding-pill-tabs"
 
 export type SettingsTab = "general" | "team" | "branding" | "billing" | "notifications"
@@ -11,11 +11,11 @@ interface SettingsTabBarProps {
 }
 
 const tabs: { id: SettingsTab; label: string; icon: React.ElementType }[] = [
-  { id: "general", label: "General", icon: User },
-  { id: "team", label: "Team", icon: Users },
-  { id: "branding", label: "Branding", icon: Palette },
-  { id: "billing", label: "Billing", icon: CreditCard },
-  { id: "notifications", label: "Notifications", icon: Bell },
+  { id: "general", label: "General", icon: UserIcon },
+  { id: "team", label: "Team", icon: UsersIcon },
+  { id: "branding", label: "Branding", icon: PaintBrushIcon },
+  { id: "billing", label: "Billing", icon: CreditCardIcon },
+  { id: "notifications", label: "Notifications", icon: BellIcon },
 ]
 
 export function SettingsTabBar({ activeTab, setActiveTab }: SettingsTabBarProps) {

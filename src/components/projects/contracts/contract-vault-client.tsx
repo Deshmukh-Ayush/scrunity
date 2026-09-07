@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import axios from "axios";
 import { useRouter } from "next/navigation";
 import { SignatureModal } from "./signature-modal";
-import { ContractStatusChart } from "./contract-status-chart";
+import { ContractStatusCard } from "./contract-status-card";
 import { ContractVaultHeader } from "./contract-vault-header";
 import { ContractVaultItem } from "./contract-vault-item";
 import { ContractVaultPreviewModal } from "./contract-vault-preview-modal";
@@ -180,8 +180,16 @@ export function ContractVaultClient({
         extractedCount={contracts.length > 0 ? contracts.length * 3 : null}
       />
 
-      {/* EvilCharts Contract Legal Vault Radial Chart */}
-      <ContractStatusChart contracts={contracts} />
+      {/* Executive Legal Status & Audit Trail Card */}
+      <ContractStatusCard
+        contracts={contracts}
+        currentUserId={currentUserId}
+        onSignContract={(contractId) => {
+          setSigningContractId(contractId);
+          setIsSignatureModalOpen(true);
+        }}
+        onPreviewContract={(contract) => setActivePreviewContract(contract)}
+      />
 
       {/* Contract Agreements List Section */}
       <section aria-label="Project Agreements Vault" className="space-y-3">

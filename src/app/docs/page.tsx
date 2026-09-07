@@ -286,9 +286,9 @@ export default async function DocsPage() {
               ['Payments', 'EChartsRadialChart', 'src/components/projects/payments/payments-radial-chart.tsx', '4 Radial Gauges: Collected, Due, Overdue, Upcoming'],
               ['Proposals', 'ProposalDonutChart', 'src/components/projects/proposal/proposal-donut-chart.tsx', 'Sales Pipeline Donut: Accepted, Sent, Draft, Declined'],
               ['Deliverables', 'EChartsAreaChart', 'src/components/projects/deliverables/deliverables-velocity-chart.tsx', 'Static Area Velocity Trend: Approved vs Total Tasks'],
-              ['Contracts', 'ContractStatusChart', 'src/components/projects/contracts/contract-status-chart.tsx', '3 Radial Gauges: Fully Signed, Pending, Draft Agreements'],
+              ['Contracts', 'ContractStatusCard', 'src/components/projects/contracts/contract-status-card.tsx', 'Executive Legal Status & Cryptographic Audit Trail Card'],
               ['Activity Log', 'EChartsBarChart', 'src/components/projects/activity/activity-bar-chart.tsx', 'Monospace 14-Day Audit Bar Chart with Peak Day indicator'],
-              ['Project Files', 'FilesStorageChart', 'src/components/projects/files/files-storage-chart.tsx', 'Storage Vault Breakdown: PDFs, Images, Code Archives'],
+              ['Project Files', 'FilesMetricStrip & Filters', 'src/components/projects/files/files-vault-client.tsx', 'Header Storage Metric Strip + Category Filter Toolbar'],
               ['Project Overview', 'ProjectOverviewMomentumChart', 'src/components/projects/overview/project-overview-momentum-chart.tsx', '14-Day Activity Velocity Trend Area Chart'],
             ]}
           />
