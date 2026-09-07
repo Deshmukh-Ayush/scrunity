@@ -25,15 +25,15 @@ export function ConcentricCard({
   return (
     <div
       className={cn(
-        "flex flex-col rounded-md border border-border/40 bg-neutral-100 p-1 shadow-xs dark:bg-neutral-900",
+        "flex flex-col rounded-xl border border-border/40 bg-neutral-100 p-1 shadow-xs dark:bg-neutral-900 transition-[box-shadow,border-color] duration-200",
         className
       )}
     >
       {label || badge || headerExtra ? (
-        <div className="flex items-center justify-between py-0.5 px-1">
+        <div className="flex items-center justify-between py-1 px-1.5">
           {label ? (
-            <span className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground uppercase tracking-wide">
-              {Icon && <Icon className="h-4 w-4 text-brand" />}
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              {Icon && <Icon className="h-3.5 w-3.5 text-brand" />}
               {label}
             </span>
           ) : null}
@@ -43,7 +43,7 @@ export function ConcentricCard({
       ) : null}
       <div
         className={cn(
-          "rounded-md bg-white p-5 dark:bg-neutral-950 flex flex-col gap-4 h-full justify-between",
+          "rounded-lg bg-white p-4 sm:p-5 dark:bg-neutral-950 flex flex-col gap-4 h-full justify-between",
           innerClassName
         )}
       >
