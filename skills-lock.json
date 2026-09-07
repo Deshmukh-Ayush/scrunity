@@ -151,6 +151,12 @@
       "skillPath": "skills/review-animations/SKILL.md",
       "computedHash": "6f8d633d7884c1390eff7af4bfaf7a450e798f117e1d49a555e00819dc877f64"
     },
+    "ui-ux-pro-max": {
+      "source": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/ui-ux-pro-max/SKILL.md",
+      "computedHash": "3f1e66e08e3d1d3feaf2a3187705022812e0bece8ff5bee80fe7cf782f26fe8b"
+    },
     "userinterface-wiki": {
       "source": "raphaelsalaja/userinterface-wiki",
       "sourceType": "github",
