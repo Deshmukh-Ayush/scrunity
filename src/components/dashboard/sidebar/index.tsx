@@ -19,6 +19,7 @@ import {
   Gear, 
   CreditCard 
 } from "@phosphor-icons/react"
+import { Target } from "lucide-react"
 
 type OrgLike = {
   plan?: string | null
@@ -35,6 +36,7 @@ const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)"
 
 const dashboardNavItems = [
   { name: "Overview", href: "/dashboard", icon: House },
+  { name: "Campaigns", href: "/dashboard/campaigns", icon: Target },
   { name: "Settings", href: "/dashboard/settings", icon: Gear },
   { name: "Billing", href: "/dashboard/billing", icon: CreditCard },
 ]

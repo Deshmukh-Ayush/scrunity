@@ -5,23 +5,45 @@ import { cn } from "cn"
 
 function TooltipProvider({
   delay = 0,
+  delayDuration,
   ...props
-}: TooltipPrimitive.Provider.Props) {
+}: TooltipPrimitive.Provider.Props & { delayDuration?: number }) {
   return (
     <TooltipPrimitive.Provider
       data-slot="tooltip-provider"
-      delay={delay}
+      delay={delayDuration ?? delay}
       {...props}
     />
   )
 }
 
-function Tooltip({ ...props }: TooltipPrimitive.Root.Props) {
-  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />
+function Tooltip({
+  delayDuration: _delayDuration,
+  ...props
+}: TooltipPrimitive.Root.Props & { delayDuration?: number }) {
+  return (
+    <TooltipPrimitive.Root
+      data-slot="tooltip"
+      {...props}
+    />
+  )
 }
 
-function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+function TooltipTrigger({
+  asChild,
+  render,
+  children,
+  ...props
+}: TooltipPrimitive.Trigger.Props & { asChild?: boolean }) {
+  return (
+    <TooltipPrimitive.Trigger
+      data-slot="tooltip-trigger"
+      render={asChild ? (children as any) : render}
+      {...props}
+    >
+      {asChild ? undefined : children}
+    </TooltipPrimitive.Trigger>
+  )
 }
 
 function TooltipContent({

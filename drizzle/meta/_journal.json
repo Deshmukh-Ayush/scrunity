@@ -57,6 +57,13 @@
       "when": 1791188666057,
       "tag": "0007_flowery_loners",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791222499479,
+      "tag": "0008_yielding_christian_walker",
+      "breakpoints": true
     }
   ]
 }
