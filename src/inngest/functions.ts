@@ -1,4 +1,5 @@
-import { inngest, researchRunChannel, outreachCampaignChannel } from "./client";
+import { inngest, researchRunChannel, outreachCampaignChannel, type GtmEvents } from "./client";
+import type { GetStepTools } from "inngest";
 import { db } from "@/utils/db";
 import {
   gtmResearchRun,
@@ -30,9 +31,21 @@ import {
   generateEmailGuesses,
   extractEmailsFromText,
 } from "@/lib/dns-lookup";
+import {
+  TeamCandidate,
+  parseTeamFromMarkdown,
+  parseCandidatesFromSnippets,
+  selectMatchingDecisionMaker,
+} from "@/lib/gtm-contact-matcher";
+
+type InngestStep = GetStepTools<typeof inngest>;
+type RealtimePublishArgs = Parameters<typeof inngest.realtime.publish>;
 
 // Helper to safely publish realtime events (gracefully ignores errors in local dev without Inngest Cloud)
-async function safeRealtimePublish(topicRef: any, data: any) {
+async function safeRealtimePublish(
+  topicRef: RealtimePublishArgs[0],
+  data: RealtimePublishArgs[1]
+) {
   try {
     if (process.env.INNGEST_SIGNING_KEY) {
       await inngest.realtime.publish(topicRef, data);
@@ -51,7 +64,13 @@ export const gtmResearchPipeline = inngest.createFunction(
     name: "GTM Research Pipeline (Stages 1-3)",
     triggers: [{ event: "gtm/research.requested" }],
   },
-  async ({ event, step }: { event: { data: { researchRunId: string } }; step: any }) => {
+  async ({
+    event,
+    step,
+  }: {
+    event: GtmEvents["gtm/research.requested"];
+    step: InngestStep;
+  }) => {
     const { researchRunId } = event.data;
 
     // -------------------------------------------------------------
@@ -316,7 +335,13 @@ export const gtmCampaignPipeline = inngest.createFunction(
     name: "GTM Campaign Pipeline (Stages 4-6)",
     triggers: [{ event: "gtm/campaign.find_companies" }],
   },
-  async ({ event, step }: { event: { data: { outreachCampaignId: string } }; step: any }) => {
+  async ({
+    event,
+    step,
+  }: {
+    event: GtmEvents["gtm/campaign.find_companies"];
+    step: InngestStep;
+  }) => {
     const { outreachCampaignId } = event.data;
 
     // Load campaign, segment, and research run
@@ -503,66 +528,69 @@ export const gtmCampaignPipeline = inngest.createFunction(
           .replace(/\s+(Inc|LLC|PLLC|Services|Platform|Practice)$/i, "")
           .trim();
 
-        // 1. Search site's own team/about page (high fidelity for small/mid practices & startups)
+        const candidates: TeamCandidate[] = [];
+
+        // 1. Search site's own team/about page
         try {
           const teamQ = `site:${comp.domain} "team" OR "leadership" OR "founder" OR "clinical" OR "director"`;
           const teamResults = await searchFirecrawl(teamQ, 2);
-          for (const tr of teamResults) {
-            const snippet = tr.description || "";
-            const nameRegexes = [
-              /(Dr\.?\s*[A-Z][a-z]+\s+[A-Z][a-z]+)/,
-              /([A-Z][a-z]+\s+[A-Z][a-z]+)(?:,\s*(?:LPC|MD|DO|NP|PA|PhD|FNP))/,
-              /(?:·|•|\b)([A-Z][a-z]+\s+[A-Z][a-z]+)\.?\s*(?:Professional Counselor|Clinical Director|Co-Founder|Founder|Director|CEO|CTO|COO)/,
-            ];
-            for (const rx of nameRegexes) {
-              const match = snippet.match(rx);
-              if (match && match[1]) {
-                personName = match[1].trim();
-                if (snippet.includes("Co-Founder")) personTitle = "Co-Founder";
-                else if (snippet.includes("Founder")) personTitle = "Founder";
-                else if (snippet.includes("Clinical Director")) personTitle = "Clinical Director";
-                else if (snippet.includes("Director of Operations")) personTitle = "Director of Operations";
-                else if (snippet.includes("Counselor")) personTitle = "Licensed Counselor";
-                break;
+
+          // Check if any result URL looks like a team or about page
+          const teamResult = teamResults.find((r) =>
+            /(team|about|leadership|providers|staff|people)/i.test(r.url)
+          );
+          if (teamResult) {
+            try {
+              let targetUrl = teamResult.url;
+              try {
+                const parsed = new URL(teamResult.url);
+                const segments = parsed.pathname.split("/").filter(Boolean);
+                if (segments.length >= 2 && /(our-team|team|about|leadership|staff|providers)/i.test(segments[0])) {
+                  targetUrl = `${parsed.origin}/${segments[0]}/`;
+                }
+              } catch {
+                // keep targetUrl
               }
+              const scraped = await scrapeUrl(targetUrl);
+              if (scraped.markdown) {
+                const parsedMembers = parseTeamFromMarkdown(scraped.markdown);
+                candidates.push(...parsedMembers);
+              }
+            } catch {
+              // ignore
             }
-            if (personName) break;
           }
+
+          // Also parse candidates from search snippets
+          candidates.push(...parseCandidatesFromSnippets(teamResults, "site_search_snippet"));
         } catch {
           // ignore
         }
 
-        // 2. If no name found on site, search LinkedIn snippet
-        if (!personName) {
-          try {
-            const searchQ = `"${cleanCompanyName || comp.domain}" ${targetRole.searchKeyword} site:linkedin.com/in`;
-            const liPeople = await searchFirecrawl(searchQ, 2);
-            if (liPeople.length > 0) {
-              const item = liPeople[0];
-              linkedinUrl = item.url;
-              const parsedName = item.title.split(/[-–|:]/)[0].trim();
-              if (
-                parsedName &&
-                parsedName.length > 2 &&
-                parsedName.length < 40 &&
-                !parsedName.toLowerCase().includes("telehealth")
-              ) {
-                personName = parsedName;
-              }
-              const titleParts = item.title.split(/[-–|]/);
-              if (titleParts.length > 1) {
-                personTitle = titleParts[1].replace(/at .*$/i, "").trim() || personTitle;
-              }
-            }
-          } catch {
-            // ignore
-          }
+        // 2. Search LinkedIn snippet
+        try {
+          const searchQ = `"${cleanCompanyName || comp.domain}" ${targetRole.searchKeyword} site:linkedin.com/in`;
+          const liPeople = await searchFirecrawl(searchQ, 2);
+          candidates.push(...parseCandidatesFromSnippets(liPeople, "linkedin_snippet"));
+        } catch {
+          // ignore
         }
 
-        // 3. If no verified individual human was found in public snippets,
-        // use an honest role-targeted title rather than fabricating a fake human name
-        if (!personName) {
+        // 3. Explicit Title-Matching:
+        // Score each candidate against targetRole.jobFunctions.
+        // ONLY select a person whose listed title closely matches the target role (score >= 70).
+        // Never take the first person found or select an arbitrary name based on position.
+        const bestMatch = selectMatchingDecisionMaker(candidates, targetRole.jobFunctions);
+
+        if (bestMatch) {
+          personName = bestMatch.candidate.name;
+          personTitle = bestMatch.candidate.title;
+          linkedinUrl = bestMatch.candidate.url || null;
+        } else {
+          // If no listed person matches the target role, address the role directly
+          // rather than picking an unrelated person from the page.
           personName = `${targetRole.jobFunctions[0]}`;
+          personTitle = targetRole.jobFunctions[0];
         }
 
         // Email-finding chain:
@@ -671,7 +699,7 @@ export const gtmCampaignPipeline = inngest.createFunction(
       );
 
       const usableContacts = stage5Result.contacts.filter(
-        (c: any) => c.emailSource !== "none" && c.email !== null
+        (c) => c.emailSource !== "none" && c.email !== null
       );
 
       const draftsToInsert: Array<{

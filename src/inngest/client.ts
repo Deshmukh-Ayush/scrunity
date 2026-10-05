@@ -28,7 +28,7 @@ export const stageStartedPayload = z.object({
 export const stageCompletedPayload = z.object({
   stage: z.string(),
   summary: z.string().optional(),
-  metadata: z.record(z.string(), z.any()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const stageFailedPayload = z.object({
