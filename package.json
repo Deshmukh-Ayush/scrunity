@@ -88,6 +88,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@inngest/test": "^1.0.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
