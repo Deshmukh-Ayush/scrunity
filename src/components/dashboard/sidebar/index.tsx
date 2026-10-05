@@ -1,4 +1,3 @@
-// components/dashboard/sidebar.tsx
 "use client"
 
 import * as React from "react"
