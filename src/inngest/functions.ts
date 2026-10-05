@@ -493,30 +493,76 @@ export const gtmCampaignPipeline = inngest.createFunction(
       }> = [];
 
       for (const comp of stage4Result.companies) {
-        // Search LinkedIn snippet for decision-maker
-        const searchQ = `"${comp.name}" ${targetRole.searchKeyword} site:linkedin.com/in`;
-        const liPeople = await searchFirecrawl(searchQ, 2);
-
         let personName = "";
         let personTitle = targetRole.jobFunctions[0] || "Leader";
         let linkedinUrl: string | null = null;
 
-        if (liPeople.length > 0) {
-          const item = liPeople[0];
-          linkedinUrl = item.url;
-          // Example title: "Alex Rivera - VP of Growth at Acme | LinkedIn"
-          const parsedName = item.title.split(/[-–|:]/)[0].trim();
-          if (parsedName && parsedName.length > 2 && parsedName.length < 40) {
-            personName = parsedName;
+        // Clean company name: remove common slogan/SEO suffixes
+        const cleanCompanyName = comp.name
+          .replace(/\s*[-–|:].*$/, "")
+          .replace(/\s+(Inc|LLC|PLLC|Services|Platform|Practice)$/i, "")
+          .trim();
+
+        // 1. Search site's own team/about page (high fidelity for small/mid practices & startups)
+        try {
+          const teamQ = `site:${comp.domain} "team" OR "leadership" OR "founder" OR "clinical" OR "director"`;
+          const teamResults = await searchFirecrawl(teamQ, 2);
+          for (const tr of teamResults) {
+            const snippet = tr.description || "";
+            const nameRegexes = [
+              /(Dr\.?\s*[A-Z][a-z]+\s+[A-Z][a-z]+)/,
+              /([A-Z][a-z]+\s+[A-Z][a-z]+)(?:,\s*(?:LPC|MD|DO|NP|PA|PhD|FNP))/,
+              /(?:·|•|\b)([A-Z][a-z]+\s+[A-Z][a-z]+)\.?\s*(?:Professional Counselor|Clinical Director|Co-Founder|Founder|Director|CEO|CTO|COO)/,
+            ];
+            for (const rx of nameRegexes) {
+              const match = snippet.match(rx);
+              if (match && match[1]) {
+                personName = match[1].trim();
+                if (snippet.includes("Co-Founder")) personTitle = "Co-Founder";
+                else if (snippet.includes("Founder")) personTitle = "Founder";
+                else if (snippet.includes("Clinical Director")) personTitle = "Clinical Director";
+                else if (snippet.includes("Director of Operations")) personTitle = "Director of Operations";
+                else if (snippet.includes("Counselor")) personTitle = "Licensed Counselor";
+                break;
+              }
+            }
+            if (personName) break;
           }
-          const titleParts = item.title.split(/[-–|]/);
-          if (titleParts.length > 1) {
-            personTitle = titleParts[1].replace(/at .*$/i, "").trim() || personTitle;
+        } catch {
+          // ignore
+        }
+
+        // 2. If no name found on site, search LinkedIn snippet
+        if (!personName) {
+          try {
+            const searchQ = `"${cleanCompanyName || comp.domain}" ${targetRole.searchKeyword} site:linkedin.com/in`;
+            const liPeople = await searchFirecrawl(searchQ, 2);
+            if (liPeople.length > 0) {
+              const item = liPeople[0];
+              linkedinUrl = item.url;
+              const parsedName = item.title.split(/[-–|:]/)[0].trim();
+              if (
+                parsedName &&
+                parsedName.length > 2 &&
+                parsedName.length < 40 &&
+                !parsedName.toLowerCase().includes("telehealth")
+              ) {
+                personName = parsedName;
+              }
+              const titleParts = item.title.split(/[-–|]/);
+              if (titleParts.length > 1) {
+                personTitle = titleParts[1].replace(/at .*$/i, "").trim() || personTitle;
+              }
+            }
+          } catch {
+            // ignore
           }
         }
 
+        // 3. If no verified individual human was found in public snippets,
+        // use an honest role-targeted title rather than fabricating a fake human name
         if (!personName) {
-          personName = `${targetRole.jobFunctions[0]} Team Lead`;
+          personName = `${targetRole.jobFunctions[0]}`;
         }
 
         // Email-finding chain:
