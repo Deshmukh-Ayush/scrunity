@@ -7,7 +7,32 @@ export type GtmEvents = {
       researchRunId: string;
     };
   };
+  "gtm/research.explore_competitors": {
+    data: {
+      researchRunId: string;
+    };
+  };
+  "gtm/research.define_segments": {
+    data: {
+      researchRunId: string;
+    };
+  };
   "gtm/campaign.find_companies": {
+    data: {
+      outreachCampaignId: string;
+    };
+  };
+  "gtm/campaign.find_contacts": {
+    data: {
+      outreachCampaignId: string;
+    };
+  };
+  "gtm/campaign.write_emails": {
+    data: {
+      outreachCampaignId: string;
+    };
+  };
+  "gtm/campaign.send_emails": {
     data: {
       outreachCampaignId: string;
     };
