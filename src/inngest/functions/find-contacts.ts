@@ -1,0 +1,282 @@
+import { inngest, outreachCampaignChannel, type GtmEvents } from "../client";
+import { db } from "@/utils/db";
+import {
+  gtmOutreachCampaign,
+  gtmIcpSegment,
+  gtmProspectCompany,
+  gtmContact,
+} from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { scrapeUrl, searchFirecrawl } from "@/lib/firecrawl";
+import { deriveTargetJobFunction } from "@/lib/gtm-ai";
+import {
+  checkDomainMxRecords,
+  generateEmailGuesses,
+  extractEmailsFromText,
+} from "@/lib/dns-lookup";
+import {
+  TeamCandidate,
+  parseTeamFromMarkdown,
+  parseCandidatesFromSnippets,
+  selectMatchingDecisionMaker,
+} from "@/lib/gtm-contact-matcher";
+import { safeRealtimePublish, type InngestStep } from "./shared";
+
+export interface ContactData {
+  id: string;
+  name: string;
+  title: string;
+  email: string | null;
+  emailSource: string;
+  companyId: string;
+  companyName: string;
+  companyDescription: string;
+}
+
+export interface FindContactsResult {
+  contacts: ContactData[];
+}
+
+/**
+ * Stage 5 Execution Logic: Find Contacts & Decision-Makers
+ */
+export async function executeFindContacts(
+  outreachCampaignId: string
+): Promise<FindContactsResult> {
+  const [context] = await db
+    .select({
+      campaign: gtmOutreachCampaign,
+      segment: gtmIcpSegment,
+    })
+    .from(gtmOutreachCampaign)
+    .innerJoin(
+      gtmIcpSegment,
+      eq(gtmOutreachCampaign.icpSegmentId, gtmIcpSegment.id)
+    )
+    .where(eq(gtmOutreachCampaign.id, outreachCampaignId));
+
+  if (!context) {
+    throw new Error(`Outreach campaign ${outreachCampaignId} not found`);
+  }
+
+  const { segment } = context;
+
+  await safeRealtimePublish(
+    outreachCampaignChannel(outreachCampaignId).started,
+    {
+      stage: "find_contacts",
+      message: "Searching decision-makers and verifying email patterns...",
+    }
+  );
+
+  const targetRole = await deriveTargetJobFunction({
+    segmentName: segment.name,
+    painPoint: segment.painPoint,
+    criteria: segment.criteria,
+  });
+
+  const companies = await db
+    .select()
+    .from(gtmProspectCompany)
+    .where(eq(gtmProspectCompany.outreachCampaignId, outreachCampaignId));
+
+  const insertedContacts: ContactData[] = [];
+
+  for (const comp of companies) {
+    let personName = "";
+    let personTitle = targetRole.jobFunctions[0] || "Leader";
+    let linkedinUrl: string | null = null;
+
+    const cleanCompanyName = comp.name
+      .replace(/\s*[-–|:].*$/, "")
+      .replace(/\s+(Inc|LLC|PLLC|Services|Platform|Practice)$/i, "")
+      .trim();
+
+    const candidates: TeamCandidate[] = [];
+
+    // 1. Search site's own team/about page
+    try {
+      const teamQ = `site:${comp.domain} "team" OR "leadership" OR "founder" OR "clinical" OR "director"`;
+      const teamResults = await searchFirecrawl(teamQ, 2);
+
+      const teamResult = teamResults.find((r) =>
+        /(team|about|leadership|providers|staff|people)/i.test(r.url)
+      );
+      if (teamResult) {
+        try {
+          let targetUrl = teamResult.url;
+          try {
+            const parsed = new URL(teamResult.url);
+            const segments = parsed.pathname.split("/").filter(Boolean);
+            if (
+              segments.length >= 2 &&
+              /(our-team|team|about|leadership|staff|providers)/i.test(segments[0])
+            ) {
+              targetUrl = `${parsed.origin}/${segments[0]}/`;
+            }
+          } catch {
+            // keep targetUrl
+          }
+          const scraped = await scrapeUrl(targetUrl);
+          if (scraped.markdown) {
+            const parsedMembers = parseTeamFromMarkdown(scraped.markdown);
+            candidates.push(...parsedMembers);
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      candidates.push(
+        ...parseCandidatesFromSnippets(teamResults, "site_search_snippet")
+      );
+    } catch {
+      // ignore
+    }
+
+    // 2. Search LinkedIn snippet
+    try {
+      const searchQ = `"${cleanCompanyName || comp.domain}" ${targetRole.searchKeyword} site:linkedin.com/in`;
+      const liPeople = await searchFirecrawl(searchQ, 2);
+      candidates.push(
+        ...parseCandidatesFromSnippets(liPeople, "linkedin_snippet")
+      );
+    } catch {
+      // ignore
+    }
+
+    const bestMatch = selectMatchingDecisionMaker(
+      candidates,
+      targetRole.jobFunctions
+    );
+
+    if (bestMatch) {
+      personName = bestMatch.candidate.name;
+      personTitle = bestMatch.candidate.title;
+      linkedinUrl = bestMatch.candidate.url || null;
+    } else {
+      personName = `${targetRole.jobFunctions[0]}`;
+      personTitle = targetRole.jobFunctions[0];
+    }
+
+    // Email-finding chain:
+    let resolvedEmail: string | null = null;
+    let emailSource:
+      | "found_on_site"
+      | "pattern_guessed_mx_valid"
+      | "pattern_guessed_unverified"
+      | "company_fallback"
+      | "none" = "none";
+
+    // Step a: Scrape Contact / About page
+    try {
+      const siteScrape = await scrapeUrl(`https://${comp.domain}`);
+      const extracted = extractEmailsFromText(
+        siteScrape.markdown || "",
+        comp.domain
+      );
+      if (extracted.length > 0) {
+        const firstName = personName.split(" ")[0].toLowerCase();
+        const matching = extracted.find((e) => e.includes(firstName));
+        if (matching) {
+          resolvedEmail = matching;
+          emailSource = "found_on_site";
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // Step b: Pattern guess + MX verification
+    if (!resolvedEmail && personName.includes(" ")) {
+      const guesses = generateEmailGuesses(personName, comp.domain);
+      if (guesses.length > 0) {
+        const hasMx = await checkDomainMxRecords(comp.domain);
+        resolvedEmail = guesses[0];
+        emailSource = hasMx
+          ? "pattern_guessed_mx_valid"
+          : "pattern_guessed_unverified";
+      }
+    }
+
+    // Step c: Company-level fallback (info@/hello@/contact@)
+    if (!resolvedEmail) {
+      const hasMx = await checkDomainMxRecords(comp.domain);
+      if (hasMx) {
+        resolvedEmail = `contact@${comp.domain}`;
+        emailSource = "company_fallback";
+      }
+    }
+
+    const [contact] = await db
+      .insert(gtmContact)
+      .values({
+        prospectCompanyId: comp.id,
+        name: personName,
+        title: personTitle,
+        linkedinUrl,
+        email: resolvedEmail,
+        emailSource,
+        geo: "United States",
+      })
+      .returning();
+
+    insertedContacts.push({
+      id: contact.id,
+      name: contact.name,
+      title: contact.title,
+      email: contact.email,
+      emailSource: contact.emailSource,
+      companyId: comp.id,
+      companyName: comp.name,
+      companyDescription: comp.description,
+    });
+  }
+
+  await db
+    .update(gtmOutreachCampaign)
+    .set({ currentStage: "write_emails" })
+    .where(eq(gtmOutreachCampaign.id, outreachCampaignId));
+
+  await safeRealtimePublish(
+    outreachCampaignChannel(outreachCampaignId).completed,
+    {
+      stage: "find_contacts",
+      summary: `Identified ${insertedContacts.length} contacts and completed MX validations.`,
+    }
+  );
+
+  return { contacts: insertedContacts };
+}
+
+/**
+ * Inngest Function: Stage 5 - Find Contacts
+ */
+export const findContactsFunction = inngest.createFunction(
+  {
+    id: "gtm-stage-5-find-contacts",
+    name: "GTM Stage 5: Find Decision-Makers",
+    triggers: [{ event: "gtm/campaign.find_contacts" }],
+  },
+  async ({
+    event,
+    step,
+  }: {
+    event: GtmEvents["gtm/campaign.find_contacts"];
+    step: InngestStep;
+  }) => {
+    const { outreachCampaignId } = event.data;
+
+    const result = await step.run("stage-5-find-decision-makers", async () => {
+      return await executeFindContacts(outreachCampaignId);
+    });
+
+    // Automatically trigger Stage 6: Write Emails
+    await step.sendEvent("trigger-stage-6-write-emails", {
+      name: "gtm/campaign.write_emails",
+      data: { outreachCampaignId },
+    });
+
+    return result;
+  }
+);
