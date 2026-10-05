@@ -22,28 +22,28 @@ function safeImageUrl(value: string | null | undefined): string | null {
   }
 }
 
-export async function sendProjectInvitationEmail(
+export async function sendOrgInvitationEmail(
   email: string,
-  projectName: string,
+  orgName: string,
   inviteLink: string,
   orgPlan: "free" | "freelancer" | "agency" | "enterprise" | undefined = "free",
   orgLogo?: string | null
 ) {
   try {
-    const safeProjectName = escapeHtml(projectName);
+    const safeOrgName = escapeHtml(orgName);
     const safeInviteLink = escapeHtml(inviteLink);
     const safeLogoUrl = safeImageUrl(orgLogo);
     const { data, error } = await resend.emails.send({
       from: process.env.EMAIL_FROM || "Scrunity <noreply@scrunity.com>",
       replyTo: "support@scrunity.com",
       to: email,
-      subject: `You have been invited to join ${projectName}`,
+      subject: `You have been invited to join ${orgName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           ${orgPlan !== "free" && safeLogoUrl ? `<img src="${escapeHtml(safeLogoUrl)}" alt="Logo" style="max-height: 40px; margin-bottom: 20px;" />` : ''}
-          <h2 style="margin-top: 0;">Project Invitation</h2>
-          <p>You have been invited to join the project <strong>${safeProjectName}</strong>.</p>
-          <p>Click the link below to accept the invitation and access the project:</p>
+          <h2 style="margin-top: 0;">Workspace Invitation</h2>
+          <p>You have been invited to join <strong>${safeOrgName}</strong>.</p>
+          <p>Click the link below to accept the invitation and access the workspace:</p>
           <a href="${safeInviteLink}" style="display: inline-block; padding: 12px 24px; background-color: #111111; color: #fff; text-decoration: none; border-radius: 6px; margin-top: 20px; font-weight: bold;">
             Accept Invitation
           </a>
@@ -71,187 +71,5 @@ export async function sendProjectInvitationEmail(
   }
 }
 
-export async function sendActivityNotificationEmail(
-  email: string,
-  projectName: string,
-  activityMessage: string,
-  projectId: string,
-  orgPlan: "free" | "freelancer" | "agency" | "enterprise" | undefined = "free",
-  orgLogo?: string | null
-) {
-  const primaryColor = "#111111";
-  const showBranding = orgPlan !== "free" && orgLogo;
-  
-  const baseUrl = process.env.BETTER_AUTH_URL 
-    || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"));
-
-  const safeProjectName = escapeHtml(projectName);
-  const safeActivityMessage = escapeHtml(activityMessage);
-  const safeLogoUrl = safeImageUrl(orgLogo);
-  const safeBaseUrl = escapeHtml(baseUrl);
-  const html = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <body style="margin: 0; padding: 40px 20px; background-color: #FAFAFA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #111111;">
-      <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 520px; margin: 0 auto;">
-        <tr>
-          <td style="background-color: #FFFFFF; border: 1px solid #EAEAEA; border-radius: 12px; padding: 40px; box-shadow: 0px 4px 24px rgba(0, 0, 0, 0.02);">
-             ${showBranding && safeLogoUrl ? `<img src="${escapeHtml(safeLogoUrl)}" alt="Logo" style="height: 32px; max-width: 140px; object-fit: contain; margin-bottom: 32px; display: block;" />` : `<div style="font-size: 16px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 32px; color: #111111;">Scrunity</div>`}
-            
-            <h2 style="margin: 0 0 16px 0; font-size: 20px; font-weight: 600; letter-spacing: -0.02em; color: #111111; line-height: 1.3;">
-               New update in ${safeProjectName}
-            </h2>
-            
-            <p style="margin: 0 0 32px 0; font-size: 15px; line-height: 1.6; color: #555555;">
-               ${safeActivityMessage}
-            </p>
-            
-             <a href="${safeBaseUrl}/projects/${encodeURIComponent(projectId)}" style="display: inline-block; padding: 12px 24px; background-color: ${primaryColor}; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 500; letter-spacing: -0.01em;">
-              View Project
-            </a>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding-top: 24px; text-align: center;">
-            <p style="margin: 0; font-size: 12px; color: #999999; line-height: 1.5;">
-               You received this email because you're a member of ${safeProjectName}.
-            </p>
-            ${orgPlan === "free" ? `
-              <p style="margin: 8px 0 0 0; font-size: 12px; color: #999999;">
-                 Powered by <a href="${safeBaseUrl}" style="color: #666666; text-decoration: none; font-weight: 500;">Scrunity</a>
-              </p>
-            ` : ""}
-          </td>
-        </tr>
-      </table>
-    </body>
-    </html>
-  `;
-
-  try {
-    const { data, error } = await resend.emails.send({
-      from: process.env.EMAIL_FROM || "Scrunity <noreply@scrunity.com>",
-      replyTo: "support@scrunity.com",
-      to: email,
-      subject: `Update on ${projectName}`,
-      html,
-    });
-
-    if (error) {
-      console.error("Resend API Error:", error);
-      return { success: false, error };
-    }
-
-    return { success: true, data };
-  } catch (error) {
-    console.error("Email sending error:", error);
-    return { success: false, error };
-  }
-}
-
-export async function sendInvoiceEmail(
-  email: string,
-  projectName: string,
-  invoiceNumber: string,
-  amountInUnits: number,
-  currency: string,
-  dueDate: Date,
-  invoiceUrl: string,
-  orgPlan: "free" | "freelancer" | "agency" | "enterprise" | undefined = "free",
-  orgLogo?: string | null
-) {
-  const primaryColor = "#111111";
-  const showBranding = orgPlan !== "free" && orgLogo;
-  
-  const baseUrl = process.env.BETTER_AUTH_URL 
-    || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000"));
-
-  const safeProjectName = escapeHtml(projectName);
-  const safeInvoiceNumber = escapeHtml(invoiceNumber);
-  const safeLogoUrl = safeImageUrl(orgLogo);
-  const safeBaseUrl = escapeHtml(baseUrl);
-  const safeInvoiceUrl = escapeHtml(invoiceUrl);
-
-  const mainUnits = amountInUnits / 100;
-  const formattedAmount = currency === "USD"
-    ? `$${mainUnits.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-    : `₹${mainUnits.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
-
-  const formattedDueDate = new Date(dueDate).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-
-  const html = `
-    <!DOCTYPE html>
-    <html lang="en">
-    <body style="margin: 0; padding: 40px 20px; background-color: #FAFAFA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #111111;">
-      <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 520px; margin: 0 auto;">
-        <tr>
-          <td style="background-color: #FFFFFF; border: 1px solid #EAEAEA; border-radius: 12px; padding: 40px; box-shadow: 0px 4px 24px rgba(0, 0, 0, 0.02);">
-            ${showBranding && safeLogoUrl ? `<img src="${escapeHtml(safeLogoUrl)}" alt="Logo" style="height: 32px; max-width: 140px; object-fit: contain; margin-bottom: 32px; display: block;" />` : `<div style="font-size: 16px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 32px; color: #111111;">Scrunity</div>`}
-            
-            <h2 style="margin: 0 0 8px 0; font-size: 20px; font-weight: 600; letter-spacing: -0.02em; color: #111111; line-height: 1.3;">
-              Invoice ${safeInvoiceNumber}
-            </h2>
-            <p style="margin: 0 0 24px 0; font-size: 14px; color: #666666;">
-              From ${safeProjectName}
-            </p>
-
-            <div style="background-color: #F8F9FA; border-radius: 8px; padding: 20px; margin-bottom: 28px; border: 1px solid #EEEEEE;">
-              <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                <tr>
-                  <td style="font-size: 13px; color: #666666; padding-bottom: 8px;">Amount Due:</td>
-                  <td style="font-size: 18px; font-weight: 700; color: #111111; text-align: right; padding-bottom: 8px;">${formattedAmount}</td>
-                </tr>
-                <tr>
-                  <td style="font-size: 13px; color: #666666;">Due Date:</td>
-                  <td style="font-size: 13px; font-weight: 500; color: #111111; text-align: right;">${formattedDueDate}</td>
-                </tr>
-              </table>
-            </div>
-            
-            <a href="${safeInvoiceUrl}" style="display: inline-block; padding: 12px 24px; background-color: ${primaryColor}; color: #FFFFFF; text-decoration: none; border-radius: 8px; font-size: 14px; font-weight: 500; letter-spacing: -0.01em;">
-              Review & Pay Invoice
-            </a>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding-top: 24px; text-align: center;">
-            <p style="margin: 0; font-size: 12px; color: #999999; line-height: 1.5;">
-              You received this invoice because you're a client on ${safeProjectName}.
-            </p>
-            ${orgPlan === "free" ? `
-              <p style="margin: 8px 0 0 0; font-size: 12px; color: #999999;">
-                Powered by <a href="${safeBaseUrl}" style="color: #666666; text-decoration: none; font-weight: 500;">Scrunity</a>
-              </p>
-            ` : ""}
-          </td>
-        </tr>
-      </table>
-    </body>
-    </html>
-  `;
-
-  try {
-    const { data, error } = await resend.emails.send({
-      from: process.env.EMAIL_FROM || "Scrunity <noreply@scrunity.com>",
-      replyTo: "support@scrunity.com",
-      to: email,
-      subject: `Invoice ${invoiceNumber} for ${projectName} (${formattedAmount})`,
-      html,
-    });
-
-    if (error) {
-      console.error("Resend Invoice API Error:", error);
-      return { success: false, error };
-    }
-
-    return { success: true, data };
-  } catch (error) {
-    console.error("Invoice email sending error:", error);
-    return { success: false, error };
-  }
-}
-
+// Alias for backwards compatibility
+export const sendProjectInvitationEmail = sendOrgInvitationEmail;

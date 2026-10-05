@@ -74,8 +74,6 @@ export async function PATCH(req: NextRequest) {
 
         revalidatePath("/dashboard/settings");
         revalidatePath("/dashboard");
-        revalidatePath("/dashboard/analytics");
-        revalidatePath("/projects/[projectId]", "layout");
 
         return NextResponse.json({ success: true });
       }
@@ -120,8 +118,6 @@ export async function PATCH(req: NextRequest) {
 
       revalidatePath("/dashboard/settings");
       revalidatePath("/dashboard");
-      revalidatePath("/dashboard/analytics");
-      revalidatePath("/projects/[projectId]", "layout");
 
       return NextResponse.json({ success: true });
     }

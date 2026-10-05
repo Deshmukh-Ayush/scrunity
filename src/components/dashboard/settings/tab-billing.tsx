@@ -1,7 +1,6 @@
 "use client"
 
 import { BillingPlans } from "@/components/dashboard/billing-plans"
-import { CreditUsageCard } from "@/components/dashboard/billing/credit-usage-card"
 
 interface TabBillingProps {
   orgId: string
@@ -19,8 +18,6 @@ export function TabBilling({ orgId, currentPlan }: TabBillingProps) {
           Manage your workspace subscription tier, plan features, and billing limits.
         </p>
       </div>
-
-      <CreditUsageCard orgId={orgId} />
 
       <BillingPlans orgId={orgId} currentPlan={currentPlan} />
     </div>

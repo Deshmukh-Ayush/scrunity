@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { List, ArrowUpRight } from "@phosphor-icons/react"
+import { List } from "@phosphor-icons/react"
 import Link from "next/link"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { CollapseToggle } from "@/components/sidebar/collapse-toggle"
@@ -108,16 +108,6 @@ export function DashboardTopbar({
         </div>
 
         <div className="hidden flex-1 md:flex" />
-
-        {hasClientProjects && firstClientProjectId && (
-          <Link
-            href={`/projects/${firstClientProjectId}`}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs font-semibold text-foreground shadow-xs transition-transform hover:bg-muted active:scale-[0.96]"
-          >
-            <span>Switch to client view</span>
-            <ArrowUpRight className="h-3.5 w-3.5 text-brand" />
-          </Link>
-        )}
       </header>
     </>
   )

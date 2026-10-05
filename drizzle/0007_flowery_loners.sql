@@ -1,0 +1,25 @@
+DROP TABLE "activity_log" CASCADE;--> statement-breakpoint
+DROP TABLE "comment" CASCADE;--> statement-breakpoint
+DROP TABLE "contract" CASCADE;--> statement-breakpoint
+DROP TABLE "contract_scope_term" CASCADE;--> statement-breakpoint
+DROP TABLE "deliverable" CASCADE;--> statement-breakpoint
+DROP TABLE "files" CASCADE;--> statement-breakpoint
+DROP TABLE "invoice" CASCADE;--> statement-breakpoint
+DROP TABLE "invoice_defaults" CASCADE;--> statement-breakpoint
+DROP TABLE "invoice_line_item" CASCADE;--> statement-breakpoint
+DROP TABLE "notification" CASCADE;--> statement-breakpoint
+DROP TABLE "organization_credit_period" CASCADE;--> statement-breakpoint
+DROP TABLE "payment" CASCADE;--> statement-breakpoint
+DROP TABLE "payment_milestone" CASCADE;--> statement-breakpoint
+DROP TABLE "payment_proof" CASCADE;--> statement-breakpoint
+DROP TABLE "project" CASCADE;--> statement-breakpoint
+DROP TABLE "project_invitation" CASCADE;--> statement-breakpoint
+DROP TABLE "project_member" CASCADE;--> statement-breakpoint
+DROP TABLE "proposal" CASCADE;--> statement-breakpoint
+DROP TABLE "proposal_line_items" CASCADE;--> statement-breakpoint
+DROP TABLE "signature" CASCADE;--> statement-breakpoint
+DROP TABLE "team" CASCADE;--> statement-breakpoint
+DROP TABLE "team_member" CASCADE;--> statement-breakpoint
+DROP TABLE "torch_conversation" CASCADE;--> statement-breakpoint
+DROP TABLE "torch_message" CASCADE;--> statement-breakpoint
+DROP TABLE "usage_event" CASCADE;

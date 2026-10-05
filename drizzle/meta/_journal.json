@@ -50,6 +50,13 @@
       "when": 1788516656078,
       "tag": "0006_mute_mordo",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791188666057,
+      "tag": "0007_flowery_loners",
+      "breakpoints": true
     }
   ]
 }

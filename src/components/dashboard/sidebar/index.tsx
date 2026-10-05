@@ -17,13 +17,8 @@ import {
 import { 
   CaretUpDownIcon, 
   House, 
-  Folder, 
-  ChartLineUp, 
-  Users, 
-  UserList,
-  Sparkle,
-  Gear,
-  CreditCard
+  Gear, 
+  CreditCard 
 } from "@phosphor-icons/react"
 
 type OrgLike = {
@@ -41,11 +36,6 @@ const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)"
 
 const dashboardNavItems = [
   { name: "Overview", href: "/dashboard", icon: House },
-  { name: "Projects", href: "/dashboard/projects", icon: Folder },
-  { name: "Analytics", href: "/dashboard/analytics", icon: ChartLineUp },
-  { name: "Clients", href: "/dashboard/clients", icon: Users },
-  { name: "Team", href: "/dashboard/team", icon: UserList },
-  { name: "Scrunity AI", href: "/dashboard/ai", icon: Sparkle },
   { name: "Settings", href: "/dashboard/settings", icon: Gear },
   { name: "Billing", href: "/dashboard/billing", icon: CreditCard },
 ]
