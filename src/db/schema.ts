@@ -310,7 +310,9 @@ export const gtmOutreachCampaign = pgTable(
         "find_contacts",
         "write_emails",
         "awaiting_approval",
+        "send_emails",
         "done_for_now",
+        "done",
       ],
     })
       .default("find_companies")
@@ -407,10 +409,13 @@ export const gtmEmailDraft = pgTable(
     subject: text("subject").notNull(),
     body: text("body").notNull(),
     status: text("status", {
-      enum: ["draft", "approved", "rejected"],
+      enum: ["draft", "approved", "rejected", "sent", "failed"],
     })
       .default("draft")
       .notNull(),
+    providerMessageId: text("provider_message_id"),
+    sentAt: timestamp("sent_at"),
+    errorMessage: text("error_message"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     reviewedBy: text("reviewed_by").references(() => user.id, {
       onDelete: "set null",
@@ -420,6 +425,38 @@ export const gtmEmailDraft = pgTable(
   (table) => [
     index("gtm_email_draft_contact_idx").on(table.contactId),
     index("gtm_email_draft_campaign_idx").on(table.outreachCampaignId),
+  ]
+);
+
+export const gtmConnectedMailbox = pgTable(
+  "gtm_connected_mailbox",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    provider: text("provider").default("gmail").notNull(),
+    email: text("email").notNull(),
+    encryptedRefreshToken: text("encrypted_refresh_token").notNull(),
+    encryptedAccessToken: text("encrypted_access_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at"),
+    status: text("status", {
+      enum: ["connected", "revoked"],
+    })
+      .default("connected")
+      .notNull(),
+    dailySendCount: integer("daily_send_count").default(0).notNull(),
+    lastSendResetDate: text("last_send_reset_date"),
+    connectedBy: text("connected_by")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    connectedAt: timestamp("connected_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("gtm_connected_mailbox_org_idx").on(table.organizationId),
   ]
 );
 
@@ -519,3 +556,18 @@ export const gtmEmailDraftRelations = relations(gtmEmailDraft, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+export const gtmConnectedMailboxRelations = relations(
+  gtmConnectedMailbox,
+  ({ one }) => ({
+    organization: one(organization, {
+      fields: [gtmConnectedMailbox.organizationId],
+      references: [organization.id],
+    }),
+    connectedByUser: one(user, {
+      fields: [gtmConnectedMailbox.connectedBy],
+      references: [user.id],
+    }),
+  })
+);
+
