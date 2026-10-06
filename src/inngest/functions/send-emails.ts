@@ -196,6 +196,7 @@ export async function executeSendEmails({
           .set({
             status: "sent",
             providerMessageId: sendResult.messageId,
+            threadId: sendResult.threadId,
             sentAt: new Date(),
             errorMessage: null,
           })

@@ -16,6 +16,9 @@ export interface SendEmailParams {
   subject: string;
   body: string;
   fromEmail?: string;
+  threadId?: string;
+  inReplyTo?: string;
+  references?: string;
 }
 
 export interface SendEmailResult {
@@ -29,10 +32,11 @@ const GOOGLE_USERINFO_ENDPOINT = "https://www.googleapis.com/oauth2/v2/userinfo"
 const GMAIL_SEND_ENDPOINT = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
 
 export const GMAIL_SEND_SCOPE = "https://www.googleapis.com/auth/gmail.send";
+export const GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
 export const USERINFO_EMAIL_SCOPE = "https://www.googleapis.com/auth/userinfo.email";
 
 /**
- * Builds the Google OAuth consent screen URL requesting least-privilege gmail.send and user email scopes.
+ * Builds the Google OAuth consent screen URL requesting least-privilege gmail.send, gmail.readonly, and user email scopes.
  */
 export function getGoogleOAuthUrl({
   state,
@@ -51,7 +55,7 @@ export function getGoogleOAuthUrl({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: `${GMAIL_SEND_SCOPE} ${USERINFO_EMAIL_SCOPE} openid`,
+    scope: `${GMAIL_SEND_SCOPE} ${GMAIL_READONLY_SCOPE} ${USERINFO_EMAIL_SCOPE} openid`,
     access_type: "offline",
     prompt: "consent",
     state,
@@ -231,6 +235,7 @@ if (!clientId || !clientSecret) {
 
 /**
  * Builds RFC 2822 / MIME email string and sends it via Gmail users.messages.send API.
+ * Supports sending fresh emails or replying to an existing thread.
  */
 export async function sendGmailMessage({
   accessToken,
@@ -238,6 +243,9 @@ export async function sendGmailMessage({
   subject,
   body,
   fromEmail,
+  threadId,
+  inReplyTo,
+  references,
 }: SendEmailParams): Promise<SendEmailResult> {
   const cleanSubject = subject.replace(/[\r\n]+/g, " ");
 
@@ -245,6 +253,8 @@ export async function sendGmailMessage({
     `To: ${to}`,
     fromEmail ? `From: ${fromEmail}` : null,
     `Subject: =?UTF-8?B?${Buffer.from(cleanSubject, "utf-8").toString("base64")}?=`,
+    threadId && inReplyTo ? `In-Reply-To: ${inReplyTo}` : null,
+    threadId && inReplyTo ? `References: ${references || inReplyTo}` : null,
     "MIME-Version: 1.0",
     "Content-Type: text/plain; charset=UTF-8",
     "Content-Transfer-Encoding: 7bit",
@@ -255,15 +265,20 @@ export async function sendGmailMessage({
   const rawMessage = `${headers}\r\n\r\n${body}`;
   const base64UrlMessage = Buffer.from(rawMessage, "utf-8").toString("base64url");
 
+  const payload: Record<string, string> = {
+    raw: base64UrlMessage,
+  };
+  if (threadId) {
+    payload.threadId = threadId;
+  }
+
   const response = await fetch(GMAIL_SEND_ENDPOINT, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      raw: base64UrlMessage,
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
@@ -283,4 +298,141 @@ export async function sendGmailMessage({
     messageId: result.id,
     threadId: result.threadId,
   };
+}
+
+export interface GmailThreadMessage {
+  id: string;
+  threadId: string;
+  snippet?: string;
+  internalDate?: string;
+  payload?: {
+    mimeType?: string;
+    headers?: Array<{ name: string; value: string }>;
+    body?: { data?: string; size?: number };
+    parts?: any[];
+  };
+}
+
+export interface GmailThreadResponse {
+  id: string;
+  historyId?: string;
+  messages: GmailThreadMessage[];
+}
+
+/**
+ * Fetches full Gmail thread via users.threads.get.
+ */
+export async function getGmailThread({
+  accessToken,
+  threadId,
+}: {
+  accessToken: string;
+  threadId: string;
+}): Promise<GmailThreadResponse> {
+  const url = `https://gmail.googleapis.com/gmail/v1/users/me/threads/${threadId}?format=full`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.text();
+    throw new Error(`Gmail API threads.get failed (${res.status}): ${errorBody}`);
+  }
+
+  return (await res.json()) as GmailThreadResponse;
+}
+
+/**
+ * Fetches minimal Gmail message details via users.messages.get.
+ */
+export async function getGmailMessage({
+  accessToken,
+  messageId,
+}: {
+  accessToken: string;
+  messageId: string;
+}): Promise<{ id: string; threadId: string }> {
+  const url = `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=minimal`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.text();
+    throw new Error(`Gmail API messages.get failed (${res.status}): ${errorBody}`);
+  }
+
+  return (await res.json()) as { id: string; threadId: string };
+}
+
+/**
+ * Extracts plain text body from a Gmail message payload.
+ */
+export function extractMessageBody(message: GmailThreadMessage): string {
+  if (!message) return "";
+
+  function decodeBase64Url(data?: string): string {
+    if (!data) return "";
+    try {
+      return Buffer.from(data, "base64url").toString("utf-8");
+    } catch {
+      return "";
+    }
+  }
+
+  // 1. Direct body data
+  if (message.payload?.body?.data) {
+    return decodeBase64Url(message.payload.body.data);
+  }
+
+  // 2. Multi-part payload
+  if (Array.isArray(message.payload?.parts)) {
+    // Find text/plain first
+    for (const part of message.payload.parts) {
+      if (part.mimeType === "text/plain" && part.body?.data) {
+        return decodeBase64Url(part.body.data);
+      }
+    }
+    // Search nested subparts (e.g. multipart/alternative)
+    for (const part of message.payload.parts) {
+      if (Array.isArray(part.parts)) {
+        for (const subPart of part.parts) {
+          if (subPart.mimeType === "text/plain" && subPart.body?.data) {
+            return decodeBase64Url(subPart.body.data);
+          }
+        }
+      }
+    }
+    // Fall back to text/html stripped
+    for (const part of message.payload.parts) {
+      if (part.mimeType === "text/html" && part.body?.data) {
+        const html = decodeBase64Url(part.body.data);
+        return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      }
+    }
+  }
+
+  // 3. Fallback to snippet
+  return message.snippet || "";
+}
+
+/**
+ * Extracts a header value from a Gmail message payload.
+ */
+export function extractMessageHeader(
+  message: GmailThreadMessage,
+  headerName: string
+): string | null {
+  const headers = message?.payload?.headers;
+  if (!Array.isArray(headers)) return null;
+  const target = headers.find(
+    (h) => h?.name?.toLowerCase() === headerName.toLowerCase()
+  );
+  return target?.value || null;
 }
