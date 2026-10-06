@@ -6,6 +6,8 @@ import {
   scrapeUrl,
   searchFirecrawl,
   getFallbackLogoUrl,
+  FirecrawlRateLimitError,
+  type SearchResultItem,
 } from "@/lib/firecrawl";
 import { safeRealtimePublish, type InngestStep } from "./shared";
 
@@ -14,13 +16,15 @@ export interface ResearchCompanyResult {
   companyDescription: string;
   contextDoc: string | null;
   websiteUrl: string;
+  rateLimitSummary?: string;
 }
 
 /**
  * Stage 1 Execution Logic: Research Company
  */
 export async function executeResearchCompany(
-  researchRunId: string
+  researchRunId: string,
+  step?: InngestStep
 ): Promise<ResearchCompanyResult> {
   const [run] = await db
     .select()
@@ -42,16 +46,57 @@ export async function executeResearchCompany(
   });
 
   // 1. Scrape homepage
-  const homepageScrape = await scrapeUrl(run.websiteUrl);
+  let homepageScrape;
+  try {
+    homepageScrape = await scrapeUrl(run.websiteUrl, {
+      step,
+      stepPrefix: "stage1-homepage",
+    });
+  } catch (err) {
+    if (err instanceof FirecrawlRateLimitError) {
+      console.warn(`[Stage 1] Homepage scrape for ${run.websiteUrl} hit Firecrawl rate limits.`);
+      homepageScrape = { url: run.websiteUrl, favicon: getFallbackLogoUrl(run.websiteUrl) };
+    } else {
+      throw err;
+    }
+  }
 
   // 2. Discover social presence
   const cleanName = run.companyName.trim();
-  const [linkedinResults, twitterResults, instagramResults] =
-    await Promise.all([
-      searchFirecrawl(`"${cleanName}" site:linkedin.com/company`, 2),
-      searchFirecrawl(`"${cleanName}" site:x.com OR site:twitter.com`, 2),
-      searchFirecrawl(`"${cleanName}" site:instagram.com`, 2),
-    ]);
+  let linkedinResults: SearchResultItem[] = [];
+  let twitterResults: SearchResultItem[] = [];
+  let instagramResults: SearchResultItem[] = [];
+  let socialRateLimited = false;
+
+  try {
+    linkedinResults = await searchFirecrawl(
+      `"${cleanName}" site:linkedin.com/company`,
+      2,
+      { step, stepPrefix: "stage1-social-li" }
+    );
+  } catch (err) {
+    if (err instanceof FirecrawlRateLimitError) socialRateLimited = true;
+  }
+
+  try {
+    twitterResults = await searchFirecrawl(
+      `"${cleanName}" site:x.com OR site:twitter.com`,
+      2,
+      { step, stepPrefix: "stage1-social-tw" }
+    );
+  } catch (err) {
+    if (err instanceof FirecrawlRateLimitError) socialRateLimited = true;
+  }
+
+  try {
+    instagramResults = await searchFirecrawl(
+      `"${cleanName}" site:instagram.com`,
+      2,
+      { step, stepPrefix: "stage1-social-ig" }
+    );
+  } catch (err) {
+    if (err instanceof FirecrawlRateLimitError) socialRateLimited = true;
+  }
 
   const linkedinUrl =
     linkedinResults.find((r) => r.url.includes("linkedin.com/company/"))?.url || null;
@@ -86,9 +131,13 @@ export async function executeResearchCompany(
     })
     .where(eq(gtmResearchRun.id, researchRunId));
 
+  const summary = socialRateLimited
+    ? `Homepage analyzed. Social search hit Firecrawl rate limits; branding partially discovered.`
+    : `Homepage analyzed. Social presence and branding discovered.`;
+
   await safeRealtimePublish(researchRunChannel(researchRunId).completed, {
     stage: "research_company",
-    summary: `Homepage analyzed. Social presence and branding discovered.`,
+    summary,
   });
 
   return {
@@ -96,6 +145,9 @@ export async function executeResearchCompany(
     companyDescription: run.companyDescription,
     contextDoc: run.contextDoc,
     websiteUrl: run.websiteUrl,
+    rateLimitSummary: socialRateLimited
+      ? "social search hit Firecrawl rate limits"
+      : undefined,
   };
 }
 
@@ -117,9 +169,7 @@ export const researchCompanyFunction = inngest.createFunction(
   }) => {
     const { researchRunId } = event.data;
 
-    const result = await step.run("stage-1-research-company", async () => {
-      return await executeResearchCompany(researchRunId);
-    });
+    const result = await executeResearchCompany(researchRunId, step);
 
     // Automatically trigger Stage 2: Explore Competitors
     await step.sendEvent("trigger-stage-2-explore-competitors", {
