@@ -37,6 +37,11 @@ export type GtmEvents = {
       outreachCampaignId: string;
     };
   };
+  "gtm/mailbox.poll_replies": {
+    data?: {
+      mailboxId?: string;
+    };
+  };
 };
 
 export const inngest = new Inngest({
