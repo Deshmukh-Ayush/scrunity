@@ -90,11 +90,262 @@ export function getFallbackLogoUrl(domain: string): string {
   return `https://www.google.com/s2/favicons?domain=${cleanDomain}&sz=128`;
 }
 
+import type { InngestStep } from "@/inngest/functions/shared";
+
+export interface FirecrawlRetryOptions {
+  step?: InngestStep;
+  stepPrefix?: string;
+  maxRetries?: number;
+  baseDelayMs?: number;
+  maxDelayMs?: number;
+}
+
+export class FirecrawlRateLimitError extends Error {
+  public readonly statusCode = 429;
+  public readonly retryAttempts: number;
+  public readonly lastDelayMs: number;
+  public readonly endpoint: string;
+
+  constructor(endpoint: string, retryAttempts: number, lastDelayMs: number) {
+    super(
+      `Firecrawl rate limit (429) exceeded for ${endpoint} after ${retryAttempts} retries.`
+    );
+    this.name = "FirecrawlRateLimitError";
+    this.endpoint = endpoint;
+    this.retryAttempts = retryAttempts;
+    this.lastDelayMs = lastDelayMs;
+  }
+}
+
+// Test hook for simulating Firecrawl responses in test suites
+type FirecrawlTestInterceptor = (
+  url: string,
+  init: RequestInit
+) => Promise<Response | null>;
+
+let testInterceptor: FirecrawlTestInterceptor | null = null;
+
+export function __setTestFirecrawlInterceptor(
+  interceptor: FirecrawlTestInterceptor | null
+) {
+  testInterceptor = interceptor;
+}
+
+/**
+ * Extracts wait duration from 429 response headers or body with exponential fallback.
+ */
+export function extractRetryDelay(
+  res: Response,
+  bodyText: string,
+  attempt: number,
+  options?: FirecrawlRetryOptions
+): { delayMs: number; source: "header" | "body" | "exponential" } {
+  const maxDelayMs = options?.maxDelayMs ?? 15000;
+  const baseDelayMs = options?.baseDelayMs ?? 1000;
+
+  // 1. Retry-After header (seconds or HTTP date)
+  const retryAfter = res.headers.get("retry-after");
+  if (retryAfter) {
+    const seconds = parseFloat(retryAfter);
+    if (!isNaN(seconds) && seconds > 0) {
+      return {
+        delayMs: Math.min(Math.round(seconds * 1000), maxDelayMs),
+        source: "header",
+      };
+    }
+    const parsedDate = Date.parse(retryAfter);
+    if (!isNaN(parsedDate)) {
+      const diff = parsedDate - Date.now();
+      if (diff > 0) {
+        return {
+          delayMs: Math.min(diff, maxDelayMs),
+          source: "header",
+        };
+      }
+    }
+  }
+
+  // 2. x-ratelimit-reset header
+  const resetHeader = res.headers.get("x-ratelimit-reset");
+  if (resetHeader) {
+    const val = parseFloat(resetHeader);
+    if (!isNaN(val) && val > 0) {
+      if (val > 1_000_000_000_000) {
+        const diff = val - Date.now();
+        if (diff > 0) return { delayMs: Math.min(diff, maxDelayMs), source: "header" };
+      } else if (val > 1_000_000_000) {
+        const diff = val * 1000 - Date.now();
+        if (diff > 0) return { delayMs: Math.min(diff, maxDelayMs), source: "header" };
+      } else {
+        return {
+          delayMs: Math.min(Math.round(val * 1000), maxDelayMs),
+          source: "header",
+        };
+      }
+    }
+  }
+
+  // 3. JSON body retry signals
+  try {
+    const json = JSON.parse(bodyText);
+    if (typeof json.retryAfter === "number" && json.retryAfter > 0) {
+      return {
+        delayMs: Math.min(Math.round(json.retryAfter * 1000), maxDelayMs),
+        source: "body",
+      };
+    }
+    const errorMsg = json.error || json.message;
+    if (typeof errorMsg === "string") {
+      const match = errorMsg.match(
+        /(?:retry after|try again in|wait)\s+(\d+(?:\.\d+)?)\s*(?:s|sec|seconds)?/i
+      );
+      if (match) {
+        const secs = parseFloat(match[1]);
+        if (!isNaN(secs) && secs > 0) {
+          return {
+            delayMs: Math.min(Math.round(secs * 1000), maxDelayMs),
+            source: "body",
+          };
+        }
+      }
+    }
+  } catch {
+    // Non-JSON body
+  }
+
+  // 4. Exponential backoff fallback (1s, 2s, 4s, 8s...) + jitter
+  const expDelay = baseDelayMs * Math.pow(2, attempt);
+  const jitter = Math.floor(Math.random() * 400);
+  const calculated = Math.min(expDelay + jitter, maxDelayMs);
+
+  return { delayMs: calculated, source: "exponential" };
+}
+
+/**
+ * Checkpoints a sleep wait using Inngest step if provided, or setTimeout otherwise.
+ */
+export async function sleepWithStep(
+  waitMs: number,
+  step?: InngestStep,
+  stepId?: string
+): Promise<void> {
+  const waitSeconds = Math.max(1, Math.ceil(waitMs / 1000));
+  const safeStepId = (stepId || `fc-sleep-${Date.now()}`)
+    .replace(/[^a-zA-Z0-9_-]/g, "-")
+    .slice(0, 64);
+
+  if (step && typeof step.sleep === "function") {
+    await step.sleep(safeStepId, `${waitSeconds}s`);
+  } else if (step && typeof step.run === "function") {
+    await step.run(safeStepId, async () => {
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+    });
+  } else {
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+}
+
+/**
+ * Shared fetch helper for Firecrawl API calls with durable 429 retry backoff.
+ */
+export async function firecrawlFetchWithRetry(
+  url: string,
+  payload: any,
+  options?: FirecrawlRetryOptions
+): Promise<Response> {
+  const apiKey = process.env.FIRECRAWL_API_KEY;
+  const maxRetries = options?.maxRetries ?? 3;
+  const step = options?.step;
+  const stepPrefix = options?.stepPrefix || "firecrawl";
+
+  let lastDelayMs = 0;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+    const init: RequestInit = {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    };
+
+    let res: Response;
+    try {
+      if (testInterceptor) {
+        const intercepted = await testInterceptor(url, init);
+        if (intercepted) {
+          res = intercepted;
+        } else {
+          res = await fetch(url, init);
+        }
+      } else {
+        res = await fetch(url, init);
+      }
+    } catch (netErr: any) {
+      clearTimeout(timeoutId);
+      if (attempt < maxRetries) {
+        console.warn(
+          `[Firecrawl] Network error on attempt ${attempt + 1}: ${netErr.message}. Retrying...`
+        );
+        const waitMs = 1000 * Math.pow(2, attempt);
+        await sleepWithStep(
+          waitMs,
+          step,
+          `${stepPrefix}-net-backoff-${attempt}`
+        );
+        continue;
+      }
+      throw netErr;
+    }
+
+    clearTimeout(timeoutId);
+
+    if (res.status === 429) {
+      const bodyClone = await res.clone().text();
+      const { delayMs, source } = extractRetryDelay(
+        res,
+        bodyClone,
+        attempt,
+        options
+      );
+      lastDelayMs = delayMs;
+
+      console.warn(
+        `[Firecrawl 429] Rate limit hit on ${url} (attempt ${attempt + 1}/${maxRetries + 1}). ` +
+          `Backoff wait: ${delayMs}ms (source: ${source}).`
+      );
+
+      if (attempt < maxRetries) {
+        await sleepWithStep(
+          delayMs,
+          step,
+          `${stepPrefix}-429-backoff-${attempt}`
+        );
+        continue;
+      } else {
+        throw new FirecrawlRateLimitError(url, maxRetries, lastDelayMs);
+      }
+    }
+
+    return res;
+  }
+
+  throw new FirecrawlRateLimitError(url, maxRetries, lastDelayMs);
+}
+
 /**
  * Scrapes a single URL via Firecrawl v1 API.
  * Falls back to basic HTML fetch if Firecrawl fails or times out.
  */
-export async function scrapeUrl(url: string): Promise<ScrapeResult> {
+export async function scrapeUrl(
+  url: string,
+  options?: FirecrawlRetryOptions
+): Promise<ScrapeResult> {
   const apiKey = process.env.FIRECRAWL_API_KEY;
   let formattedUrl = url.trim();
   if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
@@ -103,23 +354,14 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
 
   if (apiKey) {
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 18000);
-
-      const res = await fetch("https://api.firecrawl.dev/v1/scrape", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
+      const res = await firecrawlFetchWithRetry(
+        "https://api.firecrawl.dev/v1/scrape",
+        {
           url: formattedUrl,
           formats: ["markdown", "html"],
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
+        },
+        options
+      );
 
       if (res.ok) {
         const json = await res.json();
@@ -150,6 +392,9 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
         };
       }
     } catch (err) {
+      if (err instanceof FirecrawlRateLimitError) {
+        throw err;
+      }
       console.warn(`[Firecrawl scrape] API error for ${formattedUrl}:`, err);
     }
   }
@@ -211,11 +456,12 @@ export async function scrapeUrl(url: string): Promise<ScrapeResult> {
 }
 
 /**
- * Searches the web via Firecrawl v1 API.
+ * Searches the web via Firecrawl v1 API with 429 retry backoff.
  */
 export async function searchFirecrawl(
   query: string,
-  limit: number = 5
+  limit: number = 5,
+  options?: FirecrawlRetryOptions
 ): Promise<SearchResultItem[]> {
   const apiKey = process.env.FIRECRAWL_API_KEY;
   if (!apiKey) {
@@ -224,20 +470,11 @@ export async function searchFirecrawl(
   }
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-    const res = await fetch("https://api.firecrawl.dev/v1/search", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({ query, limit }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
+    const res = await firecrawlFetchWithRetry(
+      "https://api.firecrawl.dev/v1/search",
+      { query, limit },
+      options
+    );
 
     if (res.ok) {
       const json = await res.json();
@@ -262,6 +499,9 @@ export async function searchFirecrawl(
       console.warn(`[Firecrawl Search] HTTP ${res.status}: ${err}`);
     }
   } catch (err) {
+    if (err instanceof FirecrawlRateLimitError) {
+      throw err;
+    }
     console.warn(`[Firecrawl Search] Network error for "${query}":`, err);
   }
 
