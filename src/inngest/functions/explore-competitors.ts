@@ -8,19 +8,23 @@ import {
   extractDomain,
   isAggregatorOrReviewDomain,
   getFallbackLogoUrl,
+  FirecrawlRateLimitError,
+  type SearchResultItem,
 } from "@/lib/firecrawl";
 import { generateCompetitorSearchQueries } from "@/lib/gtm-ai";
 import { safeRealtimePublish, type InngestStep } from "./shared";
 
 export interface ExploreCompetitorsResult {
   competitorCount: number;
+  rateLimitSummary?: string;
 }
 
 /**
  * Stage 2 Execution Logic: Explore Competitors
  */
 export async function executeExploreCompetitors(
-  researchRunId: string
+  researchRunId: string,
+  step?: InngestStep
 ): Promise<ExploreCompetitorsResult> {
   const [run] = await db
     .select()
@@ -43,10 +47,31 @@ export async function executeExploreCompetitors(
     contextDoc: run.contextDoc,
   });
 
-  // 2. Run searches via Firecrawl
-  const searchResults = await Promise.all(
-    queries.map((q) => searchFirecrawl(q, 6))
-  );
+  // 2. Run searches via Firecrawl with retry & backoff
+  const searchResults: SearchResultItem[][] = [];
+  let successfulQueries = 0;
+  let rateLimitedQueries = 0;
+
+  for (let i = 0; i < queries.length; i++) {
+    const q = queries[i];
+    try {
+      const results = await searchFirecrawl(q, 6, {
+        step,
+        stepPrefix: `stage2-comp-q-${i}`,
+      });
+      searchResults.push(results);
+      successfulQueries++;
+    } catch (err) {
+      if (err instanceof FirecrawlRateLimitError) {
+        rateLimitedQueries++;
+        console.warn(
+          `[Stage 2] Competitor query "${q}" hit rate limit after retries. Degrading gracefully.`
+        );
+      } else {
+        throw err;
+      }
+    }
+  }
 
   const ownDomain = extractDomain(run.websiteUrl);
   const candidateDomains = new Map<
@@ -77,7 +102,8 @@ export async function executeExploreCompetitors(
     logoUrl: string;
   }> = [];
 
-  for (const dom of domainList) {
+  for (let dIdx = 0; dIdx < domainList.length; dIdx++) {
+    const dom = domainList[dIdx];
     const item = candidateDomains.get(dom)!;
     let desc = item.description || "";
     let name = item.title.split(/[-–|:]/)[0].trim() || dom;
@@ -87,13 +113,16 @@ export async function executeExploreCompetitors(
 
     if (desc.length < 30) {
       try {
-        const scraped = await scrapeUrl(`https://${dom}`);
+        const scraped = await scrapeUrl(`https://${dom}`, {
+          step,
+          stepPrefix: `stage2-scrape-${dIdx}`,
+        });
         if (scraped.description) desc = scraped.description;
         if (scraped.title && !name) name = scraped.title.split(/[-–|:]/)[0].trim();
         if (scraped.ogImage || scraped.favicon) logo = scraped.ogImage || scraped.favicon!;
         if (scraped.keywords) keywords = scraped.keywords;
       } catch (e) {
-        console.warn(`Competitor scrape skipped for ${dom}`);
+        console.warn(`Competitor scrape skipped for ${dom}:`, (e as Error).message);
       }
     }
 
@@ -116,12 +145,24 @@ export async function executeExploreCompetitors(
     .set({ currentStage: "define_segments" })
     .where(eq(gtmResearchRun.id, researchRunId));
 
+  const rateLimitSummary =
+    rateLimitedQueries > 0
+      ? `competitor search hit rate limits, ${successfulQueries} of ${queries.length} queries completed`
+      : undefined;
+
+  const summary = rateLimitSummary
+    ? `Discovered and analyzed ${competitorsToInsert.length} competitors (${rateLimitSummary}).`
+    : `Discovered and analyzed ${competitorsToInsert.length} competitors.`;
+
   await safeRealtimePublish(researchRunChannel(researchRunId).completed, {
     stage: "research_competitors",
-    summary: `Discovered and analyzed ${competitorsToInsert.length} competitors.`,
+    summary,
   });
 
-  return { competitorCount: competitorsToInsert.length };
+  return {
+    competitorCount: competitorsToInsert.length,
+    rateLimitSummary,
+  };
 }
 
 /**
@@ -142,9 +183,7 @@ export const exploreCompetitorsFunction = inngest.createFunction(
   }) => {
     const { researchRunId } = event.data;
 
-    const result = await step.run("stage-2-explore-competitors", async () => {
-      return await executeExploreCompetitors(researchRunId);
-    });
+    const result = await executeExploreCompetitors(researchRunId, step);
 
     // Automatically trigger Stage 3: Define Segments
     await step.sendEvent("trigger-stage-3-define-segments", {
