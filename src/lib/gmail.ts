@@ -41,16 +41,17 @@ export function getGoogleOAuthUrl({
   state: string;
   redirectUri: string;
 }): string {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientId = process.env.GTM_GMAIL_CLIENT_ID;
+
   if (!clientId) {
-    throw new Error("GOOGLE_CLIENT_ID is not set in environment");
+    throw new Error("GTM_GMAIL_CLIENT_ID is not set in environment");
   }
 
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: `${GMAIL_SEND_SCOPE} ${USERINFO_EMAIL_SCOPE}`,
+    scope: `${GMAIL_SEND_SCOPE} ${USERINFO_EMAIL_SCOPE} openid`,
     access_type: "offline",
     prompt: "consent",
     state,
@@ -58,7 +59,6 @@ export function getGoogleOAuthUrl({
 
   return `${GOOGLE_AUTH_ENDPOINT}?${params.toString()}`;
 }
-
 /**
  * Exchanges authorization code for Google access and refresh tokens.
  */
@@ -69,14 +69,14 @@ export async function exchangeCodeForTokens({
   code: string;
   redirectUri: string;
 }): Promise<GoogleTokens> {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const clientId = process.env.GTM_GMAIL_CLIENT_ID;
+const clientSecret = process.env.GTM_GMAIL_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
-    throw new Error(
-      "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured in environment"
-    );
-  }
+  throw new Error(
+    "GTM_GMAIL_CLIENT_ID and GTM_GMAIL_CLIENT_SECRET must be configured in environment"
+  );
+}
 
   const tokenResponse = await fetch(GOOGLE_TOKEN_ENDPOINT, {
     method: "POST",
@@ -167,12 +167,14 @@ export async function getValidAccessToken(mailboxId: string): Promise<string> {
   }
 
   // Refresh token using Google OAuth token endpoint
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const clientId = process.env.GTM_GMAIL_CLIENT_ID;
+const clientSecret = process.env.GTM_GMAIL_CLIENT_SECRET;
 
-  if (!clientId || !clientSecret) {
-    throw new Error("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured");
-  }
+if (!clientId || !clientSecret) {
+  throw new Error(
+    "GTM_GMAIL_CLIENT_ID and GTM_GMAIL_CLIENT_SECRET must be configured"
+  );
+}
 
   const plainRefreshToken = decryptToken(mailbox.encryptedRefreshToken);
 
