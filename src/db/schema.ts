@@ -414,7 +414,9 @@ export const gtmEmailDraft = pgTable(
       .default("draft")
       .notNull(),
     providerMessageId: text("provider_message_id"),
+    threadId: text("thread_id"),
     sentAt: timestamp("sent_at"),
+    lastPolledAt: timestamp("last_polled_at"),
     errorMessage: text("error_message"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     reviewedBy: text("reviewed_by").references(() => user.id, {
@@ -425,6 +427,7 @@ export const gtmEmailDraft = pgTable(
   (table) => [
     index("gtm_email_draft_contact_idx").on(table.contactId),
     index("gtm_email_draft_campaign_idx").on(table.outreachCampaignId),
+    index("gtm_email_draft_thread_idx").on(table.threadId),
   ]
 );
 
@@ -457,6 +460,61 @@ export const gtmConnectedMailbox = pgTable(
   },
   (table) => [
     index("gtm_connected_mailbox_org_idx").on(table.organizationId),
+  ]
+);
+
+export const gtmEmailEvent = pgTable(
+  "gtm_email_event",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    emailDraftId: text("email_draft_id")
+      .notNull()
+      .references(() => gtmEmailDraft.id, { onDelete: "cascade" }),
+    type: text("type", {
+      enum: ["replied", "bounced", "opened"],
+    }).notNull(),
+    classifiedIntent: text("classified_intent", {
+      enum: ["interested", "not_interested", "question", "auto_reply", "unclear"],
+    }),
+    rawSnippet: text("raw_snippet"),
+    occurredAt: timestamp("occurred_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("gtm_email_event_draft_idx").on(table.emailDraftId),
+    index("gtm_email_event_type_idx").on(table.type),
+  ]
+);
+
+export const gtmMeeting = pgTable(
+  "gtm_meeting",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    contactId: text("contact_id")
+      .notNull()
+      .references(() => gtmContact.id, { onDelete: "cascade" }),
+    outreachCampaignId: text("outreach_campaign_id").references(
+      () => gtmOutreachCampaign.id,
+      { onDelete: "cascade" }
+    ),
+    scheduledAt: timestamp("scheduled_at").notNull(),
+    status: text("status", {
+      enum: ["booked", "cancelled"],
+    })
+      .default("booked")
+      .notNull(),
+    calcomBookingUid: text("calcom_booking_uid"),
+    attendeeEmail: text("attendee_email").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("gtm_meeting_contact_idx").on(table.contactId),
+    index("gtm_meeting_campaign_idx").on(table.outreachCampaignId),
+    index("gtm_meeting_attendee_email_idx").on(table.attendeeEmail),
+    index("gtm_meeting_calcom_uid_idx").on(table.calcomBookingUid),
   ]
 );
 
@@ -509,6 +567,7 @@ export const gtmOutreachCampaignRelations = relations(
     }),
     prospectCompanies: many(gtmProspectCompany),
     emailDrafts: many(gtmEmailDraft),
+    meetings: many(gtmMeeting),
   })
 );
 
@@ -540,9 +599,10 @@ export const gtmContactRelations = relations(gtmContact, ({ one, many }) => ({
     references: [gtmProspectCompany.id],
   }),
   emailDrafts: many(gtmEmailDraft),
+  meetings: many(gtmMeeting),
 }));
 
-export const gtmEmailDraftRelations = relations(gtmEmailDraft, ({ one }) => ({
+export const gtmEmailDraftRelations = relations(gtmEmailDraft, ({ one, many }) => ({
   contact: one(gtmContact, {
     fields: [gtmEmailDraft.contactId],
     references: [gtmContact.id],
@@ -554,6 +614,25 @@ export const gtmEmailDraftRelations = relations(gtmEmailDraft, ({ one }) => ({
   reviewer: one(user, {
     fields: [gtmEmailDraft.reviewedBy],
     references: [user.id],
+  }),
+  events: many(gtmEmailEvent),
+}));
+
+export const gtmEmailEventRelations = relations(gtmEmailEvent, ({ one }) => ({
+  emailDraft: one(gtmEmailDraft, {
+    fields: [gtmEmailEvent.emailDraftId],
+    references: [gtmEmailDraft.id],
+  }),
+}));
+
+export const gtmMeetingRelations = relations(gtmMeeting, ({ one }) => ({
+  contact: one(gtmContact, {
+    fields: [gtmMeeting.contactId],
+    references: [gtmContact.id],
+  }),
+  campaign: one(gtmOutreachCampaign, {
+    fields: [gtmMeeting.outreachCampaignId],
+    references: [gtmOutreachCampaign.id],
   }),
 }));
 
