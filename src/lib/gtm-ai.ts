@@ -202,8 +202,32 @@ export async function deriveTargetJobFunction({
 // Stage 6: Personalized Outreach Email Drafting
 // -------------------------------------------------------------
 const emailDraftSchema = z.object({
-  subject: z.string().describe("Catchy, non-spammy subject line (under 8 words)"),
-  body: z.string().describe("Short 3-5 sentence personalized cold outreach email"),
+  subject: z
+    .string()
+    .min(5)
+    .max(80)
+    .describe("Catchy, non-spammy subject line under 8 words"),
+
+  body: z
+    .string()
+    .min(250)
+    .max(1200)
+    .refine((value) => !value.includes("..."), {
+      message: "Do not use ellipses or truncated sentences.",
+    })
+    .refine((value) => {
+      const sentenceCount = value
+        .split(/[.!?]+/)
+        .map((s) => s.trim())
+        .filter(Boolean).length;
+
+      return sentenceCount >= 3 && sentenceCount <= 5;
+    }, {
+      message: "Email body must contain 3 to 5 complete sentences.",
+    })
+    .describe(
+      "Complete personalized cold outreach email of 3-5 sentences, roughly 250-500 characters. Never truncate the message and never use ellipses."
+    ),
 });
 
 export async function generateOutreachEmailDraft({
@@ -228,12 +252,16 @@ export async function generateOutreachEmailDraft({
   return await generateStructuredWithFallback({
     schema: emailDraftSchema,
     system:
-      "You are an elite B2B sales copywriter writing personalized cold outreach. Follow this strict structure:\n" +
-      "1. Friendly greeting using their first name.\n" +
-      "2. Specific personalization line referencing one concrete detail from their company description.\n" +
-      "3. Direct reference to the specific pain point they likely experience and how our company uniquely helps.\n" +
-      "4. One single, low-friction, polite call to action (e.g. 'Worth a quick 10-minute chat next Tuesday?').\n" +
-      "Total length: 3 to 5 sentences. No buzzwords, no pushy sales jargon, no generic templates.",
+  "You are an elite B2B sales copywriter writing personalized cold outreach.\n" +
+  "Write a COMPLETE email. NEVER truncate the email. NEVER use '...' or ellipses.\n" +
+  "The body MUST contain exactly 3 to 5 complete sentences and should be roughly 250 to 500 characters.\n" +
+  "Follow this structure:\n" +
+  "1. Friendly greeting using their first name.\n" +
+  "2. Specific personalization line referencing one concrete detail from their company description.\n" +
+  "3. Direct reference to the specific pain point they likely experience and how our company uniquely helps.\n" +
+  "4. One single, low-friction, polite call to action.\n" +
+  "5. End with a complete sentence.\n" +
+  "No buzzwords, no pushy sales jargon, no generic templates.",
     prompt: `Prospect: ${firstName} (${contactTitle}) at ${companyName}\nProspect Company Details: ${companyDescription}\nTarget Pain Point: ${segmentPainPoint}\nOur Company: ${senderCompanyName}\nWhat We Do: ${senderCompanyDescription}`,
   });
 }
