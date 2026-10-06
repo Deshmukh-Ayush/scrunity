@@ -265,3 +265,108 @@ export async function generateOutreachEmailDraft({
     prompt: `Prospect: ${firstName} (${contactTitle}) at ${companyName}\nProspect Company Details: ${companyDescription}\nTarget Pain Point: ${segmentPainPoint}\nOur Company: ${senderCompanyName}\nWhat We Do: ${senderCompanyDescription}`,
   });
 }
+
+// -------------------------------------------------------------
+// Stage 8: Reply Intent Classification & Booking Response
+// -------------------------------------------------------------
+export type ReplyIntent =
+  | "interested"
+  | "not_interested"
+  | "question"
+  | "auto_reply"
+  | "unclear";
+
+const replyIntentSchema = z.object({
+  intent: z.enum([
+    "interested",
+    "not_interested",
+    "question",
+    "auto_reply",
+    "unclear",
+  ]),
+  reasoning: z.string().describe("1-sentence explanation of classification"),
+});
+
+export async function classifyReplyIntent({
+  replyText,
+  originalSubject,
+  originalBody,
+}: {
+  replyText: string;
+  originalSubject?: string;
+  originalBody?: string;
+}): Promise<{ intent: ReplyIntent; reasoning: string }> {
+  // Pre-filter obvious out of office / auto-replies
+  const lower = replyText.toLowerCase();
+  if (
+    lower.includes("out of the office") ||
+    lower.includes("out of office") ||
+    lower.includes("automatic reply") ||
+    lower.includes("auto-reply") ||
+    lower.includes("away from my email") ||
+    lower.includes("on annual leave") ||
+    lower.includes("maternity leave") ||
+    lower.includes("paternity leave")
+  ) {
+    return {
+      intent: "auto_reply",
+      reasoning: "Detected out-of-office or automated responder keywords.",
+    };
+  }
+
+  return await generateStructuredWithFallback({
+    schema: replyIntentSchema,
+    system:
+      "You are an email intent classification engine. Classify the prospect's reply into exactly one of:\n" +
+      "- 'interested': Prospect expresses willingness to meet, talk, see a demo, or learn more.\n" +
+      "- 'not_interested': Prospect declines, unsubscribes, says no, or asks to be removed.\n" +
+      "- 'question': Prospect asks a clarifying question about features, pricing, or company before deciding.\n" +
+      "- 'auto_reply': Automated out-of-office message, vacation responder, or delivery receipt.\n" +
+      "- 'unclear': Vague, ambiguous, or empty message.\n" +
+      "Be decisive and accurate.",
+    prompt:
+      `Original Email Subject: ${originalSubject || "N/A"}\n` +
+      `Original Email Body: ${originalBody || "N/A"}\n` +
+      `Prospect Reply:\n"${replyText}"`,
+  });
+}
+
+const bookingReplySchema = z.object({
+  body: z.string().describe("Short 2-3 sentence friendly reply with booking link"),
+});
+
+export async function composeInterestedBookingReply({
+  recipientName,
+  bookingUrl,
+  replyText,
+}: {
+  recipientName: string;
+  bookingUrl: string;
+  replyText?: string;
+}): Promise<string> {
+  const firstName = recipientName.split(" ")[0] || recipientName;
+
+  try {
+    const result = await generateStructuredWithFallback({
+      schema: bookingReplySchema,
+      system:
+        "You are writing a brief, warm reply to an interested prospect who responded positively to our outreach.\n" +
+        "Keep it to 2-3 sentences max. Thank them for responding and direct them to pick a convenient time via the booking link.\n" +
+        "Include the exact booking link provided.",
+      prompt: `Prospect Name: ${firstName}\nBooking URL: ${bookingUrl}\nTheir Reply: "${replyText || "Sounds good, let's talk"}"`,
+    });
+    if (result.body && result.body.includes(bookingUrl)) {
+      return result.body;
+    }
+  } catch (err) {
+    console.warn("[GTM AI] Fallback to standard booking template:", err);
+  }
+
+  // Guaranteed fallback template
+  return (
+    `Hi ${firstName},\n\n` +
+    `Thanks for getting back to me! I would love to connect and share more. ` +
+    `Feel free to pick a time that works best for you here: ${bookingUrl}\n\n` +
+    `Looking forward to speaking with you!`
+  );
+}
