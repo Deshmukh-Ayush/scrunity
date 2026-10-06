@@ -7,7 +7,11 @@ import {
   gtmContact,
 } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { scrapeUrl, searchFirecrawl } from "@/lib/firecrawl";
+import {
+  scrapeUrl,
+  searchFirecrawl,
+  FirecrawlRateLimitError,
+} from "@/lib/firecrawl";
 import { deriveTargetJobFunction } from "@/lib/gtm-ai";
 import {
   checkDomainMxRecords,
@@ -35,13 +39,15 @@ export interface ContactData {
 
 export interface FindContactsResult {
   contacts: ContactData[];
+  rateLimitSummary?: string;
 }
 
 /**
  * Stage 5 Execution Logic: Find Contacts & Decision-Makers
  */
 export async function executeFindContacts(
-  outreachCampaignId: string
+  outreachCampaignId: string,
+  step?: InngestStep
 ): Promise<FindContactsResult> {
   const [context] = await db
     .select({
@@ -81,6 +87,7 @@ export async function executeFindContacts(
     .where(eq(gtmProspectCompany.outreachCampaignId, outreachCampaignId));
 
   const insertedContacts: ContactData[] = [];
+  let rateLimitedCalls = 0;
 
   for (const comp of companies) {
     let personName = "";
@@ -97,7 +104,10 @@ export async function executeFindContacts(
     // 1. Search site's own team/about page
     try {
       const teamQ = `site:${comp.domain} "team" OR "leadership" OR "founder" OR "clinical" OR "director"`;
-      const teamResults = await searchFirecrawl(teamQ, 2);
+      const teamResults = await searchFirecrawl(teamQ, 2, {
+        step,
+        stepPrefix: `stage5-team-q-${comp.id}`,
+      });
 
       const teamResult = teamResults.find((r) =>
         /(team|about|leadership|providers|staff|people)/i.test(r.url)
@@ -117,32 +127,50 @@ export async function executeFindContacts(
           } catch {
             // keep targetUrl
           }
-          const scraped = await scrapeUrl(targetUrl);
+          const scraped = await scrapeUrl(targetUrl, {
+            step,
+            stepPrefix: `stage5-team-scrape-${comp.id}`,
+          });
           if (scraped.markdown) {
             const parsedMembers = parseTeamFromMarkdown(scraped.markdown);
             candidates.push(...parsedMembers);
           }
-        } catch {
-          // ignore
+        } catch (scrapeErr) {
+          if (scrapeErr instanceof FirecrawlRateLimitError) {
+            rateLimitedCalls++;
+          }
         }
       }
 
       candidates.push(
         ...parseCandidatesFromSnippets(teamResults, "site_search_snippet")
       );
-    } catch {
-      // ignore
+    } catch (err) {
+      if (err instanceof FirecrawlRateLimitError) {
+        rateLimitedCalls++;
+        console.warn(
+          `[Stage 5] Team search for ${comp.domain} hit rate limit after retries.`
+        );
+      }
     }
 
     // 2. Search LinkedIn snippet
     try {
       const searchQ = `"${cleanCompanyName || comp.domain}" ${targetRole.searchKeyword} site:linkedin.com/in`;
-      const liPeople = await searchFirecrawl(searchQ, 2);
+      const liPeople = await searchFirecrawl(searchQ, 2, {
+        step,
+        stepPrefix: `stage5-li-${comp.id}`,
+      });
       candidates.push(
         ...parseCandidatesFromSnippets(liPeople, "linkedin_snippet")
       );
-    } catch {
-      // ignore
+    } catch (err) {
+      if (err instanceof FirecrawlRateLimitError) {
+        rateLimitedCalls++;
+        console.warn(
+          `[Stage 5] LinkedIn snippet search for ${comp.name} hit rate limit after retries.`
+        );
+      }
     }
 
     const bestMatch = selectMatchingDecisionMaker(
@@ -170,7 +198,10 @@ export async function executeFindContacts(
 
     // Step a: Scrape Contact / About page
     try {
-      const siteScrape = await scrapeUrl(`https://${comp.domain}`);
+      const siteScrape = await scrapeUrl(`https://${comp.domain}`, {
+        step,
+        stepPrefix: `stage5-contact-scrape-${comp.id}`,
+      });
       const extracted = extractEmailsFromText(
         siteScrape.markdown || "",
         comp.domain
@@ -184,7 +215,9 @@ export async function executeFindContacts(
         }
       }
     } catch (e) {
-      // ignore
+      if (e instanceof FirecrawlRateLimitError) {
+        rateLimitedCalls++;
+      }
     }
 
     // Step b: Pattern guess + MX verification
@@ -238,15 +271,27 @@ export async function executeFindContacts(
     .set({ currentStage: "write_emails" })
     .where(eq(gtmOutreachCampaign.id, outreachCampaignId));
 
+  const rateLimitSummary =
+    rateLimitedCalls > 0
+      ? `contact discovery hit rate limits on ${rateLimitedCalls} queries/scrapes`
+      : undefined;
+
+  const summary = rateLimitSummary
+    ? `Identified ${insertedContacts.length} contacts and completed MX validations (${rateLimitSummary}).`
+    : `Identified ${insertedContacts.length} contacts and completed MX validations.`;
+
   await safeRealtimePublish(
     outreachCampaignChannel(outreachCampaignId).completed,
     {
       stage: "find_contacts",
-      summary: `Identified ${insertedContacts.length} contacts and completed MX validations.`,
+      summary,
     }
   );
 
-  return { contacts: insertedContacts };
+  return {
+    contacts: insertedContacts,
+    rateLimitSummary,
+  };
 }
 
 /**
@@ -267,9 +312,7 @@ export const findContactsFunction = inngest.createFunction(
   }) => {
     const { outreachCampaignId } = event.data;
 
-    const result = await step.run("stage-5-find-decision-makers", async () => {
-      return await executeFindContacts(outreachCampaignId);
-    });
+    const result = await executeFindContacts(outreachCampaignId, step);
 
     // Automatically trigger Stage 6: Write Emails
     await step.sendEvent("trigger-stage-6-write-emails", {

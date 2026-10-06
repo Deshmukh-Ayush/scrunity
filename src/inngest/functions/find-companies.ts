@@ -12,6 +12,8 @@ import {
   searchFirecrawl,
   extractDomain,
   isAggregatorOrReviewDomain,
+  FirecrawlRateLimitError,
+  type SearchResultItem,
 } from "@/lib/firecrawl";
 import { generateProspectSearchQueries } from "@/lib/gtm-ai";
 import { safeRealtimePublish, type InngestStep } from "./shared";
@@ -25,13 +27,15 @@ export interface ProspectCompanyData {
 
 export interface FindCompaniesResult {
   companies: ProspectCompanyData[];
+  rateLimitSummary?: string;
 }
 
 /**
  * Stage 4 Execution Logic: Find Prospect Companies
  */
 export async function executeFindCompanies(
-  outreachCampaignId: string
+  outreachCampaignId: string,
+  step?: InngestStep
 ): Promise<FindCompaniesResult> {
   const [context] = await db
     .select({
@@ -70,9 +74,30 @@ export async function executeFindCompanies(
     criteria: segment.criteria,
   });
 
-  const searchLists = await Promise.all(
-    queries.map((q) => searchFirecrawl(q, 5))
-  );
+  const searchLists: SearchResultItem[][] = [];
+  let successfulQueries = 0;
+  let rateLimitedQueries = 0;
+
+  for (let i = 0; i < queries.length; i++) {
+    const q = queries[i];
+    try {
+      const results = await searchFirecrawl(q, 5, {
+        step,
+        stepPrefix: `stage4-comp-q-${i}`,
+      });
+      searchLists.push(results);
+      successfulQueries++;
+    } catch (err) {
+      if (err instanceof FirecrawlRateLimitError) {
+        rateLimitedQueries++;
+        console.warn(
+          `[Stage 4] Prospect query "${q}" hit rate limit after retries. Degrading gracefully.`
+        );
+      } else {
+        throw err;
+      }
+    }
+  }
 
   const ownDomain = extractDomain(researchRun.websiteUrl);
   const prospectMap = new Map<
@@ -123,7 +148,11 @@ export async function executeFindCompanies(
     try {
       const liResults = await searchFirecrawl(
         `"${p.name}" site:linkedin.com/company`,
-        1
+        1,
+        {
+          step,
+          stepPrefix: `stage4-li-${inserted.id}`,
+        }
       );
       if (liResults.length > 0) {
         const snippet = liResults[0].description || "";
@@ -148,7 +177,7 @@ export async function executeFindCompanies(
         }
       }
     } catch (e) {
-      console.warn(`Metric snapshot check skipped for ${p.domain}`);
+      console.warn(`Metric snapshot check skipped for ${p.domain}:`, (e as Error).message);
     }
   }
 
@@ -157,15 +186,27 @@ export async function executeFindCompanies(
     .set({ currentStage: "find_contacts" })
     .where(eq(gtmOutreachCampaign.id, outreachCampaignId));
 
+  const rateLimitSummary =
+    rateLimitedQueries > 0
+      ? `prospect search hit rate limits, ${successfulQueries} of ${queries.length} queries completed`
+      : undefined;
+
+  const summary = rateLimitSummary
+    ? `Identified ${insertedCompanies.length} candidate companies (${rateLimitSummary}).`
+    : `Identified ${insertedCompanies.length} candidate companies.`;
+
   await safeRealtimePublish(
     outreachCampaignChannel(outreachCampaignId).completed,
     {
       stage: "find_companies",
-      summary: `Identified ${insertedCompanies.length} candidate companies.`,
+      summary,
     }
   );
 
-  return { companies: insertedCompanies };
+  return {
+    companies: insertedCompanies,
+    rateLimitSummary,
+  };
 }
 
 /**
@@ -186,9 +227,7 @@ export const findCompaniesFunction = inngest.createFunction(
   }) => {
     const { outreachCampaignId } = event.data;
 
-    const result = await step.run("stage-4-find-companies", async () => {
-      return await executeFindCompanies(outreachCampaignId);
-    });
+    const result = await executeFindCompanies(outreachCampaignId, step);
 
     // Automatically trigger Stage 5: Find Contacts
     await step.sendEvent("trigger-stage-5-find-contacts", {
