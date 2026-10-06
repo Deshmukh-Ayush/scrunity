@@ -6,19 +6,22 @@ import {
   searchFirecrawl,
   extractDomain,
   isAggregatorOrReviewDomain,
+  FirecrawlRateLimitError,
 } from "@/lib/firecrawl";
 import { generateIcpSegments } from "@/lib/gtm-ai";
 import { safeRealtimePublish, type InngestStep } from "./shared";
 
 export interface DefineSegmentsResult {
   segmentCount: number;
+  rateLimitSummary?: string;
 }
 
 /**
  * Stage 3 Execution Logic: Define Segments
  */
 export async function executeDefineSegments(
-  researchRunId: string
+  researchRunId: string,
+  step?: InngestStep
 ): Promise<DefineSegmentsResult> {
   const [run] = await db
     .select()
@@ -52,22 +55,45 @@ export async function executeDefineSegments(
 
   const ownDomain = extractDomain(run.websiteUrl);
 
-  for (const seg of segments) {
+  let totalQueries = 0;
+  let successfulQueries = 0;
+  let rateLimitedQueries = 0;
+
+  for (let sIdx = 0; sIdx < segments.length; sIdx++) {
+    const seg = segments[sIdx];
     // Find 3-4 real named companies using live search
     const exampleCompaniesMap = new Map<string, string>(); // domain -> name
+    const candidateTerms = seg.candidateSearchTerms.slice(0, 2);
 
-    for (const term of seg.candidateSearchTerms.slice(0, 2)) {
-      const results = await searchFirecrawl(term, 4);
-      for (const res of results) {
-        const dom = extractDomain(res.url);
-        if (!dom || dom === ownDomain || isAggregatorOrReviewDomain(dom)) {
-          continue;
+    for (let tIdx = 0; tIdx < candidateTerms.length; tIdx++) {
+      const term = candidateTerms[tIdx];
+      totalQueries++;
+      try {
+        const results = await searchFirecrawl(term, 4, {
+          step,
+          stepPrefix: `stage3-seg-${sIdx}-q-${tIdx}`,
+        });
+        successfulQueries++;
+        for (const res of results) {
+          const dom = extractDomain(res.url);
+          if (!dom || dom === ownDomain || isAggregatorOrReviewDomain(dom)) {
+            continue;
+          }
+          if (!exampleCompaniesMap.has(dom)) {
+            const compName = res.title.split(/[-–|:]/)[0].trim() || dom;
+            exampleCompaniesMap.set(dom, compName);
+          }
+          if (exampleCompaniesMap.size >= 4) break;
         }
-        if (!exampleCompaniesMap.has(dom)) {
-          const compName = res.title.split(/[-–|:]/)[0].trim() || dom;
-          exampleCompaniesMap.set(dom, compName);
+      } catch (err) {
+        if (err instanceof FirecrawlRateLimitError) {
+          rateLimitedQueries++;
+          console.warn(
+            `[Stage 3] Segment query "${term}" hit rate limit after retries. Degrading gracefully.`
+          );
+        } else {
+          throw err;
         }
-        if (exampleCompaniesMap.size >= 4) break;
       }
       if (exampleCompaniesMap.size >= 4) break;
     }
@@ -91,12 +117,24 @@ export async function executeDefineSegments(
     .set({ currentStage: "done", status: "done" })
     .where(eq(gtmResearchRun.id, researchRunId));
 
+  const rateLimitSummary =
+    rateLimitedQueries > 0
+      ? `segment research hit rate limits, ${successfulQueries} of ${totalQueries} queries completed`
+      : undefined;
+
+  const summary = rateLimitSummary
+    ? `Created ${segments.length} verified ICP segments (${rateLimitSummary}).`
+    : `Created ${segments.length} verified ICP segments.`;
+
   await safeRealtimePublish(researchRunChannel(researchRunId).completed, {
     stage: "define_segments",
-    summary: `Created ${segments.length} verified ICP segments.`,
+    summary,
   });
 
-  return { segmentCount: segments.length };
+  return {
+    segmentCount: segments.length,
+    rateLimitSummary,
+  };
 }
 
 /**
@@ -117,8 +155,6 @@ export const defineSegmentsFunction = inngest.createFunction(
   }) => {
     const { researchRunId } = event.data;
 
-    return await step.run("stage-3-define-segments", async () => {
-      return await executeDefineSegments(researchRunId);
-    });
+    return await executeDefineSegments(researchRunId, step);
   }
 );
