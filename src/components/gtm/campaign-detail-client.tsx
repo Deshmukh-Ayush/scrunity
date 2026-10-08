@@ -26,6 +26,7 @@ import {
   Send,
   Check,
 } from "lucide-react";
+import { SegmentDigestCard } from "./segment-digest-card";
 
 interface Contact {
   id: string;
@@ -417,6 +418,9 @@ export function CampaignDetailClient() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Stage 9: Periodic Performance & Learning Digest */}
+      <SegmentDigestCard segmentId={segment.id} segmentName={segment.name} />
 
       {/* Review & Dispatch Section (Stage 6/7 Output) */}
       <div className="space-y-4">

@@ -19,6 +19,7 @@ import {
   Mail,
   RefreshCw,
 } from "lucide-react";
+import { SegmentDigestCard } from "./segment-digest-card";
 
 export function CampaignsOverviewClient() {
   const [runs, setRuns] = React.useState<any[]>([]);
@@ -177,6 +178,33 @@ export function CampaignsOverviewClient() {
                 </Card>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Segment Performance & Learning Digests Section (Stage 9) */}
+      {campaigns.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold tracking-wide text-foreground uppercase">
+                Segment Performance & Learning Digests
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Periodic performance digests to evaluate ICP conversion and double down on what works.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {Array.from(
+              new Map(campaigns.map((c) => [c.campaign.icpSegmentId, c])).values()
+            ).map(({ campaign, researchRun }) => (
+              <SegmentDigestCard
+                key={campaign.icpSegmentId}
+                segmentId={campaign.icpSegmentId}
+                segmentName={`${researchRun.companyName} ICP Segment`}
+              />
+            ))}
           </div>
         </div>
       )}
