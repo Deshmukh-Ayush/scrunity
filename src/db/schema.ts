@@ -622,6 +622,51 @@ export const gtmMeeting = pgTable(
   ]
 )
 
+export interface SegmentDigestMetrics {
+  sentCount: number;
+  openedCount: number;
+  repliedCount: number;
+  bouncedCount: number;
+  replyBreakdown: {
+    interested: number;
+    notInterested: number;
+    question: number;
+    autoReply: number;
+    unclear: number;
+  };
+  meetingsBookedCount: number;
+  replyRate: number;
+  interestedReplyRate: number;
+  bookingRate: number;
+  isSmallSample: boolean;
+  sampleSizeWarning: string | null;
+}
+
+export const gtmSegmentDigest = pgTable(
+  "gtm_segment_digest",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    icpSegmentId: text("icp_segment_id")
+      .notNull()
+      .references(() => gtmIcpSegment.id, { onDelete: "cascade" }),
+    periodStart: timestamp("period_start").notNull(),
+    periodEnd: timestamp("period_end").notNull(),
+    metrics: jsonb("metrics").$type<SegmentDigestMetrics>().notNull(),
+    summary: text("summary").notNull(),
+    generatedAt: timestamp("generated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("gtm_segment_digest_org_idx").on(table.organizationId),
+    index("gtm_segment_digest_segment_idx").on(table.icpSegmentId),
+    index("gtm_segment_digest_generated_idx").on(table.generatedAt),
+  ]
+)
+
 // Relations
 export const gtmResearchRunRelations = relations(
   gtmResearchRun,
@@ -655,6 +700,7 @@ export const gtmIcpSegmentRelations = relations(
       references: [gtmResearchRun.id],
     }),
     campaigns: many(gtmOutreachCampaign),
+    digests: many(gtmSegmentDigest),
   })
 )
 
@@ -756,3 +802,18 @@ export const gtmConnectedMailboxRelations = relations(
     }),
   })
 )
+
+export const gtmSegmentDigestRelations = relations(
+  gtmSegmentDigest,
+  ({ one }) => ({
+    organization: one(organization, {
+      fields: [gtmSegmentDigest.organizationId],
+      references: [organization.id],
+    }),
+    segment: one(gtmIcpSegment, {
+      fields: [gtmSegmentDigest.icpSegmentId],
+      references: [gtmIcpSegment.id],
+    }),
+  })
+)
+

@@ -99,6 +99,13 @@
       "when": 1791478929502,
       "tag": "0013_long_trauma",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791491002354,
+      "tag": "0014_parched_klaw",
+      "breakpoints": true
     }
   ]
 }
