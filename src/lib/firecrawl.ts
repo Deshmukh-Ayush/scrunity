@@ -90,6 +90,120 @@ export function getFallbackLogoUrl(domain: string): string {
   return `https://www.google.com/s2/favicons?domain=${cleanDomain}&sz=128`;
 }
 
+/**
+ * Discovers an About / Company page URL from scraped links and markdown.
+ */
+export function findAboutPageUrl(
+  baseUrl: string,
+  links?: string[],
+  markdown?: string
+): string | null {
+  let base: URL;
+  try {
+    let formatted = baseUrl.trim();
+    if (!formatted.startsWith("http://") && !formatted.startsWith("https://")) {
+      formatted = `https://${formatted}`;
+    }
+    base = new URL(formatted);
+  } catch {
+    return null;
+  }
+
+  const baseHost = base.hostname.replace(/^www\./, "").toLowerCase();
+
+  const candidates: string[] = [];
+  if (Array.isArray(links)) {
+    for (const l of links) {
+      if (typeof l === "string" && l.trim()) candidates.push(l.trim());
+    }
+  }
+
+  if (markdown) {
+    const mdRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]+)\)/gi;
+    let match;
+    while ((match = mdRegex.exec(markdown)) !== null) {
+      const label = match[1].toLowerCase();
+      const href = match[2];
+      if (
+        /about|company|who we are|our story|team/i.test(label) ||
+        /about|company/i.test(href)
+      ) {
+        candidates.push(href);
+      }
+    }
+  }
+
+  interface ScoredCandidate {
+    url: string;
+    score: number;
+  }
+
+  const scored: ScoredCandidate[] = [];
+
+  for (const raw of candidates) {
+    try {
+      if (/^(javascript:|mailto:|tel:|#)/i.test(raw)) continue;
+
+      const resolved = new URL(raw, base.origin);
+      const host = resolved.hostname.replace(/^www\./, "").toLowerCase();
+
+      // Must belong to the same root domain
+      if (host !== baseHost && !host.endsWith(`.${baseHost}`)) {
+        continue;
+      }
+
+      const pathname = resolved.pathname.replace(/\/+$/, "").toLowerCase();
+      const basePathname = base.pathname.replace(/\/+$/, "").toLowerCase();
+      if (!pathname || pathname === basePathname) {
+        continue;
+      }
+
+      // Filter out non-about pages
+      if (
+        pathname.startsWith("/blog/") ||
+        pathname.startsWith("/changelog/") ||
+        pathname.startsWith("/terms") ||
+        pathname.startsWith("/privacy") ||
+        pathname.startsWith("/pricing") ||
+        pathname.startsWith("/contact") ||
+        pathname.startsWith("/docs") ||
+        pathname.startsWith("/api")
+      ) {
+        continue;
+      }
+
+      let score = 0;
+      if (pathname === "/about" || pathname === "/about-us") {
+        score = 100;
+      } else if (pathname === "/company") {
+        score = 90;
+      } else if (pathname === "/our-story" || pathname === "/who-we-are") {
+        score = 85;
+      } else if (pathname === "/company/about" || pathname === "/about/company") {
+        score = 80;
+      } else if (pathname.endsWith("/about") || pathname.endsWith("/about-us")) {
+        score = 70;
+      } else if (pathname.startsWith("/about/")) {
+        score = 60;
+      } else if (pathname.startsWith("/company/")) {
+        score = 50;
+      }
+
+      if (score > 0) {
+        const cleanUrl = `${resolved.origin}${resolved.pathname}`;
+        scored.push({ url: cleanUrl, score });
+      }
+    } catch {
+      // Ignore malformed URL
+    }
+  }
+
+  if (scored.length === 0) return null;
+
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0].url;
+}
+
 import type { InngestStep } from "@/inngest/functions/shared";
 
 export interface FirecrawlRetryOptions {
@@ -358,7 +472,7 @@ export async function scrapeUrl(
         "https://api.firecrawl.dev/v1/scrape",
         {
           url: formattedUrl,
-          formats: ["markdown", "html"],
+          formats: ["markdown", "html", "links"],
         },
         options
       );
@@ -427,6 +541,9 @@ export async function scrapeUrl(
       const keywordsMatch = html.match(
         /<meta[^>]*name=["']keywords["'][^>]*content=["']([^"']+)["']/i
       );
+      const linkMatches = [
+        ...html.matchAll(/<a[^>]+href=["']([^"'#]+)["']/gi),
+      ].map((m) => m[1]);
 
       const title = titleMatch ? titleMatch[1].trim() : undefined;
       const description = descMatch ? descMatch[1].trim() : undefined;
@@ -443,6 +560,7 @@ export async function scrapeUrl(
         ogImage,
         favicon: getFallbackLogoUrl(formattedUrl),
         keywords,
+        links: linkMatches,
       };
     }
   } catch (fallbackErr) {
