@@ -242,6 +242,7 @@ export const gtmResearchRun = pgTable(
     twitterUrl: text("twitter_url"),
     instagramUrl: text("instagram_url"),
     seoKeywords: jsonb("seo_keywords").$type<string[]>(),
+    synthesizedProfile: jsonb("synthesized_profile").$type<SynthesizedCompanyProfile>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     createdBy: text("created_by")
       .notNull()
@@ -249,6 +250,14 @@ export const gtmResearchRun = pgTable(
   },
   (table) => [index("gtm_research_run_org_idx").on(table.organizationId)]
 );
+
+export interface SynthesizedCompanyProfile {
+  summary: string;
+  industry: string;
+  productFocus: string;
+  targetCustomerLanguage: string;
+  signals: string[];
+}
 
 export const gtmCompetitor = pgTable(
   "gtm_competitor",

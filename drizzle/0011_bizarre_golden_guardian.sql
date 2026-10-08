@@ -1,0 +1,1 @@
+ALTER TABLE "gtm_research_run" ADD COLUMN "synthesized_profile" jsonb;

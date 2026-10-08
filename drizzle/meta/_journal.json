@@ -78,6 +78,13 @@
       "when": 1791288019626,
       "tag": "0010_woozy_iron_man",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791458946564,
+      "tag": "0011_bizarre_golden_guardian",
+      "breakpoints": true
     }
   ]
 }
