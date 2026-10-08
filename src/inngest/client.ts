@@ -42,6 +42,12 @@ export type GtmEvents = {
       mailboxId?: string;
     };
   };
+  "gtm/digest.generate": {
+    data?: {
+      organizationId?: string;
+      segmentId?: string;
+    };
+  };
 };
 
 export const inngest = new Inngest({
