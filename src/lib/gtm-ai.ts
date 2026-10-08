@@ -467,3 +467,124 @@ export async function composeInterestedBookingReply({
     `Looking forward to speaking with you!`
   );
 }
+
+// -------------------------------------------------------------
+// Stage 9: Segment Performance Digest LLM Synthesis
+// -------------------------------------------------------------
+import type { SegmentDigestMetrics } from "@/db/schema";
+
+export const segmentDigestSummarySchema = z.object({
+  headline: z
+    .string()
+    .describe("1-sentence high-level executive takeaway summarizing segment performance"),
+  whatIsConverting: z
+    .string()
+    .describe("Specific insights on what is converting or showing positive responsiveness"),
+  whatIsNotConverting: z
+    .string()
+    .describe("Points of friction, non-interest reasons, bounces, or silence"),
+  sampleSizeAssessment: z
+    .string()
+    .describe(
+      "Explicit plain-language note on whether sample size is statistically significant or small/directional"
+    ),
+  recommendedAction: z
+    .string()
+    .describe(
+      "Concrete strategic recommendation on budget allocation (e.g., expand sample size, scale up spend, or refine pain point/targeting)"
+    ),
+  narrativeText: z
+    .string()
+    .describe(
+      "A cohesive 2-3 paragraph synthesis uniting all findings into an executive report for founders"
+    ),
+});
+
+export type SegmentDigestSummaryResult = z.infer<typeof segmentDigestSummarySchema>;
+
+export async function generateSegmentDigestSummary({
+  segmentName,
+  painPoint,
+  companyName,
+  metrics,
+  periodStart,
+  periodEnd,
+}: {
+  segmentName: string;
+  painPoint: string;
+  companyName: string;
+  metrics: SegmentDigestMetrics;
+  periodStart: Date;
+  periodEnd: Date;
+}): Promise<SegmentDigestSummaryResult> {
+  const isSmallSample = metrics.isSmallSample;
+  const system =
+    "You are a principal B2B Go-To-Market analyst and founder advisor. " +
+    "You evaluate outbound campaign performance per ICP segment to guide budget allocation and message market fit.\n\n" +
+    "CORE RULES:\n" +
+    "- Ground every observation strictly in the provided metrics: sent, opened, replied, bounced, intent breakdown, and booked meetings.\n" +
+    "- Do NOT invent scores, artificial rankings, or qualification grades.\n" +
+    "- All conversion rates are plain percentages (reply rate, interested-reply rate, booking rate).\n" +
+    (isSmallSample
+      ? "- CRITICAL: The sample size is SMALL (under 20 sent emails: " +
+        metrics.sentCount +
+        " sent). You MUST EXPLICITLY state in plain language that this volume is too small to draw statistically reliable conclusions. Present the rates as early directional signals only, and explicitly advise gathering additional sample volume before committing significant budget changes.\n"
+      : "- Sample size is statistically meaningful (" +
+        metrics.sentCount +
+        " sent). Provide confident, decisive recommendations on budget allocation.\n") +
+    "- Maintain a clear, candid, and professional executive tone.";
+
+  const prompt =
+    `Company: ${companyName}\n` +
+    `ICP Segment: ${segmentName}\n` +
+    `Pain Point Target: ${painPoint}\n` +
+    `Evaluation Window: ${periodStart.toISOString().slice(0, 10)} to ${periodEnd.toISOString().slice(0, 10)}\n\n` +
+    `Performance Metrics:\n` +
+    `- Emails Sent: ${metrics.sentCount}\n` +
+    `- Emails Opened: ${metrics.openedCount}\n` +
+    `- Emails Replied: ${metrics.repliedCount} (Reply Rate: ${metrics.replyRate}%)\n` +
+    `- Bounces: ${metrics.bouncedCount}\n` +
+    `- Reply Breakdown: Interested: ${metrics.replyBreakdown.interested}, Questions: ${metrics.replyBreakdown.question}, Not Interested: ${metrics.replyBreakdown.notInterested}, Auto-reply: ${metrics.replyBreakdown.autoReply}, Unclear: ${metrics.replyBreakdown.unclear}\n` +
+    `- Interested Reply Rate: ${metrics.interestedReplyRate}%\n` +
+    `- Meetings Booked: ${metrics.meetingsBookedCount} (Booking Rate: ${metrics.bookingRate}%)\n` +
+    `- Statistical Sample Status: ${isSmallSample ? `SMALL SAMPLE WARNING (${metrics.sentCount} sent < 20)` : "Sufficient Sample Size"}`;
+
+  try {
+    const result = await generateStructuredWithFallback({
+      schema: segmentDigestSummarySchema,
+      system,
+      prompt,
+    });
+    return result;
+  } catch (err) {
+    console.warn("[GTM AI] Error generating segment digest with LLM, using deterministic summary fallback:", err);
+    // Deterministic fallback if LLM models fail
+    const sampleNote = isSmallSample
+      ? `Sample size is currently ${metrics.sentCount} sent emails (below the 20-email statistical threshold). Conversion rates are directional early signals and should not yet be used for major budget commitments.`
+      : `Sample size of ${metrics.sentCount} emails provides a reliable statistical baseline.`;
+    const headline = metrics.meetingsBookedCount > 0
+      ? `Segment "${segmentName}" demonstrates positive conversion with ${metrics.meetingsBookedCount} booked meeting(s).`
+      : `Segment "${segmentName}" has generated ${metrics.repliedCount} replies across ${metrics.sentCount} sent emails.`;
+    const converting = metrics.meetingsBookedCount > 0 || metrics.replyBreakdown.interested > 0
+      ? `${metrics.replyBreakdown.interested} interested reply(ies) and ${metrics.meetingsBookedCount} booked meeting(s) indicate resonant messaging on "${painPoint}".`
+      : `Initial outreach initiated. Awaiting further positive engagement.`;
+    const friction = metrics.bouncedCount > 0 || metrics.replyBreakdown.notInterested > 0
+      ? `Observed ${metrics.bouncedCount} bounce(s) and ${metrics.replyBreakdown.notInterested} non-interested reply(ies).`
+      : `No significant objections or deliverability issues recorded.`;
+    const recommendation = isSmallSample
+      ? `Maintain current campaign cadence to expand sample size to at least 20-50 sent emails before adjusting budget allocation.`
+      : metrics.bookingRate > 3
+      ? `Double down: Segment shows strong unit economics. Increase prospecting volume.`
+      : `Refine value proposition or targeting criteria before allocating additional outreach budget.`;
+
+    return {
+      headline,
+      whatIsConverting: converting,
+      whatIsNotConverting: friction,
+      sampleSizeAssessment: sampleNote,
+      recommendedAction: recommendation,
+      narrativeText: `${headline}\n\n${converting}\n\n${friction}\n\n${sampleNote}\n\nRecommendation: ${recommendation}`,
+    };
+  }
+}
+
