@@ -1,16 +1,26 @@
-import React from "react";
+import * as React from "react";
+import { Suspense } from "react";
+import { CampaignsList } from "@/components/gtm/campaigns-list";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function CampaignsListSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-9 w-32" />
+      </div>
+      <Skeleton className="h-64 w-full rounded-lg" />
+    </div>
+  );
+}
 
 export default function DashboardPage() {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Overview</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Workspace dashboard and account management.
-        </p>
-      </div>
-
-      
+      <Suspense fallback={<CampaignsListSkeleton />}>
+        <CampaignsList />
+      </Suspense>
     </div>
   );
 }

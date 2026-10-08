@@ -51,7 +51,7 @@ export const Onboard = () => {
     }
 
     posthog.capture("organization_onboarding_completed");
-    router.push("/dashboard");
+    router.push("/dashboard/campaigns/new");
     router.refresh();
   };
 

@@ -4,7 +4,8 @@ import { db } from "@/utils/db";
 import { member } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-const protectedPaths = ["/onboarding", "/dashboard"];
+// /onboarding is kept public for UI development and testing
+const protectedPaths = ["/dashboard"];
 
 export async function proxy(request: NextRequest) {
   try {

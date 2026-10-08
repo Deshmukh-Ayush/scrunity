@@ -129,35 +129,54 @@ export function CampaignsOverviewClient() {
             Active Outreach Campaigns
           </h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {campaigns.map(({ campaign, researchRun }) => (
-              <Card key={campaign.id} className="hover:border-foreground/20 transition-all">
-                <CardHeader className="p-4 pb-2">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="text-xs capitalize">
-                      {campaign.currentStage.replace(/_/g, " ")}
-                    </Badge>
-                    <span className="text-[11px] text-muted-foreground">
-                      {new Date(campaign.createdAt).toLocaleDateString()}
+            {campaigns.map(({ campaign, researchRun }) => {
+              const isAwaitingApproval =
+                campaign.currentStage === "awaiting_approval" ||
+                campaign.status === "awaiting_approval";
+
+              return (
+                <Card key={campaign.id} className={cn("hover:border-foreground/20 transition-all", isAwaitingApproval && "border-amber-500/40")}>
+                  <CardHeader className="p-4 pb-2">
+                    <div className="flex items-center justify-between">
+                      <Badge
+                        variant={isAwaitingApproval ? "default" : "outline"}
+                        className={cn(
+                          "text-xs capitalize",
+                          isAwaitingApproval && "bg-amber-600 hover:bg-amber-700 text-white"
+                        )}
+                      >
+                        {isAwaitingApproval ? "Awaiting Review" : campaign.currentStage.replace(/_/g, " ")}
+                      </Badge>
+                      <span className="text-[11px] text-muted-foreground">
+                        {new Date(campaign.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <CardTitle className="text-base mt-2 truncate">
+                      {researchRun.companyName} Campaign
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-2 flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      Status: {campaign.status}
                     </span>
-                  </div>
-                  <CardTitle className="text-base mt-2 truncate">
-                    {researchRun.companyName} Campaign
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 pt-2 flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">
-                    Status: {campaign.status}
-                  </span>
-                  <Link
-                    href={`/dashboard/campaigns/${campaign.id}`}
-                    className={cn(buttonVariants({ size: "sm", variant: "secondary" }), "gap-1 text-xs")}
-                  >
-                    View Pipeline
-                    <ArrowRight className="size-3" />
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
+                    <Link
+                      href={`/dashboard/campaigns/${campaign.id}`}
+                      className={cn(
+                        buttonVariants({
+                          size: "sm",
+                          variant: isAwaitingApproval ? "default" : "secondary",
+                        }),
+                        "gap-1 text-xs",
+                        isAwaitingApproval && "bg-amber-600 hover:bg-amber-700 text-white"
+                      )}
+                    >
+                      {isAwaitingApproval ? "Review Drafts" : "View Pipeline"}
+                      <ArrowRight className="size-3" />
+                    </Link>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}
