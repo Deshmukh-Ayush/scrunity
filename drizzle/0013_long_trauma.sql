@@ -1,0 +1,1 @@
+ALTER TABLE "gtm_contact" ADD COLUMN "verification_status" text DEFAULT 'unverified' NOT NULL;

@@ -85,6 +85,20 @@
       "when": 1791458946564,
       "tag": "0011_bizarre_golden_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791478748909,
+      "tag": "0012_chemical_korg",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791478929502,
+      "tag": "0013_long_trauma",
+      "breakpoints": true
     }
   ]
 }

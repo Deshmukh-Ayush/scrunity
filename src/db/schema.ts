@@ -1,6 +1,14 @@
-import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, index, integer, jsonb } from "drizzle-orm/pg-core";
-import { nanoid } from "nanoid";
+import { relations } from "drizzle-orm"
+import {
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  index,
+  integer,
+  jsonb,
+} from "drizzle-orm/pg-core"
+import { nanoid } from "nanoid"
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -13,7 +21,7 @@ export const user = pgTable("user", {
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
-});
+})
 
 export const session = pgTable(
   "session",
@@ -32,8 +40,8 @@ export const session = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     activeOrganizationId: text("active_organization_id"),
   },
-  (table) => [index("session_userId_idx").on(table.userId)],
-);
+  (table) => [index("session_userId_idx").on(table.userId)]
+)
 
 export const account = pgTable(
   "account",
@@ -56,8 +64,8 @@ export const account = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index("account_userId_idx").on(table.userId)],
-);
+  (table) => [index("account_userId_idx").on(table.userId)]
+)
 
 export const verification = pgTable(
   "verification",
@@ -72,27 +80,27 @@ export const verification = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index("verification_identifier_idx").on(table.identifier)],
-);
+  (table) => [index("verification_identifier_idx").on(table.identifier)]
+)
 
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
-}));
+}))
 
 export const sessionRelations = relations(session, ({ one }) => ({
   user: one(user, {
     fields: [session.userId],
     references: [user.id],
   }),
-}));
+}))
 
 export const accountRelations = relations(account, ({ one }) => ({
   user: one(user, {
     fields: [account.userId],
     references: [user.id],
   }),
-}));
+}))
 
 export const organization = pgTable("organization", {
   id: text("id").primaryKey(),
@@ -101,8 +109,12 @@ export const organization = pgTable("organization", {
   slug: text("slug").notNull().unique(),
   logo: text("logo"),
 
-  plan: text("plan", { enum: ["free", "freelancer", "agency", "enterprise"] }).default("free").notNull(),
-  globalCurrency: text("global_currency", { enum: ["USD", "INR"] }).default("USD").notNull(),
+  plan: text("plan", { enum: ["free", "freelancer", "agency", "enterprise"] })
+    .default("free")
+    .notNull(),
+  globalCurrency: text("global_currency", { enum: ["USD", "INR"] })
+    .default("USD")
+    .notNull(),
   logoUrl: text("logo_url"),
 
   // Billing & Subscription Fields
@@ -120,64 +132,121 @@ export const organization = pgTable("organization", {
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
-});
+})
 
-export const member = pgTable("member", {
-  id: text("id").primaryKey(),
+/** Shared organization-level allowances for paid external research providers. */
+export const organizationCreditPeriod = pgTable(
+  "organization_credit_period",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    periodStart: timestamp("period_start").notNull(),
+    periodEnd: timestamp("period_end").notNull(),
+    aiCreditsAllotted: integer("ai_credits_allotted").default(0).notNull(),
+    aiCreditsUsed: integer("ai_credits_used").default(0).notNull(),
+    searchCreditsAllotted: integer("search_credits_allotted")
+      .default(0)
+      .notNull(),
+    searchCreditsUsed: integer("search_credits_used").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("org_credit_period_org_idx").on(table.organizationId),
+    index("org_credit_period_dates_idx").on(table.periodStart, table.periodEnd),
+  ]
+)
 
-  organizationId: text("organization_id")
-    .notNull()
-    .references(() => organization.id, {
-      onDelete: "cascade",
+export const usageEvent = pgTable(
+  "usage_event",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    type: text("type", { enum: ["ai_tool_call", "web_search"] }).notNull(),
+    toolName: text("tool_name").notNull(),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("usage_event_org_idx").on(table.organizationId),
+    index("usage_event_created_idx").on(table.createdAt),
+  ]
+)
+
+export const member = pgTable(
+  "member",
+  {
+    id: text("id").primaryKey(),
+
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, {
+        onDelete: "cascade",
+      }),
+
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, {
+        onDelete: "cascade",
+      }),
+
+    role: text("role").notNull(),
+
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("member_org_idx").on(table.organizationId),
+    index("member_user_idx").on(table.userId),
+  ]
+)
+
+export const invitation = pgTable(
+  "invitation",
+  {
+    id: text("id").primaryKey(),
+
+    email: text("email").notNull(),
+
+    inviterId: text("inviter_id").references(() => user.id, {
+      onDelete: "set null",
     }),
 
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, {
-      onDelete: "cascade",
-    }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, {
+        onDelete: "cascade",
+      }),
 
-  role: text("role").notNull(),
+    role: text("role").notNull(),
 
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => [
-  index("member_org_idx").on(table.organizationId),
-  index("member_user_idx").on(table.userId),
-]);
+    status: text("status", {
+      enum: ["pending", "accepted", "declined", "expired"],
+    })
+      .default("pending")
+      .notNull(),
 
-export const invitation = pgTable("invitation", {
-  id: text("id").primaryKey(),
+    expiresAt: timestamp("expires_at").notNull(),
 
-  email: text("email").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("invitation_org_idx").on(table.organizationId),
+    index("invitation_inviter_idx").on(table.inviterId),
+  ]
+)
 
-  inviterId: text("inviter_id")
-    .references(() => user.id, { onDelete: "set null" }),
-
-  organizationId: text("organization_id")
-    .notNull()
-    .references(() => organization.id, {
-      onDelete: "cascade",
-    }),
-
-  role: text("role").notNull(),
-
-  status: text("status", { enum: ["pending", "accepted", "declined", "expired"] }).default("pending").notNull(),
-
-  expiresAt: timestamp("expires_at").notNull(),
-
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => [
-  index("invitation_org_idx").on(table.organizationId),
-  index("invitation_inviter_idx").on(table.inviterId),
-]);
-
-export const organizationRelations = relations(
-  organization,
-  ({ many }) => ({
-    members: many(member),
-    invitations: many(invitation),
-  })
-);
+export const organizationRelations = relations(organization, ({ many }) => ({
+  members: many(member),
+  invitations: many(invitation),
+}))
 
 export const memberRelations = relations(member, ({ one }) => ({
   user: one(user, {
@@ -189,22 +258,19 @@ export const memberRelations = relations(member, ({ one }) => ({
     fields: [member.organizationId],
     references: [organization.id],
   }),
-}));
+}))
 
-export const invitationRelations = relations(
-  invitation,
-  ({ one }) => ({
-    organization: one(organization, {
-      fields: [invitation.organizationId],
-      references: [organization.id],
-    }),
+export const invitationRelations = relations(invitation, ({ one }) => ({
+  organization: one(organization, {
+    fields: [invitation.organizationId],
+    references: [organization.id],
+  }),
 
-    inviter: one(user, {
-      fields: [invitation.inviterId],
-      references: [user.id],
-    }),
-  })
-);
+  inviter: one(user, {
+    fields: [invitation.inviterId],
+    references: [user.id],
+  }),
+}))
 
 // ==========================================
 // GTM Agent Tables
@@ -242,21 +308,23 @@ export const gtmResearchRun = pgTable(
     twitterUrl: text("twitter_url"),
     instagramUrl: text("instagram_url"),
     seoKeywords: jsonb("seo_keywords").$type<string[]>(),
-    synthesizedProfile: jsonb("synthesized_profile").$type<SynthesizedCompanyProfile>(),
+    synthesizedProfile: jsonb(
+      "synthesized_profile"
+    ).$type<SynthesizedCompanyProfile>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     createdBy: text("created_by")
       .notNull()
       .references(() => user.id),
   },
   (table) => [index("gtm_research_run_org_idx").on(table.organizationId)]
-);
+)
 
 export interface SynthesizedCompanyProfile {
-  summary: string;
-  industry: string;
-  productFocus: string;
-  targetCustomerLanguage: string;
-  signals: string[];
+  summary: string
+  industry: string
+  productFocus: string
+  targetCustomerLanguage: string
+  signals: string[]
 }
 
 export const gtmCompetitor = pgTable(
@@ -276,7 +344,7 @@ export const gtmCompetitor = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [index("gtm_competitor_run_idx").on(table.researchRunId)]
-);
+)
 
 export const gtmIcpSegment = pgTable(
   "gtm_icp_segment",
@@ -298,7 +366,7 @@ export const gtmIcpSegment = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [index("gtm_icp_segment_run_idx").on(table.researchRunId)]
-);
+)
 
 export const gtmOutreachCampaign = pgTable(
   "gtm_outreach_campaign",
@@ -332,7 +400,7 @@ export const gtmOutreachCampaign = pgTable(
     index("gtm_campaign_segment_idx").on(table.icpSegmentId),
     index("gtm_campaign_run_idx").on(table.researchRunId),
   ]
-);
+)
 
 export const gtmProspectCompany = pgTable(
   "gtm_prospect_company",
@@ -353,7 +421,7 @@ export const gtmProspectCompany = pgTable(
   (table) => [
     index("gtm_prospect_company_campaign_idx").on(table.outreachCampaignId),
   ]
-);
+)
 
 export const gtmCompanyMetricSnapshot = pgTable(
   "gtm_company_metric_snapshot",
@@ -371,7 +439,7 @@ export const gtmCompanyMetricSnapshot = pgTable(
   (table) => [
     index("gtm_metric_snapshot_company_idx").on(table.prospectCompanyId),
   ]
-);
+)
 
 export const gtmContact = pgTable(
   "gtm_contact",
@@ -388,6 +456,7 @@ export const gtmContact = pgTable(
     email: text("email"),
     emailSource: text("email_source", {
       enum: [
+        "enrich_verified",
         "found_on_site",
         "pattern_guessed_mx_valid",
         "pattern_guessed_unverified",
@@ -397,11 +466,33 @@ export const gtmContact = pgTable(
     })
       .default("none")
       .notNull(),
+    verificationStatus: text("verification_status", {
+      enum: [
+        "unverified",
+        "pattern_guessed_unverified",
+        "pattern_guessed_mx_valid",
+        "found_on_site",
+        "company_fallback",
+        "enrich_verified",
+      ],
+    })
+      .default("unverified")
+      .notNull(),
+    enrichMetadata: jsonb("enrich_metadata").$type<{
+      confidence?: "high" | "medium" | "low" | string
+      isCatchAll?: boolean
+      provider?: string
+      message?: string
+      requestId?: string
+      creditsUsed?: number
+      creditsRemaining?: number
+      processingTimeMs?: number
+    }>(),
     geo: text("geo"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [index("gtm_contact_company_idx").on(table.prospectCompanyId)]
-);
+)
 
 export const gtmEmailDraft = pgTable(
   "gtm_email_draft",
@@ -438,7 +529,7 @@ export const gtmEmailDraft = pgTable(
     index("gtm_email_draft_campaign_idx").on(table.outreachCampaignId),
     index("gtm_email_draft_thread_idx").on(table.threadId),
   ]
-);
+)
 
 export const gtmConnectedMailbox = pgTable(
   "gtm_connected_mailbox",
@@ -467,10 +558,8 @@ export const gtmConnectedMailbox = pgTable(
     connectedAt: timestamp("connected_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => [
-    index("gtm_connected_mailbox_org_idx").on(table.organizationId),
-  ]
-);
+  (table) => [index("gtm_connected_mailbox_org_idx").on(table.organizationId)]
+)
 
 export const gtmEmailEvent = pgTable(
   "gtm_email_event",
@@ -485,7 +574,13 @@ export const gtmEmailEvent = pgTable(
       enum: ["replied", "bounced", "opened"],
     }).notNull(),
     classifiedIntent: text("classified_intent", {
-      enum: ["interested", "not_interested", "question", "auto_reply", "unclear"],
+      enum: [
+        "interested",
+        "not_interested",
+        "question",
+        "auto_reply",
+        "unclear",
+      ],
     }),
     rawSnippet: text("raw_snippet"),
     occurredAt: timestamp("occurred_at").defaultNow().notNull(),
@@ -494,7 +589,7 @@ export const gtmEmailEvent = pgTable(
     index("gtm_email_event_draft_idx").on(table.emailDraftId),
     index("gtm_email_event_type_idx").on(table.type),
   ]
-);
+)
 
 export const gtmMeeting = pgTable(
   "gtm_meeting",
@@ -525,7 +620,7 @@ export const gtmMeeting = pgTable(
     index("gtm_meeting_attendee_email_idx").on(table.attendeeEmail),
     index("gtm_meeting_calcom_uid_idx").on(table.calcomBookingUid),
   ]
-);
+)
 
 // Relations
 export const gtmResearchRunRelations = relations(
@@ -543,14 +638,14 @@ export const gtmResearchRunRelations = relations(
     icpSegments: many(gtmIcpSegment),
     campaigns: many(gtmOutreachCampaign),
   })
-);
+)
 
 export const gtmCompetitorRelations = relations(gtmCompetitor, ({ one }) => ({
   researchRun: one(gtmResearchRun, {
     fields: [gtmCompetitor.researchRunId],
     references: [gtmResearchRun.id],
   }),
-}));
+}))
 
 export const gtmIcpSegmentRelations = relations(
   gtmIcpSegment,
@@ -561,7 +656,7 @@ export const gtmIcpSegmentRelations = relations(
     }),
     campaigns: many(gtmOutreachCampaign),
   })
-);
+)
 
 export const gtmOutreachCampaignRelations = relations(
   gtmOutreachCampaign,
@@ -578,7 +673,7 @@ export const gtmOutreachCampaignRelations = relations(
     emailDrafts: many(gtmEmailDraft),
     meetings: many(gtmMeeting),
   })
-);
+)
 
 export const gtmProspectCompanyRelations = relations(
   gtmProspectCompany,
@@ -590,7 +685,7 @@ export const gtmProspectCompanyRelations = relations(
     metricSnapshots: many(gtmCompanyMetricSnapshot),
     contacts: many(gtmContact),
   })
-);
+)
 
 export const gtmCompanyMetricSnapshotRelations = relations(
   gtmCompanyMetricSnapshot,
@@ -600,7 +695,7 @@ export const gtmCompanyMetricSnapshotRelations = relations(
       references: [gtmProspectCompany.id],
     }),
   })
-);
+)
 
 export const gtmContactRelations = relations(gtmContact, ({ one, many }) => ({
   prospectCompany: one(gtmProspectCompany, {
@@ -609,30 +704,33 @@ export const gtmContactRelations = relations(gtmContact, ({ one, many }) => ({
   }),
   emailDrafts: many(gtmEmailDraft),
   meetings: many(gtmMeeting),
-}));
+}))
 
-export const gtmEmailDraftRelations = relations(gtmEmailDraft, ({ one, many }) => ({
-  contact: one(gtmContact, {
-    fields: [gtmEmailDraft.contactId],
-    references: [gtmContact.id],
-  }),
-  outreachCampaign: one(gtmOutreachCampaign, {
-    fields: [gtmEmailDraft.outreachCampaignId],
-    references: [gtmOutreachCampaign.id],
-  }),
-  reviewer: one(user, {
-    fields: [gtmEmailDraft.reviewedBy],
-    references: [user.id],
-  }),
-  events: many(gtmEmailEvent),
-}));
+export const gtmEmailDraftRelations = relations(
+  gtmEmailDraft,
+  ({ one, many }) => ({
+    contact: one(gtmContact, {
+      fields: [gtmEmailDraft.contactId],
+      references: [gtmContact.id],
+    }),
+    outreachCampaign: one(gtmOutreachCampaign, {
+      fields: [gtmEmailDraft.outreachCampaignId],
+      references: [gtmOutreachCampaign.id],
+    }),
+    reviewer: one(user, {
+      fields: [gtmEmailDraft.reviewedBy],
+      references: [user.id],
+    }),
+    events: many(gtmEmailEvent),
+  })
+)
 
 export const gtmEmailEventRelations = relations(gtmEmailEvent, ({ one }) => ({
   emailDraft: one(gtmEmailDraft, {
     fields: [gtmEmailEvent.emailDraftId],
     references: [gtmEmailDraft.id],
   }),
-}));
+}))
 
 export const gtmMeetingRelations = relations(gtmMeeting, ({ one }) => ({
   contact: one(gtmContact, {
@@ -643,7 +741,7 @@ export const gtmMeetingRelations = relations(gtmMeeting, ({ one }) => ({
     fields: [gtmMeeting.outreachCampaignId],
     references: [gtmOutreachCampaign.id],
   }),
-}));
+}))
 
 export const gtmConnectedMailboxRelations = relations(
   gtmConnectedMailbox,
@@ -657,5 +755,4 @@ export const gtmConnectedMailboxRelations = relations(
       references: [user.id],
     }),
   })
-);
-
+)
