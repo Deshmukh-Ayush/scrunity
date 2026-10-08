@@ -40,10 +40,12 @@ export async function executeExploreCompetitors(
     message: "Identifying and evaluating commercial competitors...",
   });
 
-  // 1. Generate 3-5 search queries via AI
+  // 1. Generate 3-5 search queries via AI calibrated to company size and profile
   const queries = await generateCompetitorSearchQueries({
     companyName: run.companyName,
     companyDescription: run.companyDescription,
+    companySize: run.companySize,
+    synthesizedProfile: run.synthesizedProfile,
     contextDoc: run.contextDoc,
   });
 

@@ -46,6 +46,74 @@ export async function generateStructuredWithFallback<T>({
   return output as T;
 }
 
+import type { SynthesizedCompanyProfile } from "@/db/schema";
+
+// -------------------------------------------------------------
+// Stage 1: Company Profile Synthesis
+// -------------------------------------------------------------
+export const synthesizedCompanyProfileSchema = z.object({
+  summary: z
+    .string()
+    .describe(
+      "A synthesized one-paragraph executive summary of what the company does, their primary value proposition, target customer, and strategic positioning."
+    ),
+  industry: z
+    .string()
+    .describe(
+      "Inferred industry or category (e.g. 'Open Source Scheduling Infrastructure', 'Developer Tools', 'B2B Sales Automation')"
+    ),
+  productFocus: z
+    .string()
+    .describe("Core product focus, flagship features, and delivery capabilities"),
+  targetCustomerLanguage: z
+    .string()
+    .describe(
+      "Target customer language, buyer personas, and customer segment terminology actually found on the website"
+    ),
+  signals: z
+    .array(z.string())
+    .min(2)
+    .max(6)
+    .describe(
+      "Notable strategic signals observed (e.g. self-serve vs enterprise motion, open-source, pricing structure, regulatory/compliance focus, company scale implications)"
+    ),
+});
+
+export async function synthesizeCompanyProfile({
+  companyName,
+  websiteUrl,
+  companySize,
+  companyDescription,
+  contextDoc,
+  scrapedContent,
+}: {
+  companyName: string;
+  websiteUrl: string;
+  companySize?: string | null;
+  companyDescription?: string | null;
+  contextDoc?: string | null;
+  scrapedContent?: string | null;
+}): Promise<SynthesizedCompanyProfile> {
+  const result = await generateStructuredWithFallback({
+    schema: synthesizedCompanyProfileSchema,
+    system:
+      "You are a principal B2B market researcher and GTM strategist. Synthesize a comprehensive, authoritative company profile from raw website content, About page details, company size, and onboarding context.\n" +
+      "Do NOT simply regurgitate raw marketing text. Extract true positioning, core capabilities, target customer language, and strategic signals.\n" +
+      "Reflect the company's operating scale based on their team size (e.g., 1-10 early-stage/nimble, 11-50 growing challenger, 51-200 scaling mid-market, 200+ established enterprise), highlighting what this scale implies for their commercial focus and market approach.",
+    prompt:
+      `Company Name: ${companyName}\n` +
+      `Website: ${websiteUrl}\n` +
+      `Team Size / Company Size: ${companySize || "Unknown"}\n` +
+      `User-Provided Description: ${companyDescription || "None provided"}\n` +
+      (contextDoc ? `Context Document: ${contextDoc.slice(0, 2000)}\n` : "") +
+      (scrapedContent
+        ? `Scraped Website & About Page Content:\n${scrapedContent.slice(0, 8000)}`
+        : ""),
+  });
+
+  return result;
+}
+
 // -------------------------------------------------------------
 // Stage 2: Competitor search queries
 // -------------------------------------------------------------
@@ -60,19 +128,33 @@ const competitorQueriesSchema = z.object({
 export async function generateCompetitorSearchQueries({
   companyName,
   companyDescription,
+  companySize,
+  synthesizedProfile,
   contextDoc,
 }: {
   companyName: string;
   companyDescription: string;
+  companySize?: string | null;
+  synthesizedProfile?: SynthesizedCompanyProfile | null;
   contextDoc?: string | null;
 }): Promise<string[]> {
   const result = await generateStructuredWithFallback({
     schema: competitorQueriesSchema,
     system:
-      "You are a B2B Go-To-Market and competitive intelligence strategist. Generate 3 to 5 realistic search queries that a buyer would search on Google to find commercial alternatives and competing software/services in this domain. Focus on the core category, value proposition, and software tools. Avoid mentioning the company name itself.",
-    prompt: `Company Name: ${companyName}\nDescription: ${companyDescription}\n${
-      contextDoc ? `Additional Context: ${contextDoc.slice(0, 1500)}` : ""
-    }`,
+      "You are a B2B Go-To-Market and competitive intelligence strategist. Generate 3 to 5 realistic search queries that a buyer would search on Google to find commercial alternatives and competing software/services in this domain.\n\n" +
+      "CRITICAL - Calibrate queries directly to company size and competitive tier:\n" +
+      "- Small companies (1-10 employees): Generate queries targeting direct agile peers, lightweight software, open-source or indie tools, and SMB/startup alternatives (e.g. self-hosted, lightweight, modern startup tools).\n" +
+      "- Mid-size companies (11-50, 51-200 employees): Generate queries targeting scaling commercial platforms, mid-market SaaS alternatives, and category challengers.\n" +
+      "- Large enterprise companies (200+ employees): Generate queries targeting enterprise-grade solutions, market leaders, platforms with SOC2/HIPAA compliance, workforce management, and enterprise procurement alternatives.\n\n" +
+      "Focus on the core category, value proposition, and software tools. Avoid mentioning the company name itself.",
+    prompt:
+      `Company Name: ${companyName}\n` +
+      `Company Size: ${companySize || "Unknown"} employees\n` +
+      `Description: ${companyDescription}\n` +
+      (synthesizedProfile
+        ? `Synthesized Summary: ${synthesizedProfile.summary}\nIndustry/Category: ${synthesizedProfile.industry}\nProduct Focus: ${synthesizedProfile.productFocus}\n`
+        : "") +
+      (contextDoc ? `Additional Context: ${contextDoc.slice(0, 1500)}` : ""),
   });
 
   return result.queries;
@@ -110,11 +192,15 @@ const icpSegmentsResponseSchema = z.object({
 export async function generateIcpSegments({
   companyName,
   companyDescription,
+  companySize,
+  synthesizedProfile,
   competitors,
   contextDoc,
 }: {
   companyName: string;
   companyDescription: string;
+  companySize?: string | null;
+  synthesizedProfile?: SynthesizedCompanyProfile | null;
   competitors: Array<{ name: string; domain: string; description: string }>;
   contextDoc?: string | null;
 }) {
@@ -126,10 +212,21 @@ export async function generateIcpSegments({
   const result = await generateStructuredWithFallback({
     schema: icpSegmentsResponseSchema,
     system:
-      "You are an expert GTM strategist. Propose 4 to 6 distinct, actionable Ideal Customer Profile (ICP) segments for this business. Each segment must have an acute pain point, strict qualification criteria, search terms to find real companies, and an estimated size label clearly marked as an approximation. Do not invent fictitious company names — candidate companies will be sourced via live search.",
-    prompt: `Company: ${companyName}\nDescription: ${companyDescription}\n${
-      contextDoc ? `Context: ${contextDoc.slice(0, 1500)}\n` : ""
-    }Known Competitors:\n${compSummary}`,
+      "You are an expert GTM strategist. Propose 4 to 6 distinct, actionable Ideal Customer Profile (ICP) segments for this business. Each segment must have an acute pain point, strict qualification criteria, search terms to find real companies, and an estimated size label clearly marked as an approximation. Do not invent fictitious company names — candidate companies will be sourced via live search.\n\n" +
+      "CRITICAL - Tailor ICP segments directly to company size and operational capacity:\n" +
+      "- For small teams (1-10 employees): Define ICP segments that a nimble team can effectively sell to and support without huge bureaucratic sales cycles — e.g. early-stage founders, indie developers, boutique agencies, seed-stage startups, and agile teams seeking fast setup and immediate time-to-value.\n" +
+      "- For mid-market teams (11-50, 51-200 employees): Define ICP segments spanning growing scaleups, mid-market department leads, and modern high-growth companies with dedicated team budgets.\n" +
+      "- For enterprise teams (200+ employees): Define ICP segments targeting enterprise buyers, VP/Director-level stakeholders, global organizations, compliance-sensitive industries (healthcare, finance, government), and large multi-team enterprise accounts.\n\n" +
+      "Ensure segment names, qualification criteria, pain points, candidate search terms, and estimated market size reflect this company size calibration.",
+    prompt:
+      `Company: ${companyName}\n` +
+      `Company Size: ${companySize || "Unknown"} employees\n` +
+      `Description: ${companyDescription}\n` +
+      (synthesizedProfile
+        ? `Synthesized Profile: ${synthesizedProfile.summary}\nCategory: ${synthesizedProfile.industry}\nProduct Focus: ${synthesizedProfile.productFocus}\nTarget Customer Language on Site: ${synthesizedProfile.targetCustomerLanguage}\nNotable Signals: ${synthesizedProfile.signals?.join("; ")}\n`
+        : "") +
+      (contextDoc ? `Context: ${contextDoc.slice(0, 1500)}\n` : "") +
+      `Known Competitors:\n${compSummary}`,
   });
 
   return result.segments;

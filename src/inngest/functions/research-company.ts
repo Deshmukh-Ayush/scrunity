@@ -1,14 +1,17 @@
 import { inngest, researchRunChannel, type GtmEvents } from "../client";
 import { db } from "@/utils/db";
-import { gtmResearchRun } from "@/db/schema";
+import { gtmResearchRun, type SynthesizedCompanyProfile } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import {
   scrapeUrl,
   searchFirecrawl,
+  findAboutPageUrl,
   getFallbackLogoUrl,
   FirecrawlRateLimitError,
   type SearchResultItem,
+  type ScrapeResult,
 } from "@/lib/firecrawl";
+import { synthesizeCompanyProfile } from "@/lib/gtm-ai";
 import { safeRealtimePublish, type InngestStep } from "./shared";
 
 export interface ResearchCompanyResult {
@@ -16,6 +19,8 @@ export interface ResearchCompanyResult {
   companyDescription: string;
   contextDoc: string | null;
   websiteUrl: string;
+  companySize?: string;
+  synthesizedProfile?: SynthesizedCompanyProfile;
   rateLimitSummary?: string;
 }
 
@@ -46,7 +51,7 @@ export async function executeResearchCompany(
   });
 
   // 1. Scrape homepage
-  let homepageScrape;
+  let homepageScrape: ScrapeResult;
   try {
     homepageScrape = await scrapeUrl(run.websiteUrl, {
       step,
@@ -59,6 +64,66 @@ export async function executeResearchCompany(
     } else {
       throw err;
     }
+  }
+
+  // 2. Discover and scrape About / Company page if found
+  const aboutUrl = findAboutPageUrl(
+    run.websiteUrl,
+    homepageScrape.links,
+    homepageScrape.markdown
+  );
+
+  let aboutScrape: ScrapeResult | null = null;
+  if (aboutUrl) {
+    try {
+      aboutScrape = await scrapeUrl(aboutUrl, {
+        step,
+        stepPrefix: "stage1-about",
+      });
+    } catch (err) {
+      if (err instanceof FirecrawlRateLimitError) {
+        console.warn(`[Stage 1] About-page scrape for ${aboutUrl} hit Firecrawl rate limits.`);
+      } else {
+        console.warn(`[Stage 1] Failed to scrape about-page ${aboutUrl}:`, err);
+      }
+    }
+  }
+
+  // 3. Combine homepage + about page content
+  const combinedScrapedSections: string[] = [];
+  if (homepageScrape.title) {
+    combinedScrapedSections.push(`Homepage Title: ${homepageScrape.title}`);
+  }
+  if (homepageScrape.description) {
+    combinedScrapedSections.push(`Homepage Description: ${homepageScrape.description}`);
+  }
+  if (homepageScrape.markdown) {
+    combinedScrapedSections.push(`Homepage Content:\n${homepageScrape.markdown.slice(0, 5000)}`);
+  }
+  if (aboutScrape?.title) {
+    combinedScrapedSections.push(`About Page Title: ${aboutScrape.title}`);
+  }
+  if (aboutScrape?.description) {
+    combinedScrapedSections.push(`About Page Description: ${aboutScrape.description}`);
+  }
+  if (aboutScrape?.markdown) {
+    combinedScrapedSections.push(`About Page Content:\n${aboutScrape.markdown.slice(0, 5000)}`);
+  }
+  const scrapedContent = combinedScrapedSections.join("\n\n");
+
+  // 4. Run LLM synthesis to produce structured company profile
+  let synthesizedProfile: SynthesizedCompanyProfile | null = null;
+  try {
+    synthesizedProfile = await synthesizeCompanyProfile({
+      companyName: run.companyName,
+      websiteUrl: run.websiteUrl,
+      companySize: run.companySize,
+      companyDescription: run.companyDescription,
+      contextDoc: run.contextDoc,
+      scrapedContent,
+    });
+  } catch (err) {
+    console.warn(`[Stage 1] Company profile synthesis failed:`, err);
   }
 
   // 2. Discover social presence
@@ -127,13 +192,14 @@ export async function executeResearchCompany(
       twitterUrl,
       instagramUrl,
       seoKeywords,
+      synthesizedProfile,
       currentStage: "research_competitors",
     })
     .where(eq(gtmResearchRun.id, researchRunId));
 
   const summary = socialRateLimited
-    ? `Homepage analyzed. Social search hit Firecrawl rate limits; branding partially discovered.`
-    : `Homepage analyzed. Social presence and branding discovered.`;
+    ? `Homepage & about research synthesized. Social search hit Firecrawl rate limits; branding partially discovered.`
+    : `Homepage & about research synthesized with structured company profile. Social presence and branding discovered.`;
 
   await safeRealtimePublish(researchRunChannel(researchRunId).completed, {
     stage: "research_company",
@@ -145,6 +211,8 @@ export async function executeResearchCompany(
     companyDescription: run.companyDescription,
     contextDoc: run.contextDoc,
     websiteUrl: run.websiteUrl,
+    companySize: run.companySize,
+    synthesizedProfile: synthesizedProfile || undefined,
     rateLimitSummary: socialRateLimited
       ? "social search hit Firecrawl rate limits"
       : undefined,

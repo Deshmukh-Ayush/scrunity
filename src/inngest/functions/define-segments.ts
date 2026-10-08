@@ -45,6 +45,8 @@ export async function executeDefineSegments(
   const segments = await generateIcpSegments({
     companyName: run.companyName,
     companyDescription: run.companyDescription,
+    companySize: run.companySize,
+    synthesizedProfile: run.synthesizedProfile,
     competitors: competitors.map((c) => ({
       name: c.name,
       domain: c.domain,
