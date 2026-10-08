@@ -1,16 +1,26 @@
-"use client";
+"use client"
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import * as React from "react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
+import { toast } from "sonner"
+import { cn } from "@/lib/utils"
+import {
+  CompanyProfileConfirmation,
+  type SynthesizedProfile,
+} from "./company-profile-confirmation"
 import {
   Sparkles,
   Globe,
@@ -26,145 +36,168 @@ import {
   AlertCircle,
   Check,
   RotateCcw,
-} from "lucide-react";
+} from "lucide-react"
 
-type FlowStep = "FORM" | "RUNNING" | "SEGMENT_SELECTION" | "COMPLETED";
+type FlowStep =
+  | "FORM"
+  | "RUNNING"
+  | "PROFILE_CONFIRMATION"
+  | "SEGMENT_SELECTION"
+  | "COMPLETED"
 
 interface IcpSegment {
-  id: string;
-  name: string;
-  painPoint: string;
-  criteria: string[];
-  exampleCompanies: Array<{ name: string; domain: string }>;
-  estimatedSizeLabel?: string | null;
+  id: string
+  name: string
+  painPoint: string
+  criteria: string[]
+  exampleCompanies: Array<{ name: string; domain: string }>
+  estimatedSizeLabel?: string | null
 }
 
 interface Competitor {
-  id: string;
-  name: string;
-  domain: string;
-  description: string;
-  logoUrl?: string | null;
+  id: string
+  name: string
+  domain: string
+  description: string
+  logoUrl?: string | null
 }
 
 interface ResearchRunDetails {
-  id: string;
-  companyName: string;
-  websiteUrl: string;
-  companyDescription: string;
-  logoUrl?: string | null;
-  status: string;
-  currentStage: string;
+  id: string
+  companyName: string
+  websiteUrl: string
+  companyDescription: string
+  logoUrl?: string | null
+  status: string
+  currentStage: string
+  synthesizedProfile?: SynthesizedProfile | null
 }
 
 export function NewCampaignClient() {
-  const router = useRouter();
+  const router = useRouter()
 
   // Step state
-  const [currentStep, setCurrentStep] = React.useState<FlowStep>("FORM");
+  const [currentStep, setCurrentStep] = React.useState<FlowStep>("FORM")
 
   // Form fields
-  const [websiteUrl, setWebsiteUrl] = React.useState("");
-  const [companyName, setCompanyName] = React.useState("");
-  const [companyDescription, setCompanyDescription] = React.useState("");
-  const [companySize, setCompanySize] = React.useState<"1-10" | "11-50" | "51-200" | "200+">("11-50");
-  const [contextDoc, setContextDoc] = React.useState("");
-  const [fileName, setFileName] = React.useState("");
+  const [websiteUrl, setWebsiteUrl] = React.useState("")
+  const [companyName, setCompanyName] = React.useState("")
+  const [companyDescription, setCompanyDescription] = React.useState("")
+  const [companySize, setCompanySize] = React.useState<
+    "1-10" | "11-50" | "51-200" | "200+"
+  >("11-50")
+  const [contextDoc, setContextDoc] = React.useState("")
+  const [fileName, setFileName] = React.useState("")
 
   // Logo auto-fetch state
-  const [logoPreview, setLogoPreview] = React.useState<string | null>(null);
-  const [isFetchingLogo, setIsFetchingLogo] = React.useState(false);
+  const [logoPreview, setLogoPreview] = React.useState<string | null>(null)
+  const [isFetchingLogo, setIsFetchingLogo] = React.useState(false)
 
   // Pipeline execution state
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [researchRunId, setResearchRunId] = React.useState<string | null>(null);
-  const [runDetails, setRunDetails] = React.useState<ResearchRunDetails | null>(null);
-  const [competitors, setCompetitors] = React.useState<Competitor[]>([]);
-  const [segments, setSegments] = React.useState<IcpSegment[]>([]);
-  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [researchRunId, setResearchRunId] = React.useState<string | null>(null)
+  const [runDetails, setRunDetails] = React.useState<ResearchRunDetails | null>(
+    null
+  )
+  const [competitors, setCompetitors] = React.useState<Competitor[]>([])
+  const [segments, setSegments] = React.useState<IcpSegment[]>([])
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
+  const [isEditingDescription, setIsEditingDescription] = React.useState(false)
+  const [isRestartingResearch, setIsRestartingResearch] = React.useState(false)
 
   // Segment selection state
-  const [selectedSegmentIds, setSelectedSegmentIds] = React.useState<Set<string>>(new Set());
-  const [isLaunchingCampaigns, setIsLaunchingCampaigns] = React.useState(false);
-  const [launchedCampaignIds, setLaunchedCampaignIds] = React.useState<string[]>([]);
+  const [selectedSegmentIds, setSelectedSegmentIds] = React.useState<
+    Set<string>
+  >(new Set())
+  const [isLaunchingCampaigns, setIsLaunchingCampaigns] = React.useState(false)
+  const [launchedCampaignIds, setLaunchedCampaignIds] = React.useState<
+    string[]
+  >([])
 
   // 1. Auto-fetch logo on websiteUrl change (non-blocking)
   React.useEffect(() => {
-    const raw = websiteUrl.trim();
+    const raw = websiteUrl.trim()
     if (!raw || !raw.includes(".")) {
-      setLogoPreview(null);
-      return;
+      setLogoPreview(null)
+      return
     }
 
-    let domain = raw;
+    let domain = raw
     try {
-      const normalized = raw.startsWith("http") ? raw : `https://${raw}`;
-      domain = new URL(normalized).hostname.replace(/^www\./, "");
+      const normalized = raw.startsWith("http") ? raw : `https://${raw}`
+      domain = new URL(normalized).hostname.replace(/^www\./, "")
     } catch {
       // ignore parsing error
     }
 
     // Immediately show fallback Google favicon preview
-    const fallbackFavicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
-    setLogoPreview(fallbackFavicon);
+    const fallbackFavicon = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`
+    setLogoPreview(fallbackFavicon)
 
     // Asynchronously query fetch-logo endpoint for og:image/favicon
-    const controller = new AbortController();
-    setIsFetchingLogo(true);
+    const controller = new AbortController()
+    setIsFetchingLogo(true)
 
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/gtm/fetch-logo?url=${encodeURIComponent(raw)}`, {
-          signal: controller.signal,
-        });
-        const data = await res.json();
+        const res = await fetch(
+          `/api/gtm/fetch-logo?url=${encodeURIComponent(raw)}`,
+          {
+            signal: controller.signal,
+          }
+        )
+        const data = await res.json()
         if (data.logoUrl) {
-          setLogoPreview(data.logoUrl);
+          setLogoPreview(data.logoUrl)
         }
       } catch {
         // Fallback favicon remains active, non-blocking
       } finally {
-        setIsFetchingLogo(false);
+        setIsFetchingLogo(false)
       }
-    }, 600);
+    }, 600)
 
     return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [websiteUrl]);
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [websiteUrl])
 
   // Handle .md / .txt file upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const file = e.target.files?.[0]
+    if (!file) return
 
     if (!file.name.endsWith(".md") && !file.name.endsWith(".txt")) {
-      toast.error("Please upload a .md or .txt document");
-      return;
+      toast.error("Please upload a .md or .txt document")
+      return
     }
 
-    setFileName(file.name);
-    const reader = new FileReader();
+    setFileName(file.name)
+    const reader = new FileReader()
     reader.onload = (event) => {
-      const text = event.target?.result as string;
-      setContextDoc(text || "");
-      toast.success(`Loaded context from ${file.name}`);
-    };
-    reader.readAsText(file);
-  };
+      const text = event.target?.result as string
+      setContextDoc(text || "")
+      toast.success(`Loaded context from ${file.name}`)
+    }
+    reader.readAsText(file)
+  }
 
   // Submit entry form
   const handleSubmitForm = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
 
-    if (!websiteUrl.trim() || !companyName.trim() || !companyDescription.trim()) {
-      toast.error("Please provide website URL, company name, and description");
-      return;
+    if (
+      !websiteUrl.trim() ||
+      !companyName.trim() ||
+      !companyDescription.trim()
+    ) {
+      toast.error("Please provide website URL, company name, and description")
+      return
     }
 
-    setIsSubmitting(true);
-    setErrorMessage(null);
+    setIsSubmitting(true)
+    setErrorMessage(null)
 
     try {
       const res = await fetch("/api/gtm/research-runs", {
@@ -177,101 +210,138 @@ export function NewCampaignClient() {
           companySize,
           contextDoc: contextDoc.trim() || null,
         }),
-      });
+      })
 
-      const data = await res.json();
+      const data = await res.json()
       if (!res.ok) {
-        throw new Error(data.error || "Failed to start company research");
+        throw new Error(data.error || "Failed to start company research")
       }
 
-      setResearchRunId(data.researchRun.id);
-      setRunDetails(data.researchRun);
-      setCurrentStep("RUNNING");
-      toast.success("Autonomous pipeline started!");
+      setResearchRunId(data.researchRun.id)
+      setRunDetails(data.researchRun)
+      setCurrentStep("RUNNING")
+      toast.success("Autonomous pipeline started!")
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Submission failed";
-      toast.error(msg);
-      setErrorMessage(msg);
+      const msg = err instanceof Error ? err.message : "Submission failed"
+      toast.error(msg)
+      setErrorMessage(msg)
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
   // Poll research run status while in RUNNING step
   React.useEffect(() => {
-    if (currentStep !== "RUNNING" || !researchRunId) return;
+    if (
+      (currentStep !== "RUNNING" && currentStep !== "PROFILE_CONFIRMATION") ||
+      !researchRunId
+    )
+      return
 
-    let isSubscribed = true;
+    let isSubscribed = true
 
     const poll = async () => {
       try {
-        const res = await fetch(`/api/gtm/research-runs/${researchRunId}`);
-        const data = await res.json();
+        const res = await fetch(`/api/gtm/research-runs/${researchRunId}`)
+        const data = await res.json()
 
-        if (!isSubscribed || !data.success) return;
+        if (!isSubscribed || !data.success) return
 
-        setRunDetails(data.researchRun);
-        if (data.competitors) setCompetitors(data.competitors);
-        if (data.segments) setSegments(data.segments);
+        setRunDetails(data.researchRun)
+        if (data.competitors) setCompetitors(data.competitors)
+        if (data.segments) setSegments(data.segments)
 
         // When Stage 3 completes (research run status is "done")
-        if (data.researchRun.status === "done" || data.researchRun.currentStage === "done") {
+        if (
+          data.researchRun.status === "done" ||
+          data.researchRun.currentStage === "done"
+        ) {
           if (data.segments && data.segments.length > 0) {
             // Select all segments by default
             const initialSelected = new Set<string>(
               data.segments.map((s: IcpSegment) => s.id)
-            );
-            setSelectedSegmentIds(initialSelected);
-            setCurrentStep("SEGMENT_SELECTION");
-            toast.success("ICP segments generated! Select segments to launch campaigns.");
+            )
+            setSelectedSegmentIds(initialSelected)
           }
+          // Keep polling on this step if Stage 1's profile write arrives just
+          // after the final pipeline status update.
+          setCurrentStep("PROFILE_CONFIRMATION")
         } else if (data.researchRun.status === "failed") {
-          setErrorMessage("The autonomous research pipeline encountered an error.");
+          setErrorMessage(
+            "The autonomous research pipeline encountered an error."
+          )
         }
       } catch (err: unknown) {
-        console.warn("Error polling research run:", err);
+        console.warn("Error polling research run:", err)
       }
-    };
+    }
 
-    poll();
-    const interval = setInterval(poll, 2500);
+    poll()
+    const interval = setInterval(poll, 2500)
 
     return () => {
-      isSubscribed = false;
-      clearInterval(interval);
-    };
-  }, [currentStep, researchRunId]);
+      isSubscribed = false
+      clearInterval(interval)
+    }
+  }, [currentStep, researchRunId])
+
+  const handleRestartResearch = async () => {
+    if (!researchRunId || !companyDescription.trim()) return
+    setIsRestartingResearch(true)
+    try {
+      const res = await fetch(`/api/gtm/research-runs/${researchRunId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyDescription: companyDescription.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Could not restart research")
+      setRunDetails(data.researchRun)
+      setCompetitors([])
+      setSegments([])
+      setSelectedSegmentIds(new Set())
+      setIsEditingDescription(false)
+      setCurrentStep("RUNNING")
+      toast.success("Company research restarted with your updated description.")
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not restart research"
+      )
+    } finally {
+      setIsRestartingResearch(false)
+    }
+  }
 
   // Toggle segment selection
   const toggleSegment = (segmentId: string) => {
     setSelectedSegmentIds((prev) => {
-      const next = new Set(prev);
+      const next = new Set(prev)
       if (next.has(segmentId)) {
-        next.delete(segmentId);
+        next.delete(segmentId)
       } else {
-        next.add(segmentId);
+        next.add(segmentId)
       }
-      return next;
-    });
-  };
+      return next
+    })
+  }
 
   const handleSelectAll = () => {
     if (selectedSegmentIds.size === segments.length) {
-      setSelectedSegmentIds(new Set());
+      setSelectedSegmentIds(new Set())
     } else {
-      setSelectedSegmentIds(new Set(segments.map((s) => s.id)));
+      setSelectedSegmentIds(new Set(segments.map((s) => s.id)))
     }
-  };
+  }
 
   // Launch outreach campaigns for selected segments
   const handleLaunchCampaigns = async () => {
     if (selectedSegmentIds.size === 0) {
-      toast.error("Please select at least one segment to pursue");
-      return;
+      toast.error("Please select at least one segment to pursue")
+      return
     }
 
-    setIsLaunchingCampaigns(true);
-    const createdIds: string[] = [];
+    setIsLaunchingCampaigns(true)
+    const createdIds: string[] = []
 
     try {
       for (const segId of Array.from(selectedSegmentIds)) {
@@ -279,48 +349,53 @@ export function NewCampaignClient() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ icpSegmentId: segId }),
-        });
-        const data = await res.json();
+        })
+        const data = await res.json()
         if (res.ok && data.campaign?.id) {
-          createdIds.push(data.campaign.id);
+          createdIds.push(data.campaign.id)
         }
       }
 
-      setLaunchedCampaignIds(createdIds);
-      setCurrentStep("COMPLETED");
-      toast.success(`Successfully launched ${createdIds.length} outreach campaign(s)!`);
+      setLaunchedCampaignIds(createdIds)
+      setCurrentStep("COMPLETED")
+      toast.success(
+        `Successfully launched ${createdIds.length} outreach campaign(s)!`
+      )
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to launch campaigns";
-      toast.error(msg);
+      const msg =
+        err instanceof Error ? err.message : "Failed to launch campaigns"
+      toast.error(msg)
     } finally {
-      setIsLaunchingCampaigns(false);
+      setIsLaunchingCampaigns(false)
     }
-  };
+  }
 
   // =========================================================================
   // Render Step 1: Entry Form
   // =========================================================================
   if (currentStep === "FORM") {
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="mx-auto max-w-2xl space-y-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             New GTM Research & Outreach
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Provide your website and core proposition. The autonomous pipeline will analyze your product,
-            benchmark competitors, derive ICP segments, find decision-makers, and draft personalized emails.
+          <p className="mt-1 text-sm text-muted-foreground">
+            Provide your website and core proposition. The autonomous pipeline
+            will analyze your product, benchmark competitors, derive ICP
+            segments, find decision-makers, and draft personalized emails.
           </p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-base">
               <Building2 className="size-4 text-primary" />
               Company Details
             </CardTitle>
             <CardDescription>
-              Basic parameters to anchor autonomous competitor and ICP discovery.
+              Basic parameters to anchor autonomous competitor and ICP
+              discovery.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -329,30 +404,33 @@ export function NewCampaignClient() {
               <div className="space-y-1.5">
                 <Label htmlFor="websiteUrl">Website URL *</Label>
                 <div className="relative">
-                  <Globe className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                  <Globe className="absolute top-2.5 left-3 size-4 text-muted-foreground" />
                   <Input
                     id="websiteUrl"
                     placeholder="https://example.com"
-                    className="pl-9 pr-12"
+                    className="pr-12 pl-9"
                     value={websiteUrl}
                     onChange={(e) => setWebsiteUrl(e.target.value)}
                     required
                   />
                   {logoPreview && (
-                    <div className="absolute right-2.5 top-1.5 flex items-center gap-1.5 bg-muted/60 px-1.5 py-0.5 rounded border border-border/60">
+                    <div className="absolute top-1.5 right-2.5 flex items-center gap-1.5 rounded border border-border/60 bg-muted/60 px-1.5 py-0.5">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={logoPreview}
                         alt="Logo"
-                        className="size-5 rounded object-contain bg-background"
+                        className="size-5 rounded bg-background object-contain"
                         onError={() => setLogoPreview(null)}
                       />
-                      {isFetchingLogo && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
+                      {isFetchingLogo && (
+                        <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                      )}
                     </div>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Branding logo and favicon will be automatically fetched from this site.
+                  Branding logo and favicon will be automatically fetched from
+                  this site.
                 </p>
               </div>
 
@@ -375,9 +453,11 @@ export function NewCampaignClient() {
                   id="companySize"
                   value={companySize}
                   onChange={(e) =>
-                    setCompanySize(e.target.value as "1-10" | "11-50" | "51-200" | "200+")
+                    setCompanySize(
+                      e.target.value as "1-10" | "11-50" | "51-200" | "200+"
+                    )
                   }
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-xs focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                 >
                   <option value="1-10">1-10 employees</option>
                   <option value="11-50">11-50 employees</option>
@@ -388,7 +468,9 @@ export function NewCampaignClient() {
 
               {/* Short Description */}
               <div className="space-y-1.5">
-                <Label htmlFor="companyDescription">Short Description / Value Proposition *</Label>
+                <Label htmlFor="companyDescription">
+                  Short Description / Value Proposition *
+                </Label>
                 <Textarea
                   id="companyDescription"
                   placeholder="What does your company do, who does it serve, and what core pain point do you solve?"
@@ -401,8 +483,10 @@ export function NewCampaignClient() {
 
               {/* Optional .md File Upload */}
               <div className="space-y-1.5 pt-2">
-                <Label htmlFor="contextDoc">Optional Context Document (.md / .txt)</Label>
-                <div className="border-2 border-dashed border-border/80 rounded-lg p-4 text-center hover:bg-muted/30 transition-colors">
+                <Label htmlFor="contextDoc">
+                  Optional Context Document (.md / .txt)
+                </Label>
+                <div className="rounded-lg border-2 border-dashed border-border/80 p-4 text-center transition-colors hover:bg-muted/30">
                   <input
                     type="file"
                     id="contextDoc"
@@ -410,10 +494,15 @@ export function NewCampaignClient() {
                     className="hidden"
                     onChange={handleFileUpload}
                   />
-                  <label htmlFor="contextDoc" className="flex flex-col items-center cursor-pointer gap-1.5">
+                  <label
+                    htmlFor="contextDoc"
+                    className="flex cursor-pointer flex-col items-center gap-1.5"
+                  >
                     <UploadCloud className="size-6 text-muted-foreground" />
                     <span className="text-xs font-medium text-foreground">
-                      {fileName ? fileName : "Upload product documentation or battlecard (.md)"}
+                      {fileName
+                        ? fileName
+                        : "Upload product documentation or battlecard (.md)"}
                     </span>
                     <span className="text-[11px] text-muted-foreground">
                       Optional context document (.md) — no personal information.
@@ -422,19 +511,20 @@ export function NewCampaignClient() {
                 </div>
                 {contextDoc && (
                   <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
-                    Loaded {contextDoc.length} characters of context for the research prompt.
+                    Loaded {contextDoc.length} characters of context for the
+                    research prompt.
                   </p>
                 )}
               </div>
 
               {errorMessage && (
-                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-xs text-destructive flex items-center gap-2">
+                <div className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive">
                   <AlertCircle className="size-4 shrink-0" />
                   <span>{errorMessage}</span>
                 </div>
               )}
 
-              <div className="pt-4 flex justify-end">
+              <div className="flex justify-end pt-4">
                 <Button type="submit" disabled={isSubmitting} className="gap-2">
                   {isSubmitting ? (
                     <>
@@ -454,21 +544,22 @@ export function NewCampaignClient() {
           </CardContent>
         </Card>
       </div>
-    );
+    )
   }
 
   // =========================================================================
   // Render Step 2: Running State with Dashed-Connector Timeline
   // =========================================================================
   if (currentStep === "RUNNING") {
-    const currentStage = runDetails?.currentStage || "research_company";
+    const currentStage = runDetails?.currentStage || "research_company"
 
     // Define timeline stages
     const timelineSteps = [
       {
         id: "stage-1",
         title: "Stage 1: Research Company",
-        description: "Scraping homepage, extracting SEO keywords, and discovering social profiles (LinkedIn, X, Instagram).",
+        description:
+          "Scraping homepage, extracting SEO keywords, and discovering social profiles (LinkedIn, X, Instagram).",
         stageKey: "research_company",
         isComplete: currentStage !== "research_company",
         isActive: currentStage === "research_company",
@@ -481,9 +572,11 @@ export function NewCampaignClient() {
       {
         id: "stage-2",
         title: "Stage 2: Explore Competitors",
-        description: "Generating search queries, scanning commercial web via Firecrawl, and filtering aggregator directories.",
+        description:
+          "Generating search queries, scanning commercial web via Firecrawl, and filtering aggregator directories.",
         stageKey: "research_competitors",
-        isComplete: currentStage === "define_segments" || currentStage === "done",
+        isComplete:
+          currentStage === "define_segments" || currentStage === "done",
         isActive: currentStage === "research_competitors",
         summary:
           currentStage === "define_segments" || currentStage === "done"
@@ -494,7 +587,8 @@ export function NewCampaignClient() {
       {
         id: "stage-3",
         title: "Stage 3: Define ICP Segments",
-        description: "Deriving 4-6 Ideal Customer Profile segments, acute pain points, and discovering real example companies.",
+        description:
+          "Deriving 4-6 Ideal Customer Profile segments, acute pain points, and discovering real example companies.",
         stageKey: "define_segments",
         isComplete: currentStage === "done" || runDetails?.status === "done",
         isActive: currentStage === "define_segments",
@@ -504,17 +598,18 @@ export function NewCampaignClient() {
             : "Formulating ICP targets and discovering example companies...",
         icon: Target,
       },
-    ];
+    ]
 
     return (
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="mx-auto max-w-2xl space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               Autonomous Market Research in Progress
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Analyzing {runDetails?.companyName || companyName} ({runDetails?.websiteUrl || websiteUrl})
+            <p className="mt-1 text-sm text-muted-foreground">
+              Analyzing {runDetails?.companyName || companyName} (
+              {runDetails?.websiteUrl || websiteUrl})
             </p>
           </div>
           {logoPreview && (
@@ -529,23 +624,24 @@ export function NewCampaignClient() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center justify-between">
+            <CardTitle className="flex items-center justify-between text-base">
               <span>Pipeline Execution Timeline</span>
-              <Badge variant="outline" className="text-xs font-normal gap-1">
+              <Badge variant="outline" className="gap-1 text-xs font-normal">
                 <Loader2 className="size-3 animate-spin text-primary" />
                 Live Inngest Pipeline
               </Badge>
             </CardTitle>
             <CardDescription>
-              Each stage executes asynchronously, discovering data and feeding the next stage.
+              Each stage executes asynchronously, discovering data and feeding
+              the next stage.
             </CardDescription>
           </CardHeader>
           <CardContent>
             {/* Adapted Torch Dashed-Connector Timeline */}
             <ol className="relative ml-1 space-y-2 py-2">
               {timelineSteps.map((step, idx) => {
-                const isLast = idx === timelineSteps.length - 1;
-                const StepIcon = step.icon;
+                const isLast = idx === timelineSteps.length - 1
+                const StepIcon = step.icon
 
                 return (
                   <li key={step.id} className="relative flex gap-4">
@@ -557,8 +653,8 @@ export function NewCampaignClient() {
                           step.isComplete
                             ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                             : step.isActive
-                            ? "border-primary/40 bg-primary/10 text-primary"
-                            : "border-border/60 bg-muted text-muted-foreground"
+                              ? "border-primary/40 bg-primary/10 text-primary"
+                              : "border-border/60 bg-muted text-muted-foreground"
                         )}
                       >
                         {step.isComplete ? (
@@ -585,18 +681,26 @@ export function NewCampaignClient() {
                     </div>
 
                     {/* Stage details */}
-                    <div className={cn("min-w-0 flex-1", isLast ? "pb-2" : "pb-6")}>
+                    <div
+                      className={cn("min-w-0 flex-1", isLast ? "pb-2" : "pb-6")}
+                    >
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-foreground">
                           {step.title}
                         </span>
                         {step.isActive && (
-                          <Badge variant="secondary" className="text-[10px] py-0">
+                          <Badge
+                            variant="secondary"
+                            className="py-0 text-[10px]"
+                          >
                             In Progress
                           </Badge>
                         )}
                         {step.isComplete && (
-                          <Badge variant="outline" className="text-[10px] py-0 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                          <Badge
+                            variant="outline"
+                            className="border-emerald-500/30 py-0 text-[10px] text-emerald-600 dark:text-emerald-400"
+                          >
                             Completed
                           </Badge>
                         )}
@@ -606,35 +710,58 @@ export function NewCampaignClient() {
                         {step.description}
                       </p>
 
-                      <div className="mt-2 text-xs font-mono bg-muted/30 p-2 rounded border border-border/40 text-foreground">
+                      <div className="mt-2 rounded border border-border/40 bg-muted/30 p-2 font-mono text-xs text-foreground">
                         {step.summary}
                       </div>
 
                       {/* Live competitors pill display when Stage 2 completes */}
-                      {step.stageKey === "research_competitors" && competitors.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {competitors.slice(0, 5).map((c) => (
-                            <Badge key={c.id} variant="outline" className="text-[11px] gap-1">
-                              <Globe className="size-3 text-muted-foreground" />
-                              {c.name}
-                            </Badge>
-                          ))}
-                          {competitors.length > 5 && (
-                            <Badge variant="outline" className="text-[11px]">
-                              +{competitors.length - 5} more
-                            </Badge>
-                          )}
-                        </div>
-                      )}
+                      {step.stageKey === "research_competitors" &&
+                        competitors.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {competitors.slice(0, 5).map((c) => (
+                              <Badge
+                                key={c.id}
+                                variant="outline"
+                                className="gap-1 text-[11px]"
+                              >
+                                <Globe className="size-3 text-muted-foreground" />
+                                {c.name}
+                              </Badge>
+                            ))}
+                            {competitors.length > 5 && (
+                              <Badge variant="outline" className="text-[11px]">
+                                +{competitors.length - 5} more
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                     </div>
                   </li>
-                );
+                )
               })}
             </ol>
           </CardContent>
         </Card>
       </div>
-    );
+    )
+  }
+
+  if (currentStep === "PROFILE_CONFIRMATION") {
+    return (
+      <CompanyProfileConfirmation
+        profile={runDetails?.synthesizedProfile}
+        companyDescription={companyDescription}
+        isEditing={isEditingDescription}
+        isSaving={isRestartingResearch}
+        onDescriptionChange={setCompanyDescription}
+        onEdit={() => setIsEditingDescription(true)}
+        onContinue={() => {
+          setCurrentStep("SEGMENT_SELECTION")
+          toast.success("ICP segments are ready to review.")
+        }}
+        onSave={handleRestartResearch}
+      />
+    )
   }
 
   // =========================================================================
@@ -642,34 +769,36 @@ export function NewCampaignClient() {
   // =========================================================================
   if (currentStep === "SEGMENT_SELECTION") {
     return (
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="mx-auto max-w-4xl space-y-6">
         <div>
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-foreground">
                 Select ICP Segments to Pursue
               </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Autonomous research complete. Select which Ideal Customer Profile segments to launch
-                as cold outreach campaigns.
+              <p className="mt-1 text-sm text-muted-foreground">
+                Autonomous research complete. Select which Ideal Customer
+                Profile segments to launch as cold outreach campaigns.
               </p>
             </div>
             <Button variant="outline" size="sm" onClick={handleSelectAll}>
-              {selectedSegmentIds.size === segments.length ? "Deselect All" : "Select All"}
+              {selectedSegmentIds.size === segments.length
+                ? "Deselect All"
+                : "Select All"}
             </Button>
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           {segments.map((seg) => {
-            const isSelected = selectedSegmentIds.has(seg.id);
+            const isSelected = selectedSegmentIds.has(seg.id)
 
             return (
               <Card
                 key={seg.id}
                 onClick={() => toggleSegment(seg.id)}
                 className={cn(
-                  "cursor-pointer transition-all border-2",
+                  "cursor-pointer border-2 transition-all",
                   isSelected
                     ? "border-primary bg-primary/5 shadow-xs"
                     : "border-border/70 hover:border-border"
@@ -689,9 +818,9 @@ export function NewCampaignClient() {
                     </div>
                     <div
                       className={cn(
-                        "size-5 rounded flex items-center justify-center border transition-colors",
+                        "flex size-5 items-center justify-center rounded border transition-colors",
                         isSelected
-                          ? "bg-primary border-primary text-primary-foreground"
+                          ? "border-primary bg-primary text-primary-foreground"
                           : "border-muted-foreground/40 bg-background"
                       )}
                     >
@@ -699,10 +828,14 @@ export function NewCampaignClient() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="p-4 pt-2 space-y-3">
-                  <div className="text-xs space-y-1">
-                    <span className="font-semibold text-foreground">Acute Pain Point:</span>
-                    <p className="text-muted-foreground leading-relaxed">{seg.painPoint}</p>
+                <CardContent className="space-y-3 p-4 pt-2">
+                  <div className="space-y-1 text-xs">
+                    <span className="font-semibold text-foreground">
+                      Acute Pain Point:
+                    </span>
+                    <p className="leading-relaxed text-muted-foreground">
+                      {seg.painPoint}
+                    </p>
                   </div>
 
                   {seg.criteria && seg.criteria.length > 0 && (
@@ -712,7 +845,11 @@ export function NewCampaignClient() {
                       </span>
                       <div className="flex flex-wrap gap-1">
                         {seg.criteria.map((c, i) => (
-                          <Badge key={i} variant="secondary" className="text-[10px] py-0 font-normal">
+                          <Badge
+                            key={i}
+                            variant="secondary"
+                            className="py-0 text-[10px] font-normal"
+                          >
                             {c}
                           </Badge>
                         ))}
@@ -721,18 +858,20 @@ export function NewCampaignClient() {
                   )}
 
                   {seg.exampleCompanies && seg.exampleCompanies.length > 0 && (
-                    <div className="text-[11px] text-muted-foreground pt-1 border-t border-border/40">
-                      <strong className="text-foreground">Discovered Live Examples:</strong>{" "}
+                    <div className="border-t border-border/40 pt-1 text-[11px] text-muted-foreground">
+                      <strong className="text-foreground">
+                        Discovered Live Examples:
+                      </strong>{" "}
                       {seg.exampleCompanies.map((ex) => ex.name).join(", ")}
                     </div>
                   )}
                 </CardContent>
               </Card>
-            );
+            )
           })}
         </div>
 
-        <div className="flex items-center justify-between pt-4 border-t">
+        <div className="flex items-center justify-between border-t pt-4">
           <p className="text-sm text-muted-foreground">
             {selectedSegmentIds.size} of {segments.length} segment(s) selected
           </p>
@@ -757,16 +896,16 @@ export function NewCampaignClient() {
           </Button>
         </div>
       </div>
-    );
+    )
   }
 
   // =========================================================================
   // Render Step 4: Completed Confirmation & Direct Links
   // =========================================================================
   return (
-    <div className="max-w-xl mx-auto space-y-6 text-center py-6">
+    <div className="mx-auto max-w-xl space-y-6 py-6 text-center">
       <div className="flex justify-center">
-        <div className="size-12 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+        <div className="flex size-12 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
           <CheckCircle2 className="size-7" />
         </div>
       </div>
@@ -775,16 +914,20 @@ export function NewCampaignClient() {
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           Campaigns Created Successfully!
         </h1>
-        <p className="text-sm text-muted-foreground max-w-md mx-auto">
-          We created {launchedCampaignIds.length} outreach campaign(s). The autonomous agent is now
-          finding candidate companies, identifying decision-makers, and drafting cold emails for your review.
+        <p className="mx-auto max-w-md text-sm text-muted-foreground">
+          We created {launchedCampaignIds.length} outreach campaign(s). The
+          autonomous agent is now finding candidate companies, identifying
+          decision-makers, and drafting cold emails for your review.
         </p>
       </div>
 
-      <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+      <div className="flex flex-col items-center justify-center gap-3 pt-4 sm:flex-row">
         <Link
           href="/dashboard/campaigns"
-          className={cn(buttonVariants({ variant: "default" }), "w-full sm:w-auto gap-2")}
+          className={cn(
+            buttonVariants({ variant: "default" }),
+            "w-full gap-2 sm:w-auto"
+          )}
         >
           <Users className="size-4" />
           View Campaigns Dashboard
@@ -792,7 +935,10 @@ export function NewCampaignClient() {
         {launchedCampaignIds[0] && (
           <Link
             href={`/dashboard/campaigns/${launchedCampaignIds[0]}`}
-            className={cn(buttonVariants({ variant: "outline" }), "w-full sm:w-auto gap-2")}
+            className={cn(
+              buttonVariants({ variant: "outline" }),
+              "w-full gap-2 sm:w-auto"
+            )}
           >
             Open First Campaign Pipeline
             <ArrowRight className="size-4" />
@@ -800,5 +946,5 @@ export function NewCampaignClient() {
         )}
       </div>
     </div>
-  );
+  )
 }
