@@ -1,8 +1,8 @@
-import { PlanTier } from "./billing";
+import { PlanTier } from "./billing"
 
 export interface PlanCreditConfig {
-  aiCredits: number;
-  searchCredits: number;
+  aiCredits: number
+  searchCredits: number
 }
 
 /**
@@ -31,7 +31,7 @@ export const PLAN_CREDIT_ALLOTMENTS: Record<PlanTier, PlanCreditConfig> = {
     aiCredits: 50000,
     searchCredits: 10000,
   },
-};
+}
 
 /**
  * Soft-cap Enforcement Flag.
@@ -41,7 +41,8 @@ export const PLAN_CREDIT_ALLOTMENTS: Record<PlanTier, PlanCreditConfig> = {
  *
  * When true, requests exceeding credit limits will be blocked.
  */
-export const ENFORCE_CREDIT_LIMITS = false;
+export const ENFORCE_CREDIT_LIMITS =
+  process.env.ENFORCE_CREDIT_LIMITS === "true"
 
 /**
  * Platform Technical Circuit Breaker for Web Search.
@@ -50,12 +51,16 @@ export const ENFORCE_CREDIT_LIMITS = false;
  * from runaway execution loops or accidental client bugs.
  * Always enforced regardless of ENFORCE_CREDIT_LIMITS.
  */
-export const SEARCH_CIRCUIT_BREAKER_HOURLY_LIMIT = 60;
+export const SEARCH_CIRCUIT_BREAKER_HOURLY_LIMIT = 60
 
 /**
  * Helper to get credit allotment for an organization's plan tier.
  */
-export function getPlanCreditAllotments(plan: string = "free"): PlanCreditConfig {
-  const tier = (plan.toLowerCase() in PLAN_CREDIT_ALLOTMENTS ? plan.toLowerCase() : "free") as PlanTier;
-  return PLAN_CREDIT_ALLOTMENTS[tier] || PLAN_CREDIT_ALLOTMENTS.free;
+export function getPlanCreditAllotments(
+  plan: string = "free"
+): PlanCreditConfig {
+  const tier = (
+    plan.toLowerCase() in PLAN_CREDIT_ALLOTMENTS ? plan.toLowerCase() : "free"
+  ) as PlanTier
+  return PLAN_CREDIT_ALLOTMENTS[tier] || PLAN_CREDIT_ALLOTMENTS.free
 }
