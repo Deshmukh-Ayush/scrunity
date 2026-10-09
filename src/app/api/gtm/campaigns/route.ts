@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { db } from "@/utils/db";
 import { gtmOutreachCampaign, gtmResearchRun } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { resolveAuthAndOrg, verifyIcpSegmentAccess } from "@/lib/gtm-auth";
 import { inngest } from "@/inngest/client";
+import { runFullCampaignPipeline } from "@/lib/gtm-pipeline-runner";
 import { z } from "zod";
 
 const createCampaignSchema = z.object({
@@ -41,6 +42,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Step 1: Idempotency check - if campaign is already running, prevent duplicate
+    const [existingActive] = await db
+      .select()
+      .from(gtmOutreachCampaign)
+      .where(
+        and(
+          eq(gtmOutreachCampaign.icpSegmentId, icpSegmentId),
+          eq(gtmOutreachCampaign.status, "in_progress")
+        )
+      )
+      .limit(1);
+
+    if (existingActive) {
+      console.log(
+        `[POST /api/gtm/campaigns] Duplicate trigger prevented: campaign ${existingActive.id} is in progress.`
+      );
+      return NextResponse.json(
+        {
+          success: true,
+          campaign: existingActive,
+          duplicatePrevented: true,
+          message: "A campaign for this segment is already running.",
+        },
+        { status: 200 }
+      );
+    }
+
     // Create campaign row
     const [campaign] = await db
       .insert(gtmOutreachCampaign)
@@ -52,12 +80,23 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
-    // Fire Inngest event for this specific campaign run (concurrent and keyed by outreachCampaignId)
-    await inngest.send({
-      name: "gtm/campaign.find_companies",
-      data: {
-        outreachCampaignId: campaign.id,
-      },
+    // Fire Inngest event
+    try {
+      await inngest.send({
+        name: "gtm/campaign.find_companies",
+        data: {
+          outreachCampaignId: campaign.id,
+        },
+      });
+    } catch (e) {
+      console.warn("[POST /api/gtm/campaigns] inngest.send notice:", e);
+    }
+
+    // Direct background execution guarantees completion in all environments
+    setImmediate(() => {
+      runFullCampaignPipeline(campaign.id).catch((err) => {
+        console.error("[POST /api/gtm/campaigns] Background pipeline error:", err);
+      });
     });
 
     return NextResponse.json(
