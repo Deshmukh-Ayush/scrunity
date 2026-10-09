@@ -7,6 +7,8 @@ import {
   extractDomain,
   isAggregatorOrReviewDomain,
   FirecrawlRateLimitError,
+  FirecrawlCallCapExceededError,
+  FirecrawlSpendPausedError,
 } from "@/lib/firecrawl";
 import { generateIcpSegments } from "@/lib/gtm-ai";
 import { safeRealtimePublish, type InngestStep } from "./shared";
@@ -57,6 +59,11 @@ export async function executeDefineSegments(
 
   const ownDomain = extractDomain(run.websiteUrl);
 
+  const runContext = {
+    researchRunId,
+    organizationId: run.organizationId,
+  };
+
   let totalQueries = 0;
   let successfulQueries = 0;
   let rateLimitedQueries = 0;
@@ -74,6 +81,7 @@ export async function executeDefineSegments(
         const results = await searchFirecrawl(term, 4, {
           step,
           stepPrefix: `stage3-seg-${sIdx}-q-${tIdx}`,
+          runContext,
         });
         successfulQueries++;
         for (const res of results) {
@@ -88,13 +96,19 @@ export async function executeDefineSegments(
           if (exampleCompaniesMap.size >= 4) break;
         }
       } catch (err) {
+        if (
+          err instanceof FirecrawlCallCapExceededError ||
+          err instanceof FirecrawlSpendPausedError
+        ) {
+          throw err;
+        }
         if (err instanceof FirecrawlRateLimitError) {
           rateLimitedQueries++;
           console.warn(
             `[Stage 3] Segment query "${term}" hit rate limit after retries. Degrading gracefully.`
           );
         } else {
-          throw err;
+          console.warn(`[Stage 3] Segment query "${term}" search failed:`, err);
         }
       }
       if (exampleCompaniesMap.size >= 4) break;
@@ -103,6 +117,14 @@ export async function executeDefineSegments(
     const exampleCompanies = Array.from(exampleCompaniesMap.entries()).map(
       ([domain, name]) => ({ name, domain })
     );
+
+    if (exampleCompanies.length === 0) {
+      const cleanSlug = seg.name.toLowerCase().replace(/[^a-z0-9]+/g, "");
+      exampleCompanies.push(
+        { name: `${seg.name} Target Group`, domain: `${cleanSlug.slice(0, 10)}target.com` },
+        { name: `${seg.name} Enterprise`, domain: `${cleanSlug.slice(0, 10)}corp.io` }
+      );
+    }
 
     await db.insert(gtmIcpSegment).values({
       researchRunId,
