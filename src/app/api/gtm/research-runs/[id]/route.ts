@@ -7,9 +7,10 @@ import {
   gtmOutreachCampaign,
   gtmResearchRun,
 } from "@/db/schema"
-import { eq } from "drizzle-orm"
+import { eq, and, ne } from "drizzle-orm"
 import { resolveAuthAndOrg, verifyResearchRunAccess } from "@/lib/gtm-auth"
 import { inngest } from "@/inngest/client"
+import { runFullResearchPipeline } from "@/lib/gtm-pipeline-runner"
 import { z } from "zod"
 
 const updateResearchRunSchema = z.object({
@@ -86,6 +87,7 @@ export async function PATCH(
       { error: "A company description is required" },
       { status: 400 }
     )
+  // Atomic conditional check-and-set: only update if status is NOT 'in_progress'
   const [researchRun] = await db
     .update(gtmResearchRun)
     .set({
@@ -93,12 +95,42 @@ export async function PATCH(
       synthesizedProfile: null,
       status: "in_progress",
       currentStage: "research_company",
+      failureReason: null,
     })
-    .where(eq(gtmResearchRun.id, id))
+    .where(
+      and(
+        eq(gtmResearchRun.id, id),
+        ne(gtmResearchRun.status, "in_progress")
+      )
+    )
     .returning()
-  await inngest.send({
-    name: "gtm/research.requested",
-    data: { researchRunId: id },
+
+  if (!researchRun) {
+    const currentRun = await verifyResearchRunAccess(id, auth.orgId)
+    return NextResponse.json(
+      {
+        error: "Research run is currently in progress",
+        researchRun: currentRun,
+        duplicatePrevented: true,
+      },
+      { status: 409 }
+    )
+  }
+
+  try {
+    await inngest.send({
+      name: "gtm/research.requested",
+      data: { researchRunId: id },
+    })
+  } catch (e) {
+    console.warn("[PATCH /api/gtm/research-runs/[id]] inngest.send notice:", e)
+  }
+
+  setImmediate(() => {
+    runFullResearchPipeline(id).catch((err) => {
+      console.error("[PATCH /api/gtm/research-runs/[id]] Background pipeline error:", err)
+    })
   })
+
   return NextResponse.json({ success: true, researchRun })
 }

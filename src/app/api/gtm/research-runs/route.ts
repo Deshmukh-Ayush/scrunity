@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { db } from "@/utils/db";
 import { gtmResearchRun } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { resolveAuthAndOrg } from "@/lib/gtm-auth";
 import { inngest } from "@/inngest/client";
-import { scrapeUrl, getFallbackLogoUrl } from "@/lib/firecrawl";
+import { runFullResearchPipeline } from "@/lib/gtm-pipeline-runner";
+import { getFallbackLogoUrl, normalizeWebsiteUrl } from "@/lib/firecrawl";
 import { z } from "zod";
 
 const createResearchRunSchema = z.object({
@@ -35,18 +36,46 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { websiteUrl, companyName, companyDescription, companySize, contextDoc } =
-      parsed.data;
+    const {
+      websiteUrl: rawWebsiteUrl,
+      companyName,
+      companyDescription,
+      companySize,
+      contextDoc,
+    } = parsed.data;
 
-    // Fetch logo automatically from site's favicon or og:image (not user-uploaded)
-    let logoUrl = getFallbackLogoUrl(websiteUrl);
-    try {
-      const scraped = await scrapeUrl(websiteUrl);
-      if (scraped.ogImage) logoUrl = scraped.ogImage;
-      else if (scraped.favicon) logoUrl = scraped.favicon;
-    } catch (e) {
-      console.warn("Logo auto-fetch skipped:", e);
+    const websiteUrl = normalizeWebsiteUrl(rawWebsiteUrl);
+
+    // Step 1: Idempotency check - if a run for this org & website is already in progress, return it
+    const [existingActiveRun] = await db
+      .select()
+      .from(gtmResearchRun)
+      .where(
+        and(
+          eq(gtmResearchRun.organizationId, auth.orgId),
+          eq(gtmResearchRun.websiteUrl, websiteUrl),
+          eq(gtmResearchRun.status, "in_progress")
+        )
+      )
+      .limit(1);
+
+    if (existingActiveRun) {
+      console.log(
+        `[POST /api/gtm/research-runs] Duplicate execution prevented: run ${existingActiveRun.id} already in progress.`
+      );
+      return NextResponse.json(
+        {
+          success: true,
+          researchRun: existingActiveRun,
+          duplicatePrevented: true,
+          message: "A research run for this website is already in progress.",
+        },
+        { status: 200 }
+      );
     }
+
+    // High quality favicon without incurring Firecrawl scrape credits before row exists
+    const logoUrl = getFallbackLogoUrl(websiteUrl);
 
     // Insert research run row
     const [run] = await db
@@ -65,12 +94,23 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
-    // Fire Inngest event and return immediately (non-blocking)
-    await inngest.send({
-      name: "gtm/research.requested",
-      data: {
-        researchRunId: run.id,
-      },
+    // Fire Inngest event (non-blocking)
+    try {
+      await inngest.send({
+        name: "gtm/research.requested",
+        data: {
+          researchRunId: run.id,
+        },
+      });
+    } catch (inngestErr) {
+      console.warn("[POST /api/gtm/research-runs] inngest.send notice:", inngestErr);
+    }
+
+    // Direct background execution guarantees completion in all environments
+    setImmediate(() => {
+      runFullResearchPipeline(run.id).catch((err) => {
+        console.error("[POST /api/gtm/research-runs] Background pipeline error:", err);
+      });
     });
 
     return NextResponse.json({ success: true, researchRun: run }, { status: 201 });
