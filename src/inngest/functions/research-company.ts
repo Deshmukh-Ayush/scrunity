@@ -8,6 +8,8 @@ import {
   findAboutPageUrl,
   getFallbackLogoUrl,
   FirecrawlRateLimitError,
+  FirecrawlCallCapExceededError,
+  FirecrawlSpendPausedError,
   type SearchResultItem,
   type ScrapeResult,
 } from "@/lib/firecrawl";
@@ -50,20 +52,33 @@ export async function executeResearchCompany(
     message: `Analyzing ${run.companyName} (${run.websiteUrl})...`,
   });
 
+  const runContext = {
+    researchRunId,
+    organizationId: run.organizationId,
+  };
+
   // 1. Scrape homepage
   let homepageScrape: ScrapeResult;
   try {
     homepageScrape = await scrapeUrl(run.websiteUrl, {
       step,
       stepPrefix: "stage1-homepage",
+      runContext,
     });
   } catch (err) {
-    if (err instanceof FirecrawlRateLimitError) {
-      console.warn(`[Stage 1] Homepage scrape for ${run.websiteUrl} hit Firecrawl rate limits.`);
-      homepageScrape = { url: run.websiteUrl, favicon: getFallbackLogoUrl(run.websiteUrl) };
-    } else {
+    if (
+      err instanceof FirecrawlCallCapExceededError ||
+      err instanceof FirecrawlSpendPausedError
+    ) {
       throw err;
     }
+    console.warn(`[Stage 1] Homepage scrape for ${run.websiteUrl} failed, using fallback metadata:`, err);
+    homepageScrape = {
+      url: run.websiteUrl,
+      title: run.companyName,
+      description: run.companyDescription,
+      favicon: getFallbackLogoUrl(run.websiteUrl),
+    };
   }
 
   // 2. Discover and scrape About / Company page if found
@@ -79,8 +94,15 @@ export async function executeResearchCompany(
       aboutScrape = await scrapeUrl(aboutUrl, {
         step,
         stepPrefix: "stage1-about",
+        runContext,
       });
     } catch (err) {
+      if (
+        err instanceof FirecrawlCallCapExceededError ||
+        err instanceof FirecrawlSpendPausedError
+      ) {
+        throw err;
+      }
       if (err instanceof FirecrawlRateLimitError) {
         console.warn(`[Stage 1] About-page scrape for ${aboutUrl} hit Firecrawl rate limits.`);
       } else {
@@ -120,10 +142,17 @@ export async function executeResearchCompany(
       companySize: run.companySize,
       companyDescription: run.companyDescription,
       contextDoc: run.contextDoc,
-      scrapedContent,
+      scrapedContent: scrapedContent || run.companyDescription,
     });
   } catch (err) {
-    console.warn(`[Stage 1] Company profile synthesis failed:`, err);
+    console.warn(`[Stage 1] Company profile synthesis failed, using basic profile:`, err);
+    synthesizedProfile = {
+      summary: run.companyDescription,
+      industry: "Technology & Software",
+      productFocus: run.companyName,
+      targetCustomerLanguage: "B2B / Direct Clients",
+      signals: [run.companyDescription],
+    };
   }
 
   // 2. Discover social presence
@@ -137,9 +166,15 @@ export async function executeResearchCompany(
     linkedinResults = await searchFirecrawl(
       `"${cleanName}" site:linkedin.com/company`,
       2,
-      { step, stepPrefix: "stage1-social-li" }
+      { step, stepPrefix: "stage1-social-li", runContext }
     );
   } catch (err) {
+    if (
+      err instanceof FirecrawlCallCapExceededError ||
+      err instanceof FirecrawlSpendPausedError
+    ) {
+      throw err;
+    }
     if (err instanceof FirecrawlRateLimitError) socialRateLimited = true;
   }
 
@@ -147,9 +182,15 @@ export async function executeResearchCompany(
     twitterResults = await searchFirecrawl(
       `"${cleanName}" site:x.com OR site:twitter.com`,
       2,
-      { step, stepPrefix: "stage1-social-tw" }
+      { step, stepPrefix: "stage1-social-tw", runContext }
     );
   } catch (err) {
+    if (
+      err instanceof FirecrawlCallCapExceededError ||
+      err instanceof FirecrawlSpendPausedError
+    ) {
+      throw err;
+    }
     if (err instanceof FirecrawlRateLimitError) socialRateLimited = true;
   }
 
@@ -157,9 +198,15 @@ export async function executeResearchCompany(
     instagramResults = await searchFirecrawl(
       `"${cleanName}" site:instagram.com`,
       2,
-      { step, stepPrefix: "stage1-social-ig" }
+      { step, stepPrefix: "stage1-social-ig", runContext }
     );
   } catch (err) {
+    if (
+      err instanceof FirecrawlCallCapExceededError ||
+      err instanceof FirecrawlSpendPausedError
+    ) {
+      throw err;
+    }
     if (err instanceof FirecrawlRateLimitError) socialRateLimited = true;
   }
 

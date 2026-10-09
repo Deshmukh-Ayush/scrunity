@@ -9,9 +9,14 @@ import {
   isAggregatorOrReviewDomain,
   getFallbackLogoUrl,
   FirecrawlRateLimitError,
+  FirecrawlCallCapExceededError,
+  FirecrawlSpendPausedError,
   type SearchResultItem,
 } from "@/lib/firecrawl";
-import { generateCompetitorSearchQueries } from "@/lib/gtm-ai";
+import {
+  generateCompetitorSearchQueries,
+  generateFallbackCompetitors,
+} from "@/lib/gtm-ai";
 import { safeRealtimePublish, type InngestStep } from "./shared";
 
 export interface ExploreCompetitorsResult {
@@ -49,6 +54,11 @@ export async function executeExploreCompetitors(
     contextDoc: run.contextDoc,
   });
 
+  const runContext = {
+    researchRunId,
+    organizationId: run.organizationId,
+  };
+
   // 2. Run searches via Firecrawl with retry & backoff
   const searchResults: SearchResultItem[][] = [];
   let successfulQueries = 0;
@@ -60,10 +70,17 @@ export async function executeExploreCompetitors(
       const results = await searchFirecrawl(q, 6, {
         step,
         stepPrefix: `stage2-comp-q-${i}`,
+        runContext,
       });
       searchResults.push(results);
       successfulQueries++;
     } catch (err) {
+      if (
+        err instanceof FirecrawlCallCapExceededError ||
+        err instanceof FirecrawlSpendPausedError
+      ) {
+        throw err;
+      }
       if (err instanceof FirecrawlRateLimitError) {
         rateLimitedQueries++;
         console.warn(
@@ -118,12 +135,19 @@ export async function executeExploreCompetitors(
         const scraped = await scrapeUrl(`https://${dom}`, {
           step,
           stepPrefix: `stage2-scrape-${dIdx}`,
+          runContext,
         });
         if (scraped.description) desc = scraped.description;
         if (scraped.title && !name) name = scraped.title.split(/[-–|:]/)[0].trim();
         if (scraped.ogImage || scraped.favicon) logo = scraped.ogImage || scraped.favicon!;
         if (scraped.keywords) keywords = scraped.keywords;
       } catch (e) {
+        if (
+          e instanceof FirecrawlCallCapExceededError ||
+          e instanceof FirecrawlSpendPausedError
+        ) {
+          throw e;
+        }
         console.warn(`Competitor scrape skipped for ${dom}:`, (e as Error).message);
       }
     }
@@ -136,6 +160,25 @@ export async function executeExploreCompetitors(
       keywords,
       logoUrl: logo,
     });
+  }
+
+  if (competitorsToInsert.length === 0) {
+    console.log(`[Stage 2] No competitor domains found via search. Generating fallback competitors with AI...`);
+    const fallbackComps = await generateFallbackCompetitors({
+      companyName: run.companyName,
+      companyDescription: run.companyDescription,
+      companySize: run.companySize,
+    });
+    for (const c of fallbackComps) {
+      competitorsToInsert.push({
+        researchRunId,
+        name: c.name,
+        domain: c.domain,
+        description: c.description,
+        keywords: [],
+        logoUrl: getFallbackLogoUrl(c.domain),
+      });
+    }
   }
 
   if (competitorsToInsert.length > 0) {
