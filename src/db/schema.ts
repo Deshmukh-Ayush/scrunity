@@ -823,3 +823,89 @@ export const gtmSegmentDigestRelations = relations(
   })
 )
 
+export const gtmConversation = pgTable(
+  "gtm_conversation",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    title: text("title"),
+    outreachCampaignId: text("outreach_campaign_id").references(
+      () => gtmOutreachCampaign.id,
+      { onDelete: "set null" }
+    ),
+    researchRunId: text("research_run_id").references(
+      () => gtmResearchRun.id,
+      { onDelete: "set null" }
+    ),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("gtm_conv_org_idx").on(table.organizationId),
+    index("gtm_conv_user_idx").on(table.userId),
+    index("gtm_conv_updated_idx").on(table.updatedAt),
+  ]
+)
+
+export const gtmMessage = pgTable(
+  "gtm_message",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => gtmConversation.id, { onDelete: "cascade" }),
+    role: text("role", { enum: ["user", "assistant", "system"] }).notNull(),
+    content: text("content").notNull(),
+    toolCalls: jsonb("tool_calls"),
+    artifact: jsonb("artifact"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("gtm_msg_conv_idx").on(table.conversationId),
+    index("gtm_msg_created_idx").on(table.createdAt),
+  ]
+)
+
+export const gtmConversationRelations = relations(
+  gtmConversation,
+  ({ one, many }) => ({
+    organization: one(organization, {
+      fields: [gtmConversation.organizationId],
+      references: [organization.id],
+    }),
+    user: one(user, {
+      fields: [gtmConversation.userId],
+      references: [user.id],
+    }),
+    campaign: one(gtmOutreachCampaign, {
+      fields: [gtmConversation.outreachCampaignId],
+      references: [gtmOutreachCampaign.id],
+    }),
+    researchRun: one(gtmResearchRun, {
+      fields: [gtmConversation.researchRunId],
+      references: [gtmResearchRun.id],
+    }),
+    messages: many(gtmMessage),
+  })
+)
+
+export const gtmMessageRelations = relations(gtmMessage, ({ one }) => ({
+  conversation: one(gtmConversation, {
+    fields: [gtmMessage.conversationId],
+    references: [gtmConversation.id],
+  }),
+}))
+
+
