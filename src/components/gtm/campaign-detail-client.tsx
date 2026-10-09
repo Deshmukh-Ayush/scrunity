@@ -25,6 +25,9 @@ import {
   HelpCircle,
   Send,
   Check,
+  RotateCcw,
+  Sparkles,
+  Play,
 } from "lucide-react";
 import { SegmentDigestCard } from "./segment-digest-card";
 
@@ -65,6 +68,8 @@ interface CampaignData {
     id: string;
     status: string;
     currentStage: string;
+    failureReason?: string | null;
+    firecrawlCallCount?: number;
     createdAt: string;
   };
   segment: {
@@ -104,6 +109,7 @@ export function CampaignDetailClient() {
   const [mailbox, setMailbox] = React.useState<MailboxInfo | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isDispatching, setIsDispatching] = React.useState(false);
+  const [isRestarting, setIsRestarting] = React.useState(false);
   const [editingDraftId, setEditingDraftId] = React.useState<string | null>(null);
   const [editSubject, setEditSubject] = React.useState("");
   const [editBody, setEditBody] = React.useState("");
@@ -138,7 +144,7 @@ export function CampaignDetailClient() {
 
   React.useEffect(() => {
     fetchCampaign();
-    const interval = setInterval(fetchCampaign, 5000);
+    const interval = setInterval(fetchCampaign, 4000);
     return () => clearInterval(interval);
   }, [campaignId]);
 
@@ -168,6 +174,46 @@ export function CampaignDetailClient() {
       toast.error(msg);
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleApproveAll = async () => {
+    setIsUpdating(true);
+    try {
+      const res = await fetch(`/api/gtm/campaigns/${campaignId}/drafts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "approve_all" }),
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || "Failed to approve all drafts");
+
+      toast.success("All drafts approved!");
+      await fetchCampaign();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to approve drafts";
+      toast.error(msg);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleRestartPipeline = async () => {
+    setIsRestarting(true);
+    try {
+      const res = await fetch(`/api/gtm/campaigns/${campaignId}/rerun`, {
+        method: "POST",
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || "Failed to restart pipeline");
+
+      toast.success("Autonomous pipeline restarted!");
+      await fetchCampaign();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to restart pipeline";
+      toast.error(msg);
+    } finally {
+      setIsRestarting(false);
     }
   };
 
@@ -225,6 +271,7 @@ export function CampaignDetailClient() {
   const approvedDraftsCount = drafts.filter((d) => d.status === "approved").length;
   const sentDraftsCount = drafts.filter((d) => d.status === "sent").length;
   const rejectedDraftsCount = drafts.filter((d) => d.status === "rejected").length;
+  const pendingDraftsCount = drafts.filter((d) => d.status === "draft").length;
 
   const getEmailSourceBadge = (source: string) => {
     switch (source) {
@@ -322,22 +369,150 @@ export function CampaignDetailClient() {
               Campaign targeting {researchRun.companyName}&apos;s verified ICP segment.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge
-              variant={
-                campaign.status === "done"
-                  ? "default"
-                  : campaign.status === "awaiting_approval"
-                  ? "default"
-                  : "secondary"
-              }
-              className="text-xs capitalize self-start sm:self-auto py-1 px-3"
+          <div className="flex items-center gap-2 flex-wrap">
+            {campaign.status === "in_progress" ? (
+              <Badge
+                variant="outline"
+                className="text-xs capitalize self-start sm:self-auto py-1 px-3 border-blue-500/40 text-blue-600 dark:text-blue-400 gap-1.5"
+              >
+                <Loader2 className="size-3 animate-spin" />
+                {campaign.currentStage.replace(/_/g, " ")} (Running)
+              </Badge>
+            ) : (
+              <Badge
+                variant={
+                  campaign.status === "done"
+                    ? "default"
+                    : campaign.status === "awaiting_approval"
+                    ? "default"
+                    : "secondary"
+                }
+                className="text-xs capitalize self-start sm:self-auto py-1 px-3"
+              >
+                {campaign.currentStage.replace(/_/g, " ")}
+              </Badge>
+            )}
+
+            {approvedDraftsCount > 0 && campaign.currentStage !== "send_emails" && (
+              <Button
+                size="sm"
+                onClick={handleStartSending}
+                disabled={isDispatching || !mailbox}
+                className="text-xs h-8 gap-1.5 bg-primary text-primary-foreground shadow-sm"
+              >
+                {isDispatching ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Send className="size-3.5" />
+                )}
+                Start Sending ({approvedDraftsCount})
+              </Button>
+            )}
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRestartPipeline}
+              disabled={isRestarting}
+              className="text-xs h-8 gap-1.5"
+              title="Restart or re-run autonomous research pipeline"
             >
-              {campaign.currentStage.replace(/_/g, " ")}
-            </Badge>
+              {isRestarting ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <RotateCcw className="size-3.5" />
+              )}
+              {campaign.status === "in_progress" ? "Restart" : "Re-run"}
+            </Button>
           </div>
         </div>
       </div>
+
+      {/* Active Autonomous Pipeline Banner */}
+      {campaign.status === "in_progress" && (
+        <Card className="border-blue-500/30 bg-blue-500/5 p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 mt-0.5">
+                <Loader2 className="size-5 animate-spin" />
+              </div>
+              <div className="space-y-1">
+                <div className="font-semibold text-xs text-foreground flex items-center gap-2">
+                  <span>Autonomous Pipeline In Progress:</span>
+                  <Badge variant="outline" className="text-[11px] capitalize font-medium border-blue-500/40 text-blue-600 dark:text-blue-400">
+                    {campaign.currentStage.replace(/_/g, " ")}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {campaign.currentStage === "find_companies"
+                    ? "Searching for ICP-fit companies, extracting company metadata, and verifying domain details..."
+                    : campaign.currentStage === "find_contacts"
+                    ? "Discovering key decision-makers and verifying deliverable MX records & mail patterns..."
+                    : campaign.currentStage === "write_emails"
+                    ? "Generating highly personalized cold emails tailored to each contact and company..."
+                    : campaign.currentStage === "send_emails"
+                    ? "Dispatching approved drafts with human-like throttling (30-90s delay)..."
+                    : "Autonomous agent is executing pipeline tasks..."}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRestartPipeline}
+                disabled={isRestarting}
+                className="text-xs h-8 gap-1.5"
+              >
+                {isRestarting ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
+                Restart Stage
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Failed Pipeline Banner */}
+      {campaign.status === "failed" && (
+        <Card className="border-destructive/40 bg-destructive/5 p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-full bg-destructive/10 text-destructive mt-0.5">
+                <AlertCircle className="size-5" />
+              </div>
+              <div className="space-y-1">
+                <div className="font-semibold text-xs text-foreground flex items-center gap-2">
+                  <span>Autonomous Pipeline Halted:</span>
+                  <Badge variant="destructive" className="text-[11px] capitalize font-medium">
+                    Failed
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {campaign.failureReason === "firecrawl_call_cap_exceeded"
+                    ? "Campaign execution halted: Safety limit for web search calls was exceeded for this campaign pass to protect your credits."
+                    : campaign.failureReason === "paused_firecrawl_allotment_exhausted"
+                    ? "Campaign paused: Your organization's monthly web search allotment is nearly exhausted for this billing cycle."
+                    : campaign.failureReason
+                    ? `Campaign failed: ${campaign.failureReason}`
+                    : "An unexpected error occurred during campaign execution."}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRestartPipeline}
+                disabled={isRestarting}
+                className="text-xs h-8 gap-1.5"
+              >
+                {isRestarting ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
+                Retry Campaign
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Mailbox Banner */}
       {!mailbox ? (
@@ -404,13 +579,19 @@ export function CampaignDetailClient() {
                   key={st.id}
                   className={`p-3 rounded-lg border flex flex-col items-center gap-1.5 transition-all ${
                     isCurrent
-                      ? "border-primary bg-primary/5 text-primary font-medium"
+                      ? "border-primary bg-primary/5 text-primary font-medium ring-1 ring-primary/20"
                       : isPast
                       ? "border-border bg-muted/30 text-foreground"
                       : "border-dashed text-muted-foreground opacity-60"
                   }`}
                 >
-                  <Icon className="size-4" />
+                  <div className="flex items-center gap-1.5">
+                    {isCurrent && campaign.status === "in_progress" ? (
+                      <Loader2 className="size-4 animate-spin text-primary" />
+                    ) : (
+                      <Icon className="size-4" />
+                    )}
+                  </div>
                   <span>{st.label}</span>
                 </div>
               );
@@ -419,10 +600,7 @@ export function CampaignDetailClient() {
         </CardContent>
       </Card>
 
-      {/* Stage 9: Periodic Performance & Learning Digest */}
-      <SegmentDigestCard segmentId={segment.id} segmentName={segment.name} />
-
-      {/* Review & Dispatch Section (Stage 6/7 Output) */}
+      {/* Review & Dispatch Section */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -431,13 +609,29 @@ export function CampaignDetailClient() {
               Generated Email Drafts ({drafts.length})
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Review and approve drafts before dispatch. Sending is throttled (30-90s delay) via Gmail.
+              Review and approve drafts before dispatch. Sending is safely throttled (30-90s delay) via Gmail.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground mr-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground mr-1">
               {approvedDraftsCount} Approved / {sentDraftsCount} Sent / {rejectedDraftsCount} Rejected
             </span>
+            {pendingDraftsCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleApproveAll}
+                disabled={isUpdating}
+                className="text-xs h-8 gap-1.5 border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
+              >
+                {isUpdating ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="size-3.5" />
+                )}
+                Approve All ({pendingDraftsCount})
+              </Button>
+            )}
             {approvedDraftsCount > 0 && campaign.currentStage !== "send_emails" && (
               <Button
                 size="sm"
@@ -457,10 +651,50 @@ export function CampaignDetailClient() {
         </div>
 
         {drafts.length === 0 ? (
-          <Card className="p-6 text-center text-xs text-muted-foreground border-dashed">
-            {campaign.currentStage === "find_companies" || campaign.currentStage === "find_contacts"
-              ? "Autonomous agent is researching companies and decision-makers. Drafts will appear here once ready."
-              : "No drafts generated yet for this campaign."}
+          <Card className="p-8 text-center text-xs border-dashed">
+            {campaign.status === "in_progress" ? (
+              <div className="flex flex-col items-center justify-center space-y-3">
+                <Loader2 className="size-6 animate-spin text-primary" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">
+                    Autonomous Pipeline is Active
+                  </p>
+                  <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                    The agent is currently executing stage <span className="font-semibold text-foreground">{campaign.currentStage.replace(/_/g, " ")}</span>.
+                    Prospect companies, verified contacts, and tailored drafts will appear automatically here.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRestartPipeline}
+                  disabled={isRestarting}
+                  className="text-xs h-7 gap-1.5 mt-2"
+                >
+                  {isRestarting ? <Loader2 className="size-3 animate-spin" /> : <RotateCcw className="size-3" />}
+                  Restart Pipeline
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center space-y-3">
+                <Mail className="size-8 text-muted-foreground/50" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">No drafts generated yet</p>
+                  <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                    Run the autonomous research pipeline to discover ICP companies, scrape key decision-makers, and draft emails.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  onClick={handleRestartPipeline}
+                  disabled={isRestarting}
+                  className="text-xs h-8 gap-1.5 mt-1"
+                >
+                  {isRestarting ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
+                  Run Research Pipeline
+                </Button>
+              </div>
+            )}
           </Card>
         ) : (
           <div className="space-y-4">
@@ -685,6 +919,19 @@ export function CampaignDetailClient() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Segment Performance & Learning Digest */}
+      <div className="pt-6 border-t space-y-3">
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">
+            Segment Intelligence & Performance Digest
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Aggregated conversion metrics, ICP resonance analysis, and autonomous campaign learning notes.
+          </p>
+        </div>
+        <SegmentDigestCard segmentId={segment.id} segmentName={segment.name} />
       </div>
     </div>
   );

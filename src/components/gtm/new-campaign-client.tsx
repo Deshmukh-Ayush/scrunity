@@ -70,6 +70,8 @@ interface ResearchRunDetails {
   logoUrl?: string | null
   status: string
   currentStage: string
+  failureReason?: string | null
+  firecrawlCallCount?: number
   synthesizedProfile?: SynthesizedProfile | null
 }
 
@@ -124,7 +126,8 @@ export function NewCampaignClient() {
 
     let domain = raw
     try {
-      const normalized = raw.startsWith("http") ? raw : `https://${raw}`
+      const cleanHost = raw.replace(/^(?:https?:\/*)+/i, "")
+      const normalized = `https://${cleanHost}`
       domain = new URL(normalized).hostname.replace(/^www\./, "")
     } catch {
       // ignore parsing error
@@ -204,7 +207,7 @@ export function NewCampaignClient() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          websiteUrl: websiteUrl.trim(),
+          websiteUrl: `https://${websiteUrl.trim().replace(/^(?:https?:\/*)+/i, "")}`,
           companyName: companyName.trim(),
           companyDescription: companyDescription.trim(),
           companySize,
@@ -267,9 +270,22 @@ export function NewCampaignClient() {
           // after the final pipeline status update.
           setCurrentStep("PROFILE_CONFIRMATION")
         } else if (data.researchRun.status === "failed") {
-          setErrorMessage(
-            "The autonomous research pipeline encountered an error."
-          )
+          const reason = data.researchRun.failureReason
+          if (reason === "firecrawl_call_cap_exceeded") {
+            setErrorMessage(
+              "Research stopped: Firecrawl call safety cap exceeded for this run to protect your credit balance."
+            )
+          } else if (reason === "paused_firecrawl_allotment_exhausted") {
+            setErrorMessage(
+              "Research paused: Firecrawl credit allotment nearly exhausted for this billing cycle."
+            )
+          } else {
+            setErrorMessage(
+              reason
+                ? `Research failed: ${reason}`
+                : "The autonomous research pipeline encountered an error."
+            )
+          }
         }
       } catch (err: unknown) {
         console.warn("Error polling research run:", err)
@@ -740,6 +756,31 @@ export function NewCampaignClient() {
                 )
               })}
             </ol>
+
+            {(errorMessage || runDetails?.status === "failed") && (
+              <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-center">
+                <div className="flex items-center gap-2 text-xs font-medium text-destructive">
+                  <AlertCircle className="size-4 shrink-0" />
+                  <span>
+                    {errorMessage || "Autonomous pipeline encountered an issue. You can retry."}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRestartResearch}
+                  disabled={isRestartingResearch}
+                  className="text-xs h-8 gap-1.5"
+                >
+                  {isRestartingResearch ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <RotateCcw className="size-3.5" />
+                  )}
+                  Retry Research Pipeline
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
