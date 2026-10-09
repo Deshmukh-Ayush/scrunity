@@ -12,6 +12,8 @@ import {
   scrapeUrl,
   searchFirecrawl,
   FirecrawlRateLimitError,
+  FirecrawlCallCapExceededError,
+  FirecrawlSpendPausedError,
 } from "@/lib/firecrawl"
 import { deriveTargetJobFunction } from "@/lib/gtm-ai"
 import {
@@ -177,6 +179,11 @@ export async function executeFindContacts(
   const insertedContacts: ContactData[] = []
   let rateLimitedCalls = 0
 
+  const runContext = {
+    campaignId: outreachCampaignId,
+    organizationId: researchRun.organizationId,
+  }
+
   for (const comp of companies) {
     let personName = ""
     let personTitle = targetRole.jobFunctions[0] || "Leader"
@@ -195,6 +202,8 @@ export async function executeFindContacts(
       const teamResults = await searchFirecrawl(teamQ, 2, {
         step,
         stepPrefix: `stage5-team-q-${comp.id}`,
+        maxRetries: 1,
+        runContext,
       })
 
       const teamResult = teamResults.find((r) =>
@@ -220,12 +229,19 @@ export async function executeFindContacts(
           const scraped = await scrapeUrl(targetUrl, {
             step,
             stepPrefix: `stage5-team-scrape-${comp.id}`,
+            runContext,
           })
           if (scraped.markdown) {
             const parsedMembers = parseTeamFromMarkdown(scraped.markdown)
             candidates.push(...parsedMembers)
           }
         } catch (scrapeErr) {
+          if (
+            scrapeErr instanceof FirecrawlCallCapExceededError ||
+            scrapeErr instanceof FirecrawlSpendPausedError
+          ) {
+            throw scrapeErr
+          }
           if (scrapeErr instanceof FirecrawlRateLimitError) {
             rateLimitedCalls++
           }
@@ -236,6 +252,12 @@ export async function executeFindContacts(
         ...parseCandidatesFromSnippets(teamResults, "site_search_snippet")
       )
     } catch (err) {
+      if (
+        err instanceof FirecrawlCallCapExceededError ||
+        err instanceof FirecrawlSpendPausedError
+      ) {
+        throw err
+      }
       if (err instanceof FirecrawlRateLimitError) {
         rateLimitedCalls++
         console.warn(
@@ -250,11 +272,19 @@ export async function executeFindContacts(
       const liPeople = await searchFirecrawl(searchQ, 2, {
         step,
         stepPrefix: `stage5-li-${comp.id}`,
+        maxRetries: 1,
+        runContext,
       })
       candidates.push(
         ...parseCandidatesFromSnippets(liPeople, "linkedin_snippet")
       )
     } catch (err) {
+      if (
+        err instanceof FirecrawlCallCapExceededError ||
+        err instanceof FirecrawlSpendPausedError
+      ) {
+        throw err
+      }
       if (err instanceof FirecrawlRateLimitError) {
         rateLimitedCalls++
         console.warn(
@@ -302,6 +332,7 @@ export async function executeFindContacts(
       const siteScrape = await scrapeUrl(`https://${comp.domain}`, {
         step,
         stepPrefix: `stage5-contact-scrape-${comp.id}`,
+        runContext,
       })
       const extracted = extractEmailsFromText(
         siteScrape.markdown || "",
@@ -316,6 +347,12 @@ export async function executeFindContacts(
         }
       }
     } catch (e) {
+      if (
+        e instanceof FirecrawlCallCapExceededError ||
+        e instanceof FirecrawlSpendPausedError
+      ) {
+        throw e
+      }
       if (e instanceof FirecrawlRateLimitError) {
         rateLimitedCalls++
       }
@@ -349,11 +386,9 @@ export async function executeFindContacts(
 
     // Step d: Company-level fallback (info@/hello@/contact@)
     if (!resolvedEmail) {
-      const hasMx = await checkDomainMxRecords(comp.domain)
-      if (hasMx) {
-        resolvedEmail = `contact@${comp.domain}`
-        emailSource = "company_fallback"
-      }
+      const hasMx = await checkDomainMxRecords(comp.domain).catch(() => false)
+      resolvedEmail = `contact@${comp.domain}`
+      emailSource = hasMx ? "company_fallback" : "pattern_guessed_unverified"
     }
 
     const [contact] = await db

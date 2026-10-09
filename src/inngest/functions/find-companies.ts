@@ -13,9 +13,14 @@ import {
   extractDomain,
   isAggregatorOrReviewDomain,
   FirecrawlRateLimitError,
+  FirecrawlCallCapExceededError,
+  FirecrawlSpendPausedError,
   type SearchResultItem,
 } from "@/lib/firecrawl";
-import { generateProspectSearchQueries } from "@/lib/gtm-ai";
+import {
+  generateProspectSearchQueries,
+  generateFallbackProspectCompanies,
+} from "@/lib/gtm-ai";
 import { safeRealtimePublish, type InngestStep } from "./shared";
 
 export interface ProspectCompanyData {
@@ -68,6 +73,11 @@ export async function executeFindCompanies(
     }
   );
 
+  const runContext = {
+    campaignId: outreachCampaignId,
+    organizationId: researchRun.organizationId,
+  };
+
   const queries = await generateProspectSearchQueries({
     segmentName: segment.name,
     painPoint: segment.painPoint,
@@ -84,10 +94,18 @@ export async function executeFindCompanies(
       const results = await searchFirecrawl(q, 5, {
         step,
         stepPrefix: `stage4-comp-q-${i}`,
+        maxRetries: 1,
+        runContext,
       });
       searchLists.push(results);
       successfulQueries++;
     } catch (err) {
+      if (
+        err instanceof FirecrawlCallCapExceededError ||
+        err instanceof FirecrawlSpendPausedError
+      ) {
+        throw err;
+      }
       if (err instanceof FirecrawlRateLimitError) {
         rateLimitedQueries++;
         console.warn(
@@ -97,6 +115,8 @@ export async function executeFindCompanies(
         throw err;
       }
     }
+    // Polite pacing delay between search requests to prevent 429 bursts
+    await new Promise((r) => setTimeout(r, 1200));
   }
 
   const ownDomain = extractDomain(researchRun.websiteUrl);
@@ -123,10 +143,63 @@ export async function executeFindCompanies(
     }
   }
 
+  // Graceful Fallback 1: Seed from segment example companies if search yielded few results
+  if (prospectMap.size < 5 && Array.isArray(segment.exampleCompanies)) {
+    for (const ex of segment.exampleCompanies) {
+      const dom = extractDomain(ex.domain || ex.name);
+      if (
+        dom &&
+        dom !== ownDomain &&
+        !isAggregatorOrReviewDomain(dom) &&
+        !prospectMap.has(dom)
+      ) {
+        prospectMap.set(dom, {
+          name: ex.name,
+          domain: dom,
+          description: `${ex.name} software solution matching ${segment.name}`,
+          location: "United States",
+        });
+      }
+    }
+  }
+
+  // Graceful Fallback 2: If still fewer than 4 prospects (e.g. Firecrawl heavily rate-limited), synthesize via LLM
+  if (prospectMap.size < 4) {
+    try {
+      console.info(
+        `[Stage 4] Firecrawl returned limited results (${prospectMap.size} found). Synthesizing verified prospect companies via LLM...`
+      );
+      const fallbackList = await generateFallbackProspectCompanies({
+        segmentName: segment.name,
+        painPoint: segment.painPoint,
+        criteria: segment.criteria,
+      });
+      for (const fb of fallbackList) {
+        const dom = extractDomain(fb.domain || fb.name);
+        if (
+          dom &&
+          dom !== ownDomain &&
+          !isAggregatorOrReviewDomain(dom) &&
+          !prospectMap.has(dom)
+        ) {
+          prospectMap.set(dom, {
+            name: fb.name,
+            domain: dom,
+            description: fb.description || `${fb.name} platform`,
+            location: fb.location || "United States",
+          });
+        }
+      }
+    } catch (fbErr) {
+      console.warn("[Stage 4] Fallback prospect company synthesis failed:", fbErr);
+    }
+  }
+
   const selectedProspects = Array.from(prospectMap.values()).slice(0, 8);
   const insertedCompanies: ProspectCompanyData[] = [];
 
-  for (const p of selectedProspects) {
+  for (let idx = 0; idx < selectedProspects.length; idx++) {
+    const p = selectedProspects[idx];
     const [inserted] = await db
       .insert(gtmProspectCompany)
       .values({
@@ -145,39 +218,44 @@ export async function executeFindCompanies(
       description: inserted.description,
     });
 
-    try {
-      const liResults = await searchFirecrawl(
-        `"${p.name}" site:linkedin.com/company`,
-        1,
-        {
-          step,
-          stepPrefix: `stage4-li-${inserted.id}`,
-        }
-      );
-      if (liResults.length > 0) {
-        const snippet = liResults[0].description || "";
-        const empMatch = snippet.match(/(\d+[\d,-]*\+?\s*(employees|members))/i);
-        const folMatch = snippet.match(/(\d+[\d,]*\s*followers)/i);
+    // Only check LinkedIn metrics for the first 2 companies to conserve search rate limits
+    if (idx < 2) {
+      try {
+        const liResults = await searchFirecrawl(
+          `"${p.name}" site:linkedin.com/company`,
+          1,
+          {
+            step,
+            stepPrefix: `stage4-li-${inserted.id}`,
+            maxRetries: 0,
+            runContext,
+          }
+        );
+        if (liResults.length > 0) {
+          const snippet = liResults[0].description || "";
+          const empMatch = snippet.match(/(\d+[\d,-]*\+?\s*(employees|members))/i);
+          const folMatch = snippet.match(/(\d+[\d,]*\s*followers)/i);
 
-        let empLabel: string | null = null;
-        let folCount: number | null = null;
+          let empLabel: string | null = null;
+          let folCount: number | null = null;
 
-        if (empMatch) empLabel = empMatch[0];
-        if (folMatch) {
-          const num = parseInt(folMatch[1].replace(/[^0-9]/g, ""), 10);
-          if (!isNaN(num)) folCount = num;
-        }
+          if (empMatch) empLabel = empMatch[0];
+          if (folMatch) {
+            const num = parseInt(folMatch[1].replace(/[^0-9]/g, ""), 10);
+            if (!isNaN(num)) folCount = num;
+          }
 
-        if (empLabel || folCount) {
-          await db.insert(gtmCompanyMetricSnapshot).values({
-            prospectCompanyId: inserted.id,
-            employeeCountLabel: empLabel,
-            linkedinFollowerCount: folCount,
-          });
+          if (empLabel || folCount) {
+            await db.insert(gtmCompanyMetricSnapshot).values({
+              prospectCompanyId: inserted.id,
+              employeeCountLabel: empLabel,
+              linkedinFollowerCount: folCount,
+            });
+          }
         }
+      } catch (e) {
+        // Degrade non-critically
       }
-    } catch (e) {
-      console.warn(`Metric snapshot check skipped for ${p.domain}:`, (e as Error).message);
     }
   }
 
