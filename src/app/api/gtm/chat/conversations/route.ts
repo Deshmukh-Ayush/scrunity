@@ -3,12 +3,14 @@ import { headers } from "next/headers";
 import { db } from "@/utils/db";
 import {
   gtmConversation,
+  gtmMessage,
   gtmOutreachCampaign,
   gtmResearchRun,
   gtmIcpSegment,
+  gtmProspectCompany,
   gtmEmailDraft,
 } from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { resolveAuthAndOrg } from "@/lib/gtm-auth";
 import { nanoid } from "nanoid";
 
@@ -21,7 +23,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error }, { status });
     }
 
-    // 1. Fetch campaigns in organization to ensure linked agent threads exist
+    // 1. Fetch campaigns in organization to ensure linked threads are seeded
     const campaigns = await db
       .select({
         id: gtmOutreachCampaign.id,
@@ -46,7 +48,6 @@ export async function GET(req: NextRequest) {
       .orderBy(desc(gtmOutreachCampaign.createdAt))
       .limit(20);
 
-    // Existing conversations linked to campaigns
     const existingConvs = await db
       .select()
       .from(gtmConversation)
@@ -59,9 +60,10 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Auto-create conversation for any campaign that lacks one
+    // Auto-create and seed real message for any campaign that lacks one
     for (const camp of campaigns) {
-      if (!convByCampaignId.has(camp.id)) {
+      let conv = convByCampaignId.get(camp.id);
+      if (!conv) {
         const [created] = await db
           .insert(gtmConversation)
           .values({
@@ -71,25 +73,76 @@ export async function GET(req: NextRequest) {
             title: `${camp.companyName} — ${camp.segmentName}`,
             outreachCampaignId: camp.id,
             researchRunId: camp.researchRunId,
+            createdAt: camp.createdAt,
+            updatedAt: camp.createdAt,
           })
           .returning();
-        if (created) {
-          convByCampaignId.set(camp.id, created);
+        conv = created;
+        convByCampaignId.set(camp.id, created);
+      }
+
+      // Ensure a real seed message exists
+      if (conv) {
+        const [msgCount] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(gtmMessage)
+          .where(eq(gtmMessage.conversationId, conv.id));
+
+        if (Number(msgCount?.count || 0) === 0) {
+          const prospects = await db
+            .select({ id: gtmProspectCompany.id })
+            .from(gtmProspectCompany)
+            .where(eq(gtmProspectCompany.outreachCampaignId, camp.id));
+
+          const drafts = await db
+            .select({ id: gtmEmailDraft.id, status: gtmEmailDraft.status })
+            .from(gtmEmailDraft)
+            .where(eq(gtmEmailDraft.outreachCampaignId, camp.id));
+
+          const pending = drafts.filter((d) => d.status === "draft").length;
+
+          const content =
+            `Autonomous GTM pipeline thread for **${camp.companyName}** targeting **${camp.segmentName}**.\n\n` +
+            `- **Current Stage**: \`${camp.currentStage.replace(/_/g, " ")}\`\n` +
+            `- **Pipeline Status**: \`${camp.status}\`\n` +
+            `- **Discovered Prospects**: ${prospects.length} companies\n` +
+            `- **Email Drafts**: ${drafts.length}${pending > 0 ? ` (${pending} pending review)` : ""}\n\n` +
+            `Ask me to inspect discovered decision-makers, review email drafts, or advance pipeline execution.`;
+
+          await db.insert(gtmMessage).values({
+            id: nanoid(),
+            conversationId: conv.id,
+            role: "assistant",
+            content,
+            createdAt: camp.createdAt,
+          });
         }
       }
     }
 
-    // 2. Fetch all conversations in the organization in unified order (recency)
-    const allConvs = await db
-      .select()
+    // 2. Fetch only real conversations that have at least 1 message
+    const allConvsWithMsgs = await db
+      .select({
+        id: gtmConversation.id,
+        title: gtmConversation.title,
+        outreachCampaignId: gtmConversation.outreachCampaignId,
+        researchRunId: gtmConversation.researchRunId,
+        createdAt: gtmConversation.createdAt,
+        updatedAt: gtmConversation.updatedAt,
+      })
       .from(gtmConversation)
-      .where(eq(gtmConversation.organizationId, auth.orgId))
+      .where(
+        and(
+          eq(gtmConversation.organizationId, auth.orgId),
+          sql`EXISTS (SELECT 1 FROM ${gtmMessage} WHERE ${gtmMessage.conversationId} = ${gtmConversation.id})`
+        )
+      )
       .orderBy(desc(gtmConversation.updatedAt))
       .limit(60);
 
     const campaignMap = new Map(campaigns.map((c) => [c.id, c]));
 
-    const conversations = allConvs.map((conv) => {
+    const conversations = allConvsWithMsgs.map((conv) => {
       const linkedCamp = conv.outreachCampaignId
         ? campaignMap.get(conv.outreachCampaignId)
         : null;
