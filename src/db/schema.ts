@@ -150,6 +150,8 @@ export const organizationCreditPeriod = pgTable(
       .default(0)
       .notNull(),
     searchCreditsUsed: integer("search_credits_used").default(0).notNull(),
+    firecrawlCreditsUsed: integer("firecrawl_credits_used").default(0).notNull(),
+    firecrawlAlertsSent: jsonb("firecrawl_alerts_sent").$type<number[]>().default([]),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
@@ -294,6 +296,8 @@ export const gtmResearchRun = pgTable(
     }).notNull(),
     contextDoc: text("context_doc"),
     status: text("status").default("in_progress").notNull(),
+    failureReason: text("failure_reason"),
+    firecrawlCallCount: integer("firecrawl_call_count").default(0).notNull(),
     currentStage: text("current_stage", {
       enum: [
         "research_company",
@@ -381,6 +385,8 @@ export const gtmOutreachCampaign = pgTable(
       .notNull()
       .references(() => gtmResearchRun.id, { onDelete: "cascade" }),
     status: text("status").default("in_progress").notNull(),
+    failureReason: text("failure_reason"),
+    firecrawlCallCount: integer("firecrawl_call_count").default(0).notNull(),
     currentStage: text("current_stage", {
       enum: [
         "find_companies",
