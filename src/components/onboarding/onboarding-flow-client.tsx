@@ -157,7 +157,8 @@ export function OnboardingFlowClient() {
 
     let domain = raw
     try {
-      const normalized = raw.startsWith("http") ? raw : `https://${raw}`
+      const cleanHost = raw.replace(/^(?:https?:\/*)+/i, "")
+      const normalized = `https://${cleanHost}`
       domain = new URL(normalized).hostname.replace(/^www\./, "")
     } catch {
       // ignore

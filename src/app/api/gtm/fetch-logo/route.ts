@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { extractDomain, getFallbackLogoUrl, scrapeUrl } from "@/lib/firecrawl";
+import { extractDomain, getFallbackLogoUrl, scrapeUrl, normalizeWebsiteUrl } from "@/lib/firecrawl";
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,7 +10,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "URL parameter is required" }, { status: 400 });
     }
 
-    const domain = extractDomain(rawUrl);
+    const cleanUrl = normalizeWebsiteUrl(rawUrl);
+    const domain = extractDomain(cleanUrl);
     const fallbackLogo = getFallbackLogoUrl(domain);
 
     // Attempt to scrape with a fast 2.5s timeout; degrade gracefully if slow/failed
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
       const timeoutPromise = new Promise<null>((_, reject) =>
         setTimeout(() => reject(new Error("Logo scrape timeout")), 2500)
       );
-      const scrapePromise = scrapeUrl(rawUrl);
+      const scrapePromise = scrapeUrl(cleanUrl);
       const scraped = await Promise.race([scrapePromise, timeoutPromise]);
       if (scraped && (scraped.ogImage || scraped.favicon)) {
         resolvedLogo = scraped.ogImage || scraped.favicon || fallbackLogo;
