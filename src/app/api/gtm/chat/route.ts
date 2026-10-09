@@ -64,10 +64,24 @@ export async function POST(req: NextRequest) {
       messages,
       stopWhen: isStepCount(5),
       tools,
+      onError: ({ error }) => {
+        console.error("[POST /api/gtm/chat] streamText error during generation/synthesis:", {
+          message: (error as any)?.message,
+          stack: (error as any)?.stack,
+          cause: (error as any)?.cause,
+        });
+      },
     });
 
     return createUIMessageStreamResponse({
-      stream: toUIMessageStream({ stream: result.stream }),
+      stream: toUIMessageStream({
+        stream: result.stream,
+        onError: (err) => {
+          console.error("[POST /api/gtm/chat] toUIMessageStream synthesis error:", err);
+          const msg = (err as any)?.message || "Service temporarily unavailable";
+          return `Couldn't summarize the pipeline data — try asking again. (${msg})`;
+        },
+      }),
     });
   } catch (err: any) {
     console.error("[POST /api/gtm/chat] Streaming error:", err);
