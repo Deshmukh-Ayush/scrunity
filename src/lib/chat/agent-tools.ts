@@ -15,6 +15,17 @@ import {
 import { eq, and, desc, ilike, or } from "drizzle-orm";
 import { runFullResearchPipeline } from "@/lib/gtm-pipeline-runner";
 
+function toSafeJson<T>(data: T): T {
+  return JSON.parse(
+    JSON.stringify(data, (_, value) => {
+      if (value instanceof Date) {
+        return value.toISOString();
+      }
+      return value;
+    })
+  );
+}
+
 export function createGtmAgentTools(organizationId: string, userId: string) {
   return {
     getCampaignOverview: tool({
@@ -114,15 +125,15 @@ export function createGtmAgentTools(organizationId: string, userId: string) {
                 pendingDrafts,
                 approvedDrafts,
                 needsReview: pendingDrafts > 0,
-                createdAt: camp.createdAt,
+                createdAt: camp.createdAt ? camp.createdAt.toISOString() : null,
               };
             })
           );
 
-          return {
+          return toSafeJson({
             count: results.length,
             campaigns: results,
-          };
+          });
         } catch (err: any) {
           return { error: `Failed to query campaigns: ${err.message}` };
         }
@@ -217,10 +228,10 @@ export function createGtmAgentTools(organizationId: string, userId: string) {
             })
           );
 
-          return {
+          return toSafeJson({
             count: enriched.length,
             results: enriched,
-          };
+          });
         } catch (err: any) {
           return { error: `Failed to search prospects: ${err.message}` };
         }
@@ -277,7 +288,7 @@ export function createGtmAgentTools(organizationId: string, userId: string) {
             .where(eq(gtmIcpSegment.researchRunId, run.id))
             .limit(6);
 
-          return {
+          return toSafeJson({
             runId: run.id,
             companyName: run.companyName,
             websiteUrl: run.websiteUrl,
@@ -286,7 +297,7 @@ export function createGtmAgentTools(organizationId: string, userId: string) {
             synthesizedProfile: run.synthesizedProfile,
             competitors,
             segments,
-          };
+          });
         } catch (err: any) {
           return { error: `Failed to get market intelligence: ${err.message}` };
         }
