@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { SynthesizedCompanyProfile, SegmentDigestMetrics } from "@/db/schema";
 
 export const primaryModel = groq("openai/gpt-oss-120b");
+export const gtmModel = primaryModel;
 export const fallbackModel = groq("openai/gpt-oss-20b");
 
 /**
