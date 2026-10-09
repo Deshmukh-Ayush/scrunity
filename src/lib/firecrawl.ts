@@ -55,14 +55,23 @@ const AGGREGATOR_DOMAINS = new Set([
 ]);
 
 /**
+ * Normalizes user-entered website URLs, stripping duplicate protocols (e.g. https://https://),
+ * trailing slashes, leading slashes, and ensuring a valid https:// scheme.
+ */
+export function normalizeWebsiteUrl(rawUrl: string): string {
+  let clean = rawUrl.trim();
+  if (!clean) return "";
+  // Strip duplicate or malformed protocol prefixes like https://https://, http://https://, https:///
+  clean = clean.replace(/^(?:https?:\/*)+/i, "");
+  return `https://${clean}`;
+}
+
+/**
  * Extracts a normalized hostname/domain from a URL or raw domain string.
  */
 export function extractDomain(rawUrl: string): string {
   try {
-    let normalized = rawUrl.trim();
-    if (!normalized.startsWith("http://") && !normalized.startsWith("https://")) {
-      normalized = `https://${normalized}`;
-    }
+    const normalized = normalizeWebsiteUrl(rawUrl);
     const parsed = new URL(normalized);
     return parsed.hostname.replace(/^www\./, "").toLowerCase();
   } catch {
@@ -100,10 +109,7 @@ export function findAboutPageUrl(
 ): string | null {
   let base: URL;
   try {
-    let formatted = baseUrl.trim();
-    if (!formatted.startsWith("http://") && !formatted.startsWith("https://")) {
-      formatted = `https://${formatted}`;
-    }
+    const formatted = normalizeWebsiteUrl(baseUrl);
     base = new URL(formatted);
   } catch {
     return null;
@@ -205,6 +211,19 @@ export function findAboutPageUrl(
 }
 
 import type { InngestStep } from "@/inngest/functions/shared";
+import {
+  checkFirecrawlCallAllowed,
+  recordFirecrawlUsage,
+  FirecrawlCallCapExceededError,
+  FirecrawlSpendPausedError,
+  type FirecrawlRunContext,
+} from "@/lib/firecrawl-spend";
+
+export {
+  FirecrawlCallCapExceededError,
+  FirecrawlSpendPausedError,
+  type FirecrawlRunContext,
+};
 
 export interface FirecrawlRetryOptions {
   step?: InngestStep;
@@ -212,6 +231,7 @@ export interface FirecrawlRetryOptions {
   maxRetries?: number;
   baseDelayMs?: number;
   maxDelayMs?: number;
+  runContext?: FirecrawlRunContext;
 }
 
 export class FirecrawlRateLimitError extends Error {
@@ -359,6 +379,18 @@ export async function sleepWithStep(
   }
 }
 
+let lastFirecrawlRequestTime = 0;
+const MIN_REQUEST_INTERVAL_MS = 1500;
+
+async function throttleFirecrawlRequest() {
+  const now = Date.now();
+  const diff = now - lastFirecrawlRequestTime;
+  if (diff < MIN_REQUEST_INTERVAL_MS) {
+    await new Promise((r) => setTimeout(r, MIN_REQUEST_INTERVAL_MS - diff));
+  }
+  lastFirecrawlRequestTime = Date.now();
+}
+
 /**
  * Shared fetch helper for Firecrawl API calls with durable 429 retry backoff.
  */
@@ -368,15 +400,17 @@ export async function firecrawlFetchWithRetry(
   options?: FirecrawlRetryOptions
 ): Promise<Response> {
   const apiKey = process.env.FIRECRAWL_API_KEY;
-  const maxRetries = options?.maxRetries ?? 3;
+  const maxRetries = options?.maxRetries ?? 2;
   const step = options?.step;
   const stepPrefix = options?.stepPrefix || "firecrawl";
 
   let lastDelayMs = 0;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    await throttleFirecrawlRequest();
+
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
 
     const init: RequestInit = {
       method: "POST",
@@ -461,12 +495,12 @@ export async function scrapeUrl(
   options?: FirecrawlRetryOptions
 ): Promise<ScrapeResult> {
   const apiKey = process.env.FIRECRAWL_API_KEY;
-  let formattedUrl = url.trim();
-  if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
-    formattedUrl = `https://${formattedUrl}`;
-  }
+  const formattedUrl = normalizeWebsiteUrl(url);
 
   if (apiKey) {
+    if (options?.runContext) {
+      await checkFirecrawlCallAllowed(options.runContext);
+    }
     try {
       const res = await firecrawlFetchWithRetry(
         "https://api.firecrawl.dev/v1/scrape",
@@ -476,6 +510,14 @@ export async function scrapeUrl(
         },
         options
       );
+
+      if (options?.runContext) {
+        await recordFirecrawlUsage({
+          ...options.runContext,
+          units: 1,
+          metadata: { endpoint: "scrape", url: formattedUrl },
+        });
+      }
 
       if (res.ok) {
         const json = await res.json();
@@ -506,7 +548,11 @@ export async function scrapeUrl(
         };
       }
     } catch (err) {
-      if (err instanceof FirecrawlRateLimitError) {
+      if (
+        err instanceof FirecrawlRateLimitError ||
+        err instanceof FirecrawlCallCapExceededError ||
+        err instanceof FirecrawlSpendPausedError
+      ) {
         throw err;
       }
       console.warn(`[Firecrawl scrape] API error for ${formattedUrl}:`, err);
@@ -587,12 +633,24 @@ export async function searchFirecrawl(
     return [];
   }
 
+  if (options?.runContext) {
+    await checkFirecrawlCallAllowed(options.runContext);
+  }
+
   try {
     const res = await firecrawlFetchWithRetry(
       "https://api.firecrawl.dev/v1/search",
       { query, limit },
       options
     );
+
+    if (options?.runContext) {
+      await recordFirecrawlUsage({
+        ...options.runContext,
+        units: 1,
+        metadata: { endpoint: "search", query, limit },
+      });
+    }
 
     if (res.ok) {
       const json = await res.json();
@@ -617,7 +675,11 @@ export async function searchFirecrawl(
       console.warn(`[Firecrawl Search] HTTP ${res.status}: ${err}`);
     }
   } catch (err) {
-    if (err instanceof FirecrawlRateLimitError) {
+    if (
+      err instanceof FirecrawlRateLimitError ||
+      err instanceof FirecrawlCallCapExceededError ||
+      err instanceof FirecrawlSpendPausedError
+    ) {
       throw err;
     }
     console.warn(`[Firecrawl Search] Network error for "${query}":`, err);
