@@ -1,21 +1,25 @@
 import { groq } from "@ai-sdk/groq";
 import { generateText, Output } from "ai";
 import { z } from "zod";
+import type { SynthesizedCompanyProfile, SegmentDigestMetrics } from "@/db/schema";
 
 export const primaryModel = groq("openai/gpt-oss-120b");
 export const fallbackModel = groq("openai/gpt-oss-20b");
 
 /**
  * Runs structured generation using primary model with fallback to secondary model.
+ * Enforces hard provider-agnostic output token caps (maxTokens -> maxOutputTokens).
  */
 export async function generateStructuredWithFallback<T>({
   schema,
   system,
   prompt,
+  maxTokens,
 }: {
   schema: z.ZodType<T>;
   system: string;
   prompt: string;
+  maxTokens?: number;
 }): Promise<T> {
   try {
     const { output } = await generateText({
@@ -23,6 +27,7 @@ export async function generateStructuredWithFallback<T>({
       output: Output.object({ schema }),
       system,
       prompt,
+      maxOutputTokens: maxTokens,
     });
     if (output) return output as T;
   } catch (err: any) {
@@ -37,6 +42,7 @@ export async function generateStructuredWithFallback<T>({
     output: Output.object({ schema }),
     system,
     prompt,
+    maxOutputTokens: maxTokens,
   });
 
   if (!output) {
@@ -46,8 +52,6 @@ export async function generateStructuredWithFallback<T>({
   return output as T;
 }
 
-import type { SynthesizedCompanyProfile } from "@/db/schema";
-
 // -------------------------------------------------------------
 // Stage 1: Company Profile Synthesis
 // -------------------------------------------------------------
@@ -55,27 +59,25 @@ export const synthesizedCompanyProfileSchema = z.object({
   summary: z
     .string()
     .describe(
-      "A synthesized one-paragraph executive summary of what the company does, their primary value proposition, target customer, and strategic positioning."
+      "A synthesized one-paragraph executive summary under 80 words of what the company does, primary value proposition, and customer positioning."
     ),
   industry: z
     .string()
-    .describe(
-      "Inferred industry or category (e.g. 'Open Source Scheduling Infrastructure', 'Developer Tools', 'B2B Sales Automation')"
-    ),
+    .describe("Inferred industry or category under 8 words (e.g. 'Developer Tools', 'Open Source Scheduling Infrastructure')"),
   productFocus: z
     .string()
-    .describe("Core product focus, flagship features, and delivery capabilities"),
+    .describe("Core product focus and flagship capabilities under 25 words"),
   targetCustomerLanguage: z
     .string()
     .describe(
-      "Target customer language, buyer personas, and customer segment terminology actually found on the website"
+      "Target customer segment and buyer persona terminology under 25 words"
     ),
   signals: z
     .array(z.string())
     .min(2)
-    .max(6)
+    .max(4)
     .describe(
-      "Notable strategic signals observed (e.g. self-serve vs enterprise motion, open-source, pricing structure, regulatory/compliance focus, company scale implications)"
+      "2 to 4 notable commercial signals observed, each under 15 words"
     ),
 });
 
@@ -96,18 +98,25 @@ export async function synthesizeCompanyProfile({
 }): Promise<SynthesizedCompanyProfile> {
   const result = await generateStructuredWithFallback({
     schema: synthesizedCompanyProfileSchema,
+    maxTokens: 1200,
     system:
-      "You are a principal B2B market researcher and GTM strategist. Synthesize a comprehensive, authoritative company profile from raw website content, About page details, company size, and onboarding context.\n" +
-      "Do NOT simply regurgitate raw marketing text. Extract true positioning, core capabilities, target customer language, and strategic signals.\n" +
-      "Reflect the company's operating scale based on their team size (e.g., 1-10 early-stage/nimble, 11-50 growing challenger, 51-200 scaling mid-market, 200+ established enterprise), highlighting what this scale implies for their commercial focus and market approach.",
+      "You are a principal B2B market researcher and GTM strategist. Synthesize an authoritative, highly concise company profile from raw website content, About page details, company size, and onboarding context.\n\n" +
+      "CONCISENESS RULES:\n" +
+      "- 'summary' MUST be exactly one single paragraph, strictly under 80 words.\n" +
+      "- 'industry' must be under 8 words.\n" +
+      "- 'productFocus' must be under 25 words.\n" +
+      "- 'targetCustomerLanguage' must be under 25 words.\n" +
+      "- 'signals' must be 2 to 4 bullet strings, each under 15 words.\n" +
+      "- NEVER restate the task, NEVER provide preamble or conversational filler, and NEVER explain your reasoning.\n" +
+      "- DO NOT include caveats, hedging, or meta-commentary.",
     prompt:
       `Company Name: ${companyName}\n` +
       `Website: ${websiteUrl}\n` +
       `Team Size / Company Size: ${companySize || "Unknown"}\n` +
       `User-Provided Description: ${companyDescription || "None provided"}\n` +
-      (contextDoc ? `Context Document: ${contextDoc.slice(0, 2000)}\n` : "") +
+      (contextDoc ? `Context Document: ${contextDoc.slice(0, 1500)}\n` : "") +
       (scrapedContent
-        ? `Scraped Website & About Page Content:\n${scrapedContent.slice(0, 8000)}`
+        ? `Scraped Website & About Page Content:\n${scrapedContent.slice(0, 6000)}`
         : ""),
   });
 
@@ -122,7 +131,7 @@ const competitorQueriesSchema = z.object({
     .array(z.string())
     .min(3)
     .max(5)
-    .describe("3 to 5 high-intent Google search queries to discover competitors"),
+    .describe("3 to 5 high-intent Google search queries, each 2 to 5 words long"),
 });
 
 export async function generateCompetitorSearchQueries({
@@ -140,13 +149,13 @@ export async function generateCompetitorSearchQueries({
 }): Promise<string[]> {
   const result = await generateStructuredWithFallback({
     schema: competitorQueriesSchema,
+    maxTokens: 600,
     system:
-      "You are a B2B Go-To-Market and competitive intelligence strategist. Generate 3 to 5 realistic search queries that a buyer would search on Google to find commercial alternatives and competing software/services in this domain.\n\n" +
-      "CRITICAL - Calibrate queries directly to company size and competitive tier:\n" +
-      "- Small companies (1-10 employees): Generate queries targeting direct agile peers, lightweight software, open-source or indie tools, and SMB/startup alternatives (e.g. self-hosted, lightweight, modern startup tools).\n" +
-      "- Mid-size companies (11-50, 51-200 employees): Generate queries targeting scaling commercial platforms, mid-market SaaS alternatives, and category challengers.\n" +
-      "- Large enterprise companies (200+ employees): Generate queries targeting enterprise-grade solutions, market leaders, platforms with SOC2/HIPAA compliance, workforce management, and enterprise procurement alternatives.\n\n" +
-      "Focus on the core category, value proposition, and software tools. Avoid mentioning the company name itself.",
+      "You are a B2B Go-To-Market strategist. Generate 3 to 5 realistic search queries that a buyer would search on Google to find commercial alternatives and competing software/services in this domain.\n\n" +
+      "CONCISENESS RULES:\n" +
+      "- Each query must be a crisp 2 to 5 words search query (e.g. 'open source scheduling infrastructure', 'enterprise calendar scheduling api').\n" +
+      "- DO NOT explain your reasoning, DO NOT include numbered lists or preambles, and DO NOT add boolean search operator tutorials.\n" +
+      "- Avoid mentioning the company name itself.",
     prompt:
       `Company Name: ${companyName}\n` +
       `Company Size: ${companySize || "Unknown"} employees\n` +
@@ -154,34 +163,78 @@ export async function generateCompetitorSearchQueries({
       (synthesizedProfile
         ? `Synthesized Summary: ${synthesizedProfile.summary}\nIndustry/Category: ${synthesizedProfile.industry}\nProduct Focus: ${synthesizedProfile.productFocus}\n`
         : "") +
-      (contextDoc ? `Additional Context: ${contextDoc.slice(0, 1500)}` : ""),
+      (contextDoc ? `Additional Context: ${contextDoc.slice(0, 1000)}` : ""),
   });
 
   return result.queries;
+}
+
+export async function generateFallbackCompetitors({
+  companyName,
+  companyDescription,
+  companySize,
+}: {
+  companyName: string;
+  companyDescription: string;
+  companySize?: string;
+}): Promise<Array<{ name: string; domain: string; description: string }>> {
+  try {
+    const result = await generateStructuredWithFallback({
+      schema: z.object({
+        competitors: z
+          .array(
+            z.object({
+              name: z.string().describe("Company or product brand name"),
+              domain: z.string().describe("Real web domain, e.g. zapier.com"),
+              description: z.string().describe("Exactly 1 sentence under 15 words describing positioning"),
+            })
+          )
+          .min(3)
+          .max(5),
+      }),
+      maxTokens: 600,
+      system:
+        "You are a B2B market intelligence expert. Return 3 to 5 realistic commercial competitors.\n" +
+        "CONCISENESS RULES: Descriptions must be exactly 1 sentence under 15 words. No preamble, no explanation, no task restatement.",
+      prompt:
+        `Generate 3 to 5 realistic commercial competitors for:\n` +
+        `Company Name: ${companyName}\n` +
+        `Description: ${companyDescription}\n` +
+        `Size: ${companySize || "Unknown"}`,
+    });
+    return result.competitors;
+  } catch (err) {
+    console.warn("[generateFallbackCompetitors] Error, using static fallback:", err);
+    return [
+      { name: "Alternative A", domain: "alternative.io", description: `Competitor in the ${companyName} category.` },
+      { name: "Alternative B", domain: "competitorsolution.com", description: `Market alternative to ${companyName}.` },
+      { name: "Alternative C", domain: "competecloud.com", description: `Category solution addressing similar needs.` },
+    ];
+  }
 }
 
 // -------------------------------------------------------------
 // Stage 3: ICP Segments Definition
 // -------------------------------------------------------------
 const icpSegmentItemSchema = z.object({
-  name: z.string().describe("Crisp, recognizable segment name (e.g. 'Seed-Stage FinTech Founders')"),
+  name: z.string().describe("Crisp, recognizable segment name under 6 words (e.g. 'Seed-Stage FinTech Founders')"),
   painPoint: z
     .string()
-    .describe("The acute, urgent problem this segment experiences that our product solves"),
+    .describe("1 to 2 direct sentences under 30 words describing the acute problem"),
   criteria: z
     .array(z.string())
     .min(2)
-    .max(5)
-    .describe("Specific qualification criteria (e.g. business model, tech stack, team size)"),
+    .max(4)
+    .describe("2 to 4 specific qualification criteria, each under 10 words"),
   candidateSearchTerms: z
     .array(z.string())
     .min(2)
-    .max(4)
-    .describe("Search queries to find real companies fitting this ICP on Google"),
+    .max(3)
+    .describe("2 to 3 Google search queries to find real companies, each 2 to 5 words"),
   estimatedSizeLabel: z
     .string()
     .describe(
-      "LLM best-guess estimate of total addressable market size (e.g. '~8,000 companies in US/EU'). Explicitly approximate."
+      "Approximate market size label under 10 words (e.g. '~8,000 companies in US/EU')"
     ),
 });
 
@@ -206,26 +259,30 @@ export async function generateIcpSegments({
 }) {
   const compSummary = competitors
     .map((c) => `- ${c.name} (${c.domain}): ${c.description}`)
-    .slice(0, 10)
+    .slice(0, 8)
     .join("\n");
 
   const result = await generateStructuredWithFallback({
     schema: icpSegmentsResponseSchema,
+    maxTokens: 1500,
     system:
-      "You are an expert GTM strategist. Propose 4 to 6 distinct, actionable Ideal Customer Profile (ICP) segments for this business. Each segment must have an acute pain point, strict qualification criteria, search terms to find real companies, and an estimated size label clearly marked as an approximation. Do not invent fictitious company names — candidate companies will be sourced via live search.\n\n" +
-      "CRITICAL - Tailor ICP segments directly to company size and operational capacity:\n" +
-      "- For small teams (1-10 employees): Define ICP segments that a nimble team can effectively sell to and support without huge bureaucratic sales cycles — e.g. early-stage founders, indie developers, boutique agencies, seed-stage startups, and agile teams seeking fast setup and immediate time-to-value.\n" +
-      "- For mid-market teams (11-50, 51-200 employees): Define ICP segments spanning growing scaleups, mid-market department leads, and modern high-growth companies with dedicated team budgets.\n" +
-      "- For enterprise teams (200+ employees): Define ICP segments targeting enterprise buyers, VP/Director-level stakeholders, global organizations, compliance-sensitive industries (healthcare, finance, government), and large multi-team enterprise accounts.\n\n" +
-      "Ensure segment names, qualification criteria, pain points, candidate search terms, and estimated market size reflect this company size calibration.",
+      "You are an expert GTM strategist. Propose 4 to 6 distinct, actionable Ideal Customer Profile (ICP) segments for this business.\n\n" +
+      "CONCISENESS RULES:\n" +
+      "- Segment name: under 6 words.\n" +
+      "- Pain point: 1 to 2 direct sentences, strictly under 30 words.\n" +
+      "- Criteria: 2 to 4 short items, under 10 words each.\n" +
+      "- candidateSearchTerms: 2 to 3 search phrases, 2 to 5 words each.\n" +
+      "- estimatedSizeLabel: strictly under 10 words.\n" +
+      "- NEVER restate the task, NEVER provide preamble or conversational filler, and NEVER explain your reasoning.\n" +
+      "- DO NOT invent fictitious company names — candidate companies are sourced via live search.",
     prompt:
       `Company: ${companyName}\n` +
       `Company Size: ${companySize || "Unknown"} employees\n` +
       `Description: ${companyDescription}\n` +
       (synthesizedProfile
-        ? `Synthesized Profile: ${synthesizedProfile.summary}\nCategory: ${synthesizedProfile.industry}\nProduct Focus: ${synthesizedProfile.productFocus}\nTarget Customer Language on Site: ${synthesizedProfile.targetCustomerLanguage}\nNotable Signals: ${synthesizedProfile.signals?.join("; ")}\n`
+        ? `Synthesized Profile: ${synthesizedProfile.summary}\nCategory: ${synthesizedProfile.industry}\nProduct Focus: ${synthesizedProfile.productFocus}\n`
         : "") +
-      (contextDoc ? `Context: ${contextDoc.slice(0, 1500)}\n` : "") +
+      (contextDoc ? `Context: ${contextDoc.slice(0, 1000)}\n` : "") +
       `Known Competitors:\n${compSummary}`,
   });
 
@@ -240,7 +297,7 @@ const prospectSearchQueriesSchema = z.object({
     .array(z.string())
     .min(3)
     .max(5)
-    .describe("Google search queries to locate real websites of companies matching this ICP"),
+    .describe("Google search queries to locate real websites matching this ICP, each 2 to 6 words"),
 });
 
 export async function generateProspectSearchQueries({
@@ -254,14 +311,56 @@ export async function generateProspectSearchQueries({
 }): Promise<string[]> {
   const result = await generateStructuredWithFallback({
     schema: prospectSearchQueriesSchema,
+    maxTokens: 600,
     system:
-      "You are an outbound sales researcher. Generate 3 to 5 targeted search queries to find real company websites that fit this ICP segment. Use operators or relevant keywords like software, platform, company, agency, or industry keywords.",
+      "You are an outbound sales researcher. Generate 3 to 5 targeted search queries to find real company websites that fit this ICP segment.\n" +
+      "CONCISENESS RULES: Each query must be 2 to 6 words. No explanations, no task restatement, no search syntax tutorials.",
     prompt: `Segment: ${segmentName}\nPain Point: ${painPoint}\nCriteria:\n${criteria
       .map((c) => `- ${c}`)
       .join("\n")}`,
   });
 
   return result.queries;
+}
+
+const fallbackProspectCompaniesSchema = z.object({
+  companies: z
+    .array(
+      z.object({
+        name: z.string().describe("Company brand or legal name"),
+        domain: z.string().describe("Clean root domain, e.g. 'stripe.com'"),
+        description: z
+          .string()
+          .describe("1-sentence description under 15 words of what this company does"),
+        location: z.string().default("United States"),
+      })
+    )
+    .min(4)
+    .max(6),
+});
+
+export async function generateFallbackProspectCompanies({
+  segmentName,
+  painPoint,
+  criteria,
+}: {
+  segmentName: string;
+  painPoint: string;
+  criteria: string[];
+}): Promise<
+  Array<{ name: string; domain: string; description: string; location: string }>
+> {
+  const result = await generateStructuredWithFallback({
+    schema: fallbackProspectCompaniesSchema,
+    maxTokens: 800,
+    system:
+      "You are a B2B sales intelligence specialist. Identify 4 to 6 real, active, well-known companies whose profile matches this ICP segment.\n" +
+      "CONCISENESS RULES: Descriptions must be 1 sentence under 15 words. No preamble, no task restatement, no fictitious domains.",
+    prompt: `Segment: ${segmentName}\nPain Point: ${painPoint}\nCriteria:\n${criteria
+      .map((c) => `- ${c}`)
+      .join("\n")}`,
+  });
+  return result.companies;
 }
 
 // -------------------------------------------------------------
@@ -271,11 +370,11 @@ const jobFunctionSchema = z.object({
   jobFunctions: z
     .array(z.string())
     .min(1)
-    .max(3)
-    .describe("Target decision-maker job titles/roles (e.g. 'Founder', 'Head of Sales', 'VP Engineering')"),
+    .max(2)
+    .describe("1 to 2 target decision-maker job titles under 4 words each (e.g. 'Head of Sales', 'VP Engineering')"),
   searchKeyword: z
     .string()
-    .describe("Short search term for LinkedIn snippet search, e.g. 'Founder OR CEO'"),
+    .describe("Short search term under 4 words for LinkedIn snippet search, e.g. 'Founder OR CEO'"),
 });
 
 export async function deriveTargetJobFunction({
@@ -289,8 +388,10 @@ export async function deriveTargetJobFunction({
 }) {
   return await generateStructuredWithFallback({
     schema: jobFunctionSchema,
+    maxTokens: 500,
     system:
-      "You are a sales development leader. Given an ICP segment, determine the exact decision-maker roles most likely to purchase or champion a solution for their pain point. Do not use generic fallback roles if the segment specifies a role.",
+      "You are a sales development leader. Given an ICP segment, determine the exact decision-maker roles most likely to purchase or champion a solution for their pain point.\n" +
+      "CONCISENESS RULES: Output only 1 to 2 exact job titles and a short search keyword. No explanatory notes, no preamble, no task restatement.",
     prompt: `Segment: ${segmentName}\nPain Point: ${painPoint}\nCriteria: ${criteria.join(", ")}`,
   });
 }
@@ -301,29 +402,12 @@ export async function deriveTargetJobFunction({
 const emailDraftSchema = z.object({
   subject: z
     .string()
-    .min(5)
-    .max(80)
-    .describe("Catchy, non-spammy subject line under 8 words"),
+    .describe("Catchy, non-spammy subject line strictly under 7 words"),
 
   body: z
     .string()
-    .min(250)
-    .max(1200)
-    .refine((value) => !value.includes("..."), {
-      message: "Do not use ellipses or truncated sentences.",
-    })
-    .refine((value) => {
-      const sentenceCount = value
-        .split(/[.!?]+/)
-        .map((s) => s.trim())
-        .filter(Boolean).length;
-
-      return sentenceCount >= 3 && sentenceCount <= 5;
-    }, {
-      message: "Email body must contain 3 to 5 complete sentences.",
-    })
     .describe(
-      "Complete personalized cold outreach email of 3-5 sentences, roughly 250-500 characters. Never truncate the message and never use ellipses."
+      "Complete personalized cold outreach email strictly under 120 words total, exactly 3 to 4 complete sentences. No meta-commentary, no ellipses."
     ),
 });
 
@@ -348,17 +432,21 @@ export async function generateOutreachEmailDraft({
 
   return await generateStructuredWithFallback({
     schema: emailDraftSchema,
+    maxTokens: 800,
     system:
-  "You are an elite B2B sales copywriter writing personalized cold outreach.\n" +
-  "Write a COMPLETE email. NEVER truncate the email. NEVER use '...' or ellipses.\n" +
-  "The body MUST contain exactly 3 to 5 complete sentences and should be roughly 250 to 500 characters.\n" +
-  "Follow this structure:\n" +
-  "1. Friendly greeting using their first name.\n" +
-  "2. Specific personalization line referencing one concrete detail from their company description.\n" +
-  "3. Direct reference to the specific pain point they likely experience and how our company uniquely helps.\n" +
-  "4. One single, low-friction, polite call to action.\n" +
-  "5. End with a complete sentence.\n" +
-  "No buzzwords, no pushy sales jargon, no generic templates.",
+      "You are an elite B2B sales copywriter writing personalized cold outreach.\n\n" +
+      "CONCISENESS RULES:\n" +
+      "- Total email body MUST be strictly under 120 words and contain exactly 3 to 4 complete sentences.\n" +
+      "- Subject line MUST be strictly under 7 words.\n" +
+      "- NEVER include meta-commentary about why you wrote the email.\n" +
+      "- NEVER explain the sales psychology or reasoning behind your wording.\n" +
+      "- NEVER include disclaimers, hedging, or 'Here is your email:' preamble.\n" +
+      "- Output ONLY the final personalized outreach email.\n\n" +
+      "Structure:\n" +
+      "1. Friendly greeting using their first name.\n" +
+      "2. Specific personalization line referencing one concrete detail from their company.\n" +
+      "3. Direct reference to the specific pain point and how our company uniquely helps.\n" +
+      "4. One single, low-friction, polite call to action.",
     prompt: `Prospect: ${firstName} (${contactTitle}) at ${companyName}\nProspect Company Details: ${companyDescription}\nTarget Pain Point: ${segmentPainPoint}\nOur Company: ${senderCompanyName}\nWhat We Do: ${senderCompanyDescription}`,
   });
 }
@@ -381,7 +469,7 @@ const replyIntentSchema = z.object({
     "auto_reply",
     "unclear",
   ]),
-  reasoning: z.string().describe("1-sentence explanation of classification"),
+  reasoning: z.string().describe("1 to 2 direct sentences under 30 words explaining classification rationale"),
 });
 
 export async function classifyReplyIntent({
@@ -413,14 +501,13 @@ export async function classifyReplyIntent({
 
   return await generateStructuredWithFallback({
     schema: replyIntentSchema,
+    maxTokens: 500,
     system:
-      "You are an email intent classification engine. Classify the prospect's reply into exactly one of:\n" +
-      "- 'interested': Prospect expresses willingness to meet, talk, see a demo, or learn more.\n" +
-      "- 'not_interested': Prospect declines, unsubscribes, says no, or asks to be removed.\n" +
-      "- 'question': Prospect asks a clarifying question about features, pricing, or company before deciding.\n" +
-      "- 'auto_reply': Automated out-of-office message, vacation responder, or delivery receipt.\n" +
-      "- 'unclear': Vague, ambiguous, or empty message.\n" +
-      "Be decisive and accurate.",
+      "You are an email intent classification engine. Classify the prospect's reply into exactly one category: 'interested', 'not_interested', 'question', 'auto_reply', or 'unclear'.\n\n" +
+      "CONCISENESS RULES:\n" +
+      "- 'reasoning' must be 1 to 2 concise sentences, strictly under 30 words total.\n" +
+      "- DO NOT restate the prospect email, DO NOT explain reasoning steps, and DO NOT hedge.\n" +
+      "- Be decisive and accurate.",
     prompt:
       `Original Email Subject: ${originalSubject || "N/A"}\n` +
       `Original Email Body: ${originalBody || "N/A"}\n` +
@@ -429,7 +516,7 @@ export async function classifyReplyIntent({
 }
 
 const bookingReplySchema = z.object({
-  body: z.string().describe("Short 2-3 sentence friendly reply with booking link"),
+  body: z.string().describe("Short 2-3 sentence friendly reply under 60 words containing booking link"),
 });
 
 export async function composeInterestedBookingReply({
@@ -446,10 +533,13 @@ export async function composeInterestedBookingReply({
   try {
     const result = await generateStructuredWithFallback({
       schema: bookingReplySchema,
+      maxTokens: 500,
       system:
-        "You are writing a brief, warm reply to an interested prospect who responded positively to our outreach.\n" +
-        "Keep it to 2-3 sentences max. Thank them for responding and direct them to pick a convenient time via the booking link.\n" +
-        "Include the exact booking link provided.",
+        "You are writing a brief, warm reply to an interested prospect who responded positively to our outreach.\n\n" +
+        "CONCISENESS RULES:\n" +
+        "- Keep it to 2-3 sentences max, strictly under 60 words total.\n" +
+        "- Include the exact booking link provided.\n" +
+        "- No preamble, no postscript, no filler.",
       prompt: `Prospect Name: ${firstName}\nBooking URL: ${bookingUrl}\nTheir Reply: "${replyText || "Sounds good, let's talk"}"`,
     });
     if (result.body && result.body.includes(bookingUrl)) {
@@ -471,32 +561,30 @@ export async function composeInterestedBookingReply({
 // -------------------------------------------------------------
 // Stage 9: Segment Performance Digest LLM Synthesis
 // -------------------------------------------------------------
-import type { SegmentDigestMetrics } from "@/db/schema";
-
 export const segmentDigestSummarySchema = z.object({
   headline: z
     .string()
-    .describe("1-sentence high-level executive takeaway summarizing segment performance"),
+    .describe("1-sentence executive takeaway under 20 words summarizing performance"),
   whatIsConverting: z
     .string()
-    .describe("Specific insights on what is converting or showing positive responsiveness"),
+    .describe("Specific observations under 50 words on what is converting"),
   whatIsNotConverting: z
     .string()
-    .describe("Points of friction, non-interest reasons, bounces, or silence"),
+    .describe("Points of friction, non-interest, or bounces under 50 words"),
   sampleSizeAssessment: z
     .string()
     .describe(
-      "Explicit plain-language note on whether sample size is statistically significant or small/directional"
+      "Plain-language note under 40 words on statistical reliability vs small directional sample"
     ),
   recommendedAction: z
     .string()
     .describe(
-      "Concrete strategic recommendation on budget allocation (e.g., expand sample size, scale up spend, or refine pain point/targeting)"
+      "Concrete strategic recommendation on budget allocation under 35 words"
     ),
   narrativeText: z
     .string()
     .describe(
-      "A cohesive 2-3 paragraph synthesis uniting all findings into an executive report for founders"
+      "1 to 2 cohesive paragraphs under 140 words total uniting all findings"
     ),
 });
 
@@ -519,20 +607,22 @@ export async function generateSegmentDigestSummary({
 }): Promise<SegmentDigestSummaryResult> {
   const isSmallSample = metrics.isSmallSample;
   const system =
-    "You are a principal B2B Go-To-Market analyst and founder advisor. " +
-    "You evaluate outbound campaign performance per ICP segment to guide budget allocation and message market fit.\n\n" +
-    "CORE RULES:\n" +
-    "- Ground every observation strictly in the provided metrics: sent, opened, replied, bounced, intent breakdown, and booked meetings.\n" +
-    "- Do NOT invent scores, artificial rankings, or qualification grades.\n" +
-    "- All conversion rates are plain percentages (reply rate, interested-reply rate, booking rate).\n" +
+    "You are a principal B2B Go-To-Market analyst and founder advisor evaluating outbound campaign performance per ICP segment.\n\n" +
+    "CONCISENESS RULES:\n" +
+    "- headline: exactly 1 sentence under 20 words.\n" +
+    "- whatIsConverting and whatIsNotConverting: each strictly under 50 words.\n" +
+    "- sampleSizeAssessment: strictly under 40 words.\n" +
+    "- recommendedAction: strictly under 35 words.\n" +
+    "- narrativeText: 1 to 2 paragraphs, strictly under 140 words total.\n" +
+    "- Ground every observation strictly in the provided metrics. NEVER invent numbers or add conversational preamble.\n" +
     (isSmallSample
-      ? "- CRITICAL: The sample size is SMALL (under 20 sent emails: " +
+      ? "- CRITICAL: Sample size is SMALL (" +
         metrics.sentCount +
-        " sent). You MUST EXPLICITLY state in plain language that this volume is too small to draw statistically reliable conclusions. Present the rates as early directional signals only, and explicitly advise gathering additional sample volume before committing significant budget changes.\n"
-      : "- Sample size is statistically meaningful (" +
+        " sent < 20). State explicitly that volume is directional only and advise collecting more data before major budget shifts.\n"
+      : "- Sample size is statistically reliable (" +
         metrics.sentCount +
-        " sent). Provide confident, decisive recommendations on budget allocation.\n") +
-    "- Maintain a clear, candid, and professional executive tone.";
+        " sent). Provide decisive recommendations.\n") +
+    "- Maintain a candid, concise executive tone.";
 
   const prompt =
     `Company: ${companyName}\n` +
@@ -552,30 +642,30 @@ export async function generateSegmentDigestSummary({
   try {
     const result = await generateStructuredWithFallback({
       schema: segmentDigestSummarySchema,
+      maxTokens: 1500,
       system,
       prompt,
     });
     return result;
   } catch (err) {
     console.warn("[GTM AI] Error generating segment digest with LLM, using deterministic summary fallback:", err);
-    // Deterministic fallback if LLM models fail
     const sampleNote = isSmallSample
-      ? `Sample size is currently ${metrics.sentCount} sent emails (below the 20-email statistical threshold). Conversion rates are directional early signals and should not yet be used for major budget commitments.`
+      ? `Sample size is currently ${metrics.sentCount} sent emails (below the 20-email threshold). Rates are early directional signals.`
       : `Sample size of ${metrics.sentCount} emails provides a reliable statistical baseline.`;
     const headline = metrics.meetingsBookedCount > 0
       ? `Segment "${segmentName}" demonstrates positive conversion with ${metrics.meetingsBookedCount} booked meeting(s).`
       : `Segment "${segmentName}" has generated ${metrics.repliedCount} replies across ${metrics.sentCount} sent emails.`;
     const converting = metrics.meetingsBookedCount > 0 || metrics.replyBreakdown.interested > 0
-      ? `${metrics.replyBreakdown.interested} interested reply(ies) and ${metrics.meetingsBookedCount} booked meeting(s) indicate resonant messaging on "${painPoint}".`
-      : `Initial outreach initiated. Awaiting further positive engagement.`;
+      ? `${metrics.replyBreakdown.interested} interested reply(ies) and ${metrics.meetingsBookedCount} booked meeting(s) indicate messaging resonance.`
+      : `Initial outreach initiated. Awaiting further engagement.`;
     const friction = metrics.bouncedCount > 0 || metrics.replyBreakdown.notInterested > 0
       ? `Observed ${metrics.bouncedCount} bounce(s) and ${metrics.replyBreakdown.notInterested} non-interested reply(ies).`
-      : `No significant objections or deliverability issues recorded.`;
+      : `No significant objections recorded.`;
     const recommendation = isSmallSample
-      ? `Maintain current campaign cadence to expand sample size to at least 20-50 sent emails before adjusting budget allocation.`
+      ? `Maintain current campaign cadence to expand sample size before adjusting budget.`
       : metrics.bookingRate > 3
-      ? `Double down: Segment shows strong unit economics. Increase prospecting volume.`
-      : `Refine value proposition or targeting criteria before allocating additional outreach budget.`;
+      ? `Double down: Segment shows strong economics. Increase prospecting volume.`
+      : `Refine value proposition before allocating additional outreach budget.`;
 
     return {
       headline,
@@ -583,8 +673,7 @@ export async function generateSegmentDigestSummary({
       whatIsNotConverting: friction,
       sampleSizeAssessment: sampleNote,
       recommendedAction: recommendation,
-      narrativeText: `${headline}\n\n${converting}\n\n${friction}\n\n${sampleNote}\n\nRecommendation: ${recommendation}`,
+      narrativeText: `${headline} ${converting} ${friction} ${sampleNote} Recommendation: ${recommendation}`,
     };
   }
 }
-
