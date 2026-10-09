@@ -13,7 +13,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "inngest:dev": "inngest dev -u http://localhost:3000/api/inngest"
   },
   "dependencies": {
     "@ai-sdk/groq": "^4.0.26",

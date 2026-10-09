@@ -50,10 +50,28 @@ export type GtmEvents = {
   };
 };
 
+const isCloudDeployment =
+  Boolean(process.env.VERCEL) ||
+  Boolean(process.env.RAILWAY_ENVIRONMENT) ||
+  Boolean(process.env.RENDER) ||
+  Boolean(process.env.FLY_APP_NAME) ||
+  Boolean(process.env.AWS_EXECUTION_ENV) ||
+  (Boolean(process.env.BASE_URL) &&
+    !process.env.BASE_URL?.includes("localhost") &&
+    !process.env.BASE_URL?.includes("127.0.0.1") &&
+    !process.env.BASE_URL?.includes("192.168."));
+
+export const isDev =
+  process.env.INNGEST_DEV === "true" ||
+  Boolean(process.env.INNGEST_BASE_URL) ||
+  !isCloudDeployment;
+
 export const inngest = new Inngest({
   id: "gtm-agent",
-  eventKey: process.env.INNGEST_EVENT_KEY,
-  signingKey: process.env.INNGEST_SIGNING_KEY,
+  baseUrl: process.env.INNGEST_BASE_URL || (isDev ? "http://127.0.0.1:8288" : undefined),
+  eventKey: isDev ? undefined : process.env.INNGEST_EVENT_KEY,
+  signingKey: isDev ? undefined : process.env.INNGEST_SIGNING_KEY,
+  isDev,
 });
 
 export const stageStartedPayload = z.object({
