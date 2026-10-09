@@ -1,207 +1,191 @@
-"use client"
+"use client";
 
-import { Button } from "@/components/ui/button"
+import * as React from "react";
+import { useState } from "react";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import { cn } from "@/lib/utils"
+} from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 import {
-  CheckCircle,
+  CheckCircle2,
   ChevronDown,
   Loader2,
-  Settings,
-  XCircle,
-} from "lucide-react"
-import { useState } from "react"
+  AlertCircle,
+  Target,
+  Users,
+  Search,
+  BarChart3,
+  RotateCcw,
+  Mail,
+  Sparkles,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export type ToolPart = {
-  type: string
+  type: string;
   state:
     | "input-streaming"
     | "input-available"
     | "output-available"
-    | "output-error"
-  input?: Record<string, unknown>
-  output?: Record<string, unknown>
-  toolCallId?: string
-  errorText?: string
-}
+    | "output-error";
+  input?: Record<string, unknown>;
+  output?: Record<string, unknown>;
+  toolCallId?: string;
+  errorText?: string;
+};
 
 export type ToolProps = {
-  toolPart: ToolPart
-  defaultOpen?: boolean
-  className?: string
+  toolPart: ToolPart;
+  defaultOpen?: boolean;
+  className?: string;
+};
+
+export interface ToolMeta {
+  inProgressLabel: string;
+  completedLabel: string;
+  icon: React.ComponentType<{ className?: string }>;
 }
 
-const Tool = ({ toolPart, defaultOpen = false, className }: ToolProps) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen)
+export const TOOL_META_MAP: Record<string, ToolMeta> = {
+  getCampaignOverview: {
+    inProgressLabel: "Checking campaign status…",
+    completedLabel: "Campaign status checked",
+    icon: Target,
+  },
+  searchProspectsAndContacts: {
+    inProgressLabel: "Searching prospects & verified contacts…",
+    completedLabel: "Prospect search completed",
+    icon: Users,
+  },
+  getMarketIntelligence: {
+    inProgressLabel: "Reviewing market intelligence…",
+    completedLabel: "Market intelligence reviewed",
+    icon: Search,
+  },
+  getSegmentPerformance: {
+    inProgressLabel: "Analyzing segment performance…",
+    completedLabel: "Segment performance analyzed",
+    icon: BarChart3,
+  },
+  retriggerResearchPipeline: {
+    inProgressLabel: "Restarting research pipeline…",
+    completedLabel: "Research pipeline restarted",
+    icon: RotateCcw,
+  },
+  getMailboxStatus: {
+    inProgressLabel: "Checking outbound mailbox…",
+    completedLabel: "Mailbox connection checked",
+    icon: Mail,
+  },
+};
 
-  const { state, input, output, toolCallId } = toolPart
+export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
 
-  const getStateIcon = () => {
-    switch (state) {
-      case "input-streaming":
-        return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-      case "input-available":
-        return <Settings className="h-4 w-4 text-orange-500" />
-      case "output-available":
-        return <CheckCircle className="h-4 w-4 text-green-500" />
-      case "output-error":
-        return <XCircle className="h-4 w-4 text-red-500" />
-      default:
-        return <Settings className="text-muted-foreground h-4 w-4" />
-    }
-  }
+  const { state, output, errorText } = toolPart;
+  const meta: ToolMeta = TOOL_META_MAP[toolPart.type] || {
+    inProgressLabel: `Running ${toolPart.type}…`,
+    completedLabel: toolPart.type,
+    icon: Target,
+  };
+  const Icon = meta.icon;
 
-  const getStateBadge = () => {
-    const baseClasses = "px-2 py-1 rounded-full text-xs font-medium"
-    switch (state) {
-      case "input-streaming":
-        return (
-          <span
-            className={cn(
-              baseClasses,
-              "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-            )}
-          >
-            Processing
-          </span>
-        )
-      case "input-available":
-        return (
-          <span
-            className={cn(
-              baseClasses,
-              "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
-            )}
-          >
-            Ready
-          </span>
-        )
-      case "output-available":
-        return (
-          <span
-            className={cn(
-              baseClasses,
-              "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-            )}
-          >
-            Completed
-          </span>
-        )
-      case "output-error":
-        return (
-          <span
-            className={cn(
-              baseClasses,
-              "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-            )}
-          >
-            Error
-          </span>
-        )
-      default:
-        return (
-          <span
-            className={cn(
-              baseClasses,
-              "bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-400"
-            )}
-          >
-            Pending
-          </span>
-        )
-    }
-  }
+  // Shimmering / Pulsing In-Progress State (Claude style)
+  if (state === "input-streaming" || state === "input-available") {
+    return (
+      <div
+        className={cn(
+          "w-full rounded-xl border border-primary/20 bg-primary/5 p-2.5 transition-all shadow-2xs",
+          className
+        )}
+      >
+        <div className="flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="size-6 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <Sparkles className="size-3.5 animate-pulse text-primary" />
+            </div>
+            <span className="text-xs font-medium text-foreground tracking-tight animate-pulse truncate">
+              {meta.inProgressLabel}
+            </span>
+          </div>
 
-  const formatValue = (value: unknown): string => {
-    if (value === null) return "null"
-    if (value === undefined) return "undefined"
-    if (typeof value === "string") return value
-    if (typeof value === "object") {
-      return JSON.stringify(value, null, 2)
-    }
-    return String(value)
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/20 animate-pulse shrink-0">
+            <Loader2 className="size-2.5 animate-spin" />
+            Working…
+          </span>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div
       className={cn(
-        "border-border mt-3 overflow-hidden rounded-lg border",
+        "rounded-xl border border-border/70 bg-background/90 shadow-2xs overflow-hidden transition-all text-xs",
+        isOpen && "border-border shadow-xs",
         className
       )}
     >
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-        <CollapsibleTrigger render={<Button variant="ghost" className="bg-background h-auto w-full justify-between rounded-b-none px-3 py-2 font-normal" />}><div className="flex items-center gap-2">
-                            {getStateIcon()}
-                            <span className="font-mono text-sm font-medium">
-                              {toolPart.type}
-                            </span>
-                            {getStateBadge()}
-                          </div><ChevronDown className={cn("h-4 w-4", isOpen && "rotate-180")} /></CollapsibleTrigger>
-        <CollapsibleContent
+        <CollapsibleTrigger
           className={cn(
-            "border-border border-t",
-            "data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down overflow-hidden"
+            "w-full flex items-center justify-between px-3 py-2 text-left cursor-pointer transition-colors hover:bg-muted/40",
+            isOpen && "border-b border-border/50 bg-muted/20"
           )}
         >
-          <div className="bg-background space-y-3 p-3">
-            {input && Object.keys(input).length > 0 && (
-              <div>
-                <h4 className="text-muted-foreground mb-2 text-sm font-medium">
-                  Input
-                </h4>
-                <div className="bg-background rounded border p-2 font-mono text-sm">
-                  {Object.entries(input).map(([key, value]) => (
-                    <div key={key} className="mb-1">
-                      <span className="text-muted-foreground">{key}:</span>{" "}
-                      <span>{formatValue(value)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              className={cn(
+                "size-6 rounded-lg flex items-center justify-center shrink-0",
+                state === "output-error"
+                  ? "bg-destructive/10 text-destructive"
+                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              )}
+            >
+              {state === "output-error" ? (
+                <AlertCircle className="size-3.5" />
+              ) : (
+                <Icon className="size-3.5" />
+              )}
+            </div>
 
-            {output && (
-              <div>
-                <h4 className="text-muted-foreground mb-2 text-sm font-medium">
-                  Output
-                </h4>
-                <div className="bg-background max-h-60 overflow-auto rounded border p-2 font-mono text-sm">
-                  <pre className="whitespace-pre-wrap">
-                    {formatValue(output)}
-                  </pre>
-                </div>
-              </div>
-            )}
+            <span className="font-medium text-foreground truncate text-xs">
+              {meta.completedLabel}
+            </span>
 
-            {state === "output-error" && toolPart.errorText && (
-              <div>
-                <h4 className="mb-2 text-sm font-medium text-red-500">Error</h4>
-                <div className="bg-background rounded border border-red-200 p-2 text-sm dark:border-red-950 dark:bg-red-900/20">
-                  {toolPart.errorText}
-                </div>
-              </div>
-            )}
-
-            {state === "input-streaming" && (
-              <div className="text-muted-foreground text-sm">
-                Processing tool call...
-              </div>
-            )}
-
-            {toolCallId && (
-              <div className="text-muted-foreground border-t border-blue-200 pt-2 text-xs">
-                <span className="font-mono">Call ID: {toolCallId}</span>
-              </div>
-            )}
+            <Badge
+              variant="outline"
+              className="text-[10px] h-4.5 px-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 gap-1"
+            >
+              <CheckCircle2 className="size-2.5" />
+              Completed
+            </Badge>
           </div>
+
+          <ChevronDown
+            className={cn(
+              "size-3.5 text-muted-foreground transition-transform duration-200 shrink-0",
+              isOpen && "rotate-180"
+            )}
+          />
+        </CollapsibleTrigger>
+
+        <CollapsibleContent className="p-3 space-y-3 bg-muted/10">
+          {state === "output-error" && (
+            <div className="p-2.5 rounded-lg border border-destructive/20 bg-destructive/5 text-xs text-destructive flex items-start gap-2">
+              <AlertCircle className="size-4 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="font-medium">Execution Error</p>
+                <p className="text-[11px] opacity-90 mt-0.5">
+                  {errorText || "The tool call failed to execute."}
+                </p>
+              </div>
+            </div>
+          )}
         </CollapsibleContent>
       </Collapsible>
     </div>
-  )
+  );
 }
-
-export { Tool }
