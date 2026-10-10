@@ -39,6 +39,11 @@ export async function executeDefineSegments(
     message: "Deriving ICP segments and discovering real example companies...",
   });
 
+  await db
+    .update(gtmResearchRun)
+    .set({ lastProgressAt: new Date() })
+    .where(eq(gtmResearchRun.id, researchRunId));
+
   const competitors = await db
     .select()
     .from(gtmCompetitor)

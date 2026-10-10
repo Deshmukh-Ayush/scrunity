@@ -45,6 +45,11 @@ export async function executeExploreCompetitors(
     message: "Identifying and evaluating commercial competitors...",
   });
 
+  await db
+    .update(gtmResearchRun)
+    .set({ lastProgressAt: new Date() })
+    .where(eq(gtmResearchRun.id, researchRunId));
+
   // 1. Generate 3-5 search queries via AI calibrated to company size and profile
   const queries = await generateCompetitorSearchQueries({
     companyName: run.companyName,
@@ -231,6 +236,15 @@ export const exploreCompetitorsFunction = inngest.createFunction(
     const result = await executeExploreCompetitors(researchRunId, step);
 
     // Automatically trigger Stage 3: Define Segments
+    await db
+      .update(gtmResearchRun)
+      .set({
+        currentStage: "define_segments",
+        stageStartedAt: new Date(),
+        lastProgressAt: null,
+      })
+      .where(eq(gtmResearchRun.id, researchRunId));
+
     await step.sendEvent("trigger-stage-3-define-segments", {
       name: "gtm/research.define_segments",
       data: { researchRunId },

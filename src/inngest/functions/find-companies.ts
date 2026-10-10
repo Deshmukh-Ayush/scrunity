@@ -73,6 +73,11 @@ export async function executeFindCompanies(
     }
   );
 
+  await db
+    .update(gtmOutreachCampaign)
+    .set({ lastProgressAt: new Date() })
+    .where(eq(gtmOutreachCampaign.id, outreachCampaignId));
+
   const runContext = {
     campaignId: outreachCampaignId,
     organizationId: researchRun.organizationId,
@@ -308,6 +313,15 @@ export const findCompaniesFunction = inngest.createFunction(
     const result = await executeFindCompanies(outreachCampaignId, step);
 
     // Automatically trigger Stage 5: Find Contacts
+    await db
+      .update(gtmOutreachCampaign)
+      .set({
+        currentStage: "find_contacts",
+        stageStartedAt: new Date(),
+        lastProgressAt: null,
+      })
+      .where(eq(gtmOutreachCampaign.id, outreachCampaignId));
+
     await step.sendEvent("trigger-stage-5-find-contacts", {
       name: "gtm/campaign.find_contacts",
       data: { outreachCampaignId },

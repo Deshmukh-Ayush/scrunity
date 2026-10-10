@@ -44,7 +44,11 @@ export async function executeResearchCompany(
 
   await db
     .update(gtmResearchRun)
-    .set({ currentStage: "research_company", status: "in_progress" })
+    .set({
+      currentStage: "research_company",
+      status: "in_progress",
+      lastProgressAt: new Date(),
+    })
     .where(eq(gtmResearchRun.id, researchRunId));
 
   await safeRealtimePublish(researchRunChannel(researchRunId).started, {
@@ -287,6 +291,15 @@ export const researchCompanyFunction = inngest.createFunction(
     const result = await executeResearchCompany(researchRunId, step);
 
     // Automatically trigger Stage 2: Explore Competitors
+    await db
+      .update(gtmResearchRun)
+      .set({
+        currentStage: "research_competitors",
+        stageStartedAt: new Date(),
+        lastProgressAt: null,
+      })
+      .where(eq(gtmResearchRun.id, researchRunId));
+
     await step.sendEvent("trigger-stage-2-explore-competitors", {
       name: "gtm/research.explore_competitors",
       data: { researchRunId },
