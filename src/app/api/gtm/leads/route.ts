@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { headers } from "next/headers";
 import { db } from "@/utils/db";
 import {
   gtmContact,
@@ -13,7 +12,7 @@ import { resolveAuthAndOrg } from "@/lib/gtm-auth";
 
 export async function GET(req: NextRequest) {
   try {
-    const reqHeaders = await headers();
+    const reqHeaders = req.headers;
     const { auth, error, status } = await resolveAuthAndOrg(reqHeaders);
 
     if (error || !auth) {
@@ -145,6 +144,12 @@ export async function GET(req: NextRequest) {
         campaignId: gtmOutreachCampaign.id,
         campaignName: gtmIcpSegment.name,
         status: statusSql,
+        draftId: sql<string | null>`(SELECT id FROM gtm_email_draft WHERE contact_id = ${gtmContact.id} ORDER BY created_at DESC LIMIT 1)`,
+        draftSubject: sql<string | null>`(SELECT subject FROM gtm_email_draft WHERE contact_id = ${gtmContact.id} ORDER BY created_at DESC LIMIT 1)`,
+        draftBody: sql<string | null>`(SELECT body FROM gtm_email_draft WHERE contact_id = ${gtmContact.id} ORDER BY created_at DESC LIMIT 1)`,
+        draftStatus: sql<string | null>`(SELECT status FROM gtm_email_draft WHERE contact_id = ${gtmContact.id} ORDER BY created_at DESC LIMIT 1)`,
+        threadId: sql<string | null>`(SELECT COALESCE(thread_id, id) FROM gtm_email_draft WHERE contact_id = ${gtmContact.id} AND status = 'sent' ORDER BY sent_at DESC LIMIT 1)`,
+        rejectionReason: sql<string | null>`(SELECT COALESCE(error_message, 'Rejected during review') FROM gtm_email_draft WHERE contact_id = ${gtmContact.id} AND status = 'rejected' ORDER BY created_at DESC LIMIT 1)`,
       })
       .from(gtmContact)
       .innerJoin(
