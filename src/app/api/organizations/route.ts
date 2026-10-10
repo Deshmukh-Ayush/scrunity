@@ -86,7 +86,7 @@ export async function PATCH(req: NextRequest) {
 
       const patchSchema = z.object({
         orgId: z.string().min(1, "Organization ID is required"),
-        plan: z.enum(["free", "freelancer", "agency", "enterprise"]).optional(),
+        plan: z.enum(["free", "pilot", "starter", "growth", "scale", "freelancer", "agency"]).optional(),
         globalCurrency: z.enum(["USD", "INR"]).optional(),
       });
 
@@ -106,7 +106,7 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: "Only organization owners can change settings." }, { status: 403 });
       }
 
-      const updates: { plan?: "free" | "freelancer" | "agency" | "enterprise"; globalCurrency?: "USD" | "INR"; updatedAt: Date } = {
+      const updates: { plan?: "free" | "pilot" | "starter" | "growth" | "scale" | "freelancer" | "agency"; globalCurrency?: "USD" | "INR"; updatedAt: Date } = {
         updatedAt: new Date(),
       };
       if (plan) updates.plan = plan;

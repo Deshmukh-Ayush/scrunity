@@ -53,18 +53,19 @@ export async function POST(req: NextRequest) {
     if (!org) return NextResponse.json({ error: "Organization not found" }, { status: 404 });
 
     // Use our new billing configuration helper
-    const { getPlanLimits } = await import("@/config/billing");
+    const { getPlanLimits, getTotalAllowedSeats } = await import("@/config/billing");
     const limits = getPlanLimits(org.plan as any);
+    const totalAllowedSeats = getTotalAllowedSeats(org.plan as any, (org as any).extraSeats || 0);
 
-    if (limits.maxSeats <= 1) {
-      return NextResponse.json({ error: `Your current plan (${limits.name}) does not support additional teammates. Please upgrade.` }, { status: 403 });
+    if (totalAllowedSeats <= 1) {
+      return NextResponse.json({ error: `Your current plan (${limits.name}) does not support additional teammates. Please upgrade or add an extra teammate seat.` }, { status: 403 });
     }
 
     const existingMembers = await db.select({ id: member.id }).from(member).where(eq(member.organizationId, orgId));
     const pendingInvites = await db.select({ id: invitation.id }).from(invitation).where(and(eq(invitation.organizationId, orgId), eq(invitation.status, "pending")));
     
-    if (existingMembers.length + pendingInvites.length >= limits.maxSeats) {
-      return NextResponse.json({ error: `Your plan is limited to ${limits.maxSeats} seats. You have reached the limit.` }, { status: 403 });
+    if (existingMembers.length + pendingInvites.length >= totalAllowedSeats) {
+      return NextResponse.json({ error: `Your organization is limited to ${totalAllowedSeats} seats (${limits.includedSeats} included + ${(org as any).extraSeats || 0} extra). You have reached the limit.` }, { status: 403 });
     }
 
     const [existingMember] = await db
