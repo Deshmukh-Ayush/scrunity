@@ -50,6 +50,7 @@ import {
 } from "lucide-react";
 import { isValidPersonName } from "@/lib/gtm-contact-matcher";
 import { checkLeadQualificationGates } from "@/lib/gtm-stage-5-5";
+import { formatErrorMessage } from "@/lib/gtm-error-formatter";
 
 function LinkedinIcon({ className = "size-3" }: { className?: string }) {
   return (
@@ -93,6 +94,7 @@ const STATUS_OPTIONS = [
   { value: "drafted", label: "Drafted" },
   { value: "approved", label: "Approved" },
   { value: "sent", label: "Sent" },
+  { value: "bounced", label: "Bounced" },
   { value: "replied", label: "Replied" },
   { value: "meeting_booked", label: "Meeting Booked" },
   { value: "disqualified", label: "Disqualified" },
@@ -131,6 +133,16 @@ function getStatusBadge(
       return <Badge variant="default">Replied</Badge>;
     case "sent":
       return <Badge variant="secondary">Sent</Badge>;
+    case "bounced":
+      return (
+        <Badge
+          variant="outline"
+          className="border-rose-500/40 text-rose-600 dark:text-rose-400 bg-rose-500/10 font-medium text-[11px] gap-1 inline-flex items-center"
+        >
+          <AlertTriangle className="size-3 text-rose-500 shrink-0" />
+          Bounced
+        </Badge>
+      );
     case "approved":
       return <Badge variant="outline">Approved</Badge>;
     case "drafted":
@@ -149,6 +161,8 @@ function getDraftStatusBadge(status: string) {
   switch (status) {
     case "sent":
       return <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">Sent</Badge>;
+    case "bounced":
+      return <Badge variant="destructive" className="text-[10px] bg-rose-500/10 text-rose-600 border-rose-500/30">Bounced</Badge>;
     case "approved":
       return <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-600">Approved</Badge>;
     case "rejected":
@@ -442,20 +456,35 @@ export function LeadsTableClient({
   const renderLeadAction = (lead: Lead) => {
     const isNameValid = isValidPersonName(lead.name);
 
-    // 4. Disqualified: show qualification reason
+    // 4. Disqualified: show clean qualification reason
     if (lead.status === "disqualified") {
-      const reason = lead.rejectionReason || "Disqualified during review";
-      const isPendingRediscovery = reason.toLowerCase().includes("pending re-discovery") || !isNameValid;
+      const formatted = formatErrorMessage(lead.rejectionReason || "Disqualified during review");
+      const isPendingRediscovery =
+        formatted.formattedMessage.toLowerCase().includes("pending re-discovery") ||
+        !isNameValid;
       return (
         <span
           className={cn(
             "text-[11px] italic truncate max-w-[150px] inline-flex items-center gap-1",
             isPendingRediscovery ? "text-amber-600 dark:text-amber-400 font-medium" : "text-muted-foreground"
           )}
-          title={reason}
+          title={formatted.formattedMessage}
         >
           {isPendingRediscovery && <AlertTriangle className="size-3 text-amber-500 shrink-0" />}
-          <span className="truncate">{reason}</span>
+          <span className="truncate">{formatted.formattedMessage}</span>
+        </span>
+      );
+    }
+
+    // 4.5. Bounced send: Pending Re-discovery
+    if (lead.status === "bounced") {
+      return (
+        <span
+          className="text-[11px] italic truncate max-w-[150px] inline-flex items-center gap-1 text-rose-600 dark:text-rose-400 font-medium"
+          title="Email delivery failed (bounced) — pending re-discovery"
+        >
+          <AlertCircle className="size-3 text-rose-500 shrink-0" />
+          <span className="truncate">Pending Re-discovery</span>
         </span>
       );
     }
@@ -528,23 +557,33 @@ export function LeadsTableClient({
       );
     }
 
-    // Failed status: Retry
+    // Failed status: show clean headline and Retry
     if (lead.status === "failed") {
+      const formatted = formatErrorMessage(lead.rejectionReason || "Email dispatch failed");
       return (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handleDraftEmail(lead)}
-          disabled={draftingLeadId === lead.id}
-          className="h-7 px-2 text-xs gap-1 text-rose-600 hover:text-rose-700 hover:bg-rose-500/10"
-        >
-          {draftingLeadId === lead.id ? (
-            <Loader2 className="size-3 animate-spin" />
-          ) : (
-            <RefreshCw className="size-3" />
-          )}
-          Retry
-        </Button>
+        <div className="flex items-center gap-1.5 justify-end">
+          <span
+            className="text-[11px] italic truncate max-w-[120px] text-rose-600 dark:text-rose-400 font-medium"
+            title={formatted.formattedMessage}
+          >
+            {formatted.headline}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleDraftEmail(lead)}
+            disabled={draftingLeadId === lead.id}
+            className="h-7 px-2 text-xs gap-1 text-rose-600 hover:text-rose-700 hover:bg-rose-500/10"
+            title="Retry drafting"
+          >
+            {draftingLeadId === lead.id ? (
+              <Loader2 className="size-3 animate-spin" />
+            ) : (
+              <RefreshCw className="size-3" />
+            )}
+            Retry
+          </Button>
+        </div>
       );
     }
 
@@ -959,6 +998,16 @@ export function LeadsTableClient({
                   <AlertCircle className="size-4 shrink-0" />
                   <span>
                     <strong>Sending Blocked:</strong> {checkLeadQualificationGates(reviewLead).reason}. Real outreach is disabled for this lead.
+                  </span>
+                </div>
+              )}
+
+              {/* Alert if lead previously failed/rejected */}
+              {Boolean(reviewLead.rejectionReason) && isValidPersonName(reviewLead.name) && checkLeadQualificationGates(reviewLead).qualified && (
+                <div className="p-2.5 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-xs flex items-center gap-2">
+                  <AlertCircle className="size-4 shrink-0" />
+                  <span>
+                    <strong>Previous dispatch note:</strong> {formatErrorMessage(reviewLead.rejectionReason).formattedMessage}
                   </span>
                 </div>
               )}
