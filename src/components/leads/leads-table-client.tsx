@@ -17,9 +17,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import {
   Search,
   ChevronLeft,
@@ -28,7 +38,18 @@ import {
   RefreshCw,
   X,
   Users,
+  Sparkles,
+  Send,
+  Inbox,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Mail,
+  AlertCircle,
+  AlertTriangle,
 } from "lucide-react";
+import { isValidPersonName } from "@/lib/gtm-contact-matcher";
+import { checkLeadQualificationGates } from "@/lib/gtm-stage-5-5";
 
 function LinkedinIcon({ className = "size-3" }: { className?: string }) {
   return (
@@ -53,6 +74,12 @@ export type Lead = {
   campaignId: string;
   campaignName: string;
   status: string;
+  draftId?: string | null;
+  draftSubject?: string | null;
+  draftBody?: string | null;
+  draftStatus?: string | null;
+  threadId?: string | null;
+  rejectionReason?: string | null;
 };
 
 export type CampaignOption = {
@@ -72,7 +99,31 @@ const STATUS_OPTIONS = [
   { value: "failed", label: "Failed" },
 ];
 
-function getStatusBadge(status: string) {
+function getStatusBadge(
+  leadOrStatus: { status: string; rejectionReason?: string | null; name?: string } | string
+) {
+  const status = typeof leadOrStatus === "string" ? leadOrStatus : leadOrStatus.status;
+  const rejectionReason = typeof leadOrStatus === "string" ? null : leadOrStatus.rejectionReason;
+  const name = typeof leadOrStatus === "string" ? "" : leadOrStatus.name;
+
+  const isPendingRediscovery =
+    (status === "disqualified" &&
+      (Boolean(rejectionReason?.toLowerCase().includes("pending re-discovery")) ||
+        (Boolean(name) && !isValidPersonName(name || "")))) ||
+    (Boolean(name) && !isValidPersonName(name || ""));
+
+  if (isPendingRediscovery) {
+    return (
+      <Badge
+        variant="outline"
+        className="border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10 font-medium text-[11px] gap-1 inline-flex items-center"
+      >
+        <AlertTriangle className="size-3 text-amber-500 shrink-0" />
+        Pending Re-discovery
+      </Badge>
+    );
+  }
+
   switch (status) {
     case "meeting_booked":
       return <Badge variant="default">Meeting Booked</Badge>;
@@ -94,21 +145,37 @@ function getStatusBadge(status: string) {
   }
 }
 
+function getDraftStatusBadge(status: string) {
+  switch (status) {
+    case "sent":
+      return <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">Sent</Badge>;
+    case "approved":
+      return <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-600">Approved</Badge>;
+    case "rejected":
+      return <Badge variant="destructive" className="text-[10px]">Rejected</Badge>;
+    case "failed":
+      return <Badge variant="destructive" className="text-[10px]">Failed</Badge>;
+    case "draft":
+    default:
+      return <Badge variant="outline" className="text-[10px]">Draft</Badge>;
+  }
+}
+
 function getVerificationBadge(status: string) {
   switch (status) {
     case "enrich_verified":
-      return <Badge variant="default">Verified</Badge>;
+      return <Badge variant="default" className="text-[10px]">Verified</Badge>;
     case "pattern_guessed_mx_valid":
-      return <Badge variant="outline">MX Valid</Badge>;
+      return <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600">MX Valid</Badge>;
     case "pattern_guessed_unverified":
-      return <Badge variant="secondary">Pattern Guessed</Badge>;
+      return <Badge variant="secondary" className="text-[10px]">Pattern Guessed</Badge>;
     case "found_on_site":
-      return <Badge variant="outline">Found on Site</Badge>;
+      return <Badge variant="outline" className="text-[10px]">Found on Site</Badge>;
     case "company_fallback":
-      return <Badge variant="secondary">Company Fallback</Badge>;
+      return <Badge variant="secondary" className="text-[10px]">Company Fallback</Badge>;
     case "unverified":
     default:
-      return <Badge variant="secondary">Unverified</Badge>;
+      return <Badge variant="secondary" className="text-[10px]">Unverified</Badge>;
   }
 }
 
@@ -200,6 +267,305 @@ export function LeadsTableClient({
     }
     fetchLeads();
   }, [fetchLeads, initialLeads.length, initialTotal]);
+
+  // Action state for Stage 6 / Stage 7 dispatch
+  const [draftingLeadId, setDraftingLeadId] = React.useState<string | null>(null);
+  const [reviewLead, setReviewLead] = React.useState<Lead | null>(null);
+  const [editSubject, setEditSubject] = React.useState("");
+  const [editBody, setEditBody] = React.useState("");
+  const [isActionPending, setIsActionPending] = React.useState(false);
+
+  const handleDraftEmail = async (lead: Lead) => {
+    if (!isValidPersonName(lead.name)) {
+      toast.error(`Cannot generate draft: "${lead.name}" is not a valid person name (pending re-discovery).`);
+      return;
+    }
+    const gateCheck = checkLeadQualificationGates(lead);
+    if (!gateCheck.qualified) {
+      toast.error(`Cannot generate draft: ${gateCheck.reason}`);
+      return;
+    }
+    setDraftingLeadId(lead.id);
+    try {
+      const res = await fetch(`/api/gtm/leads/${lead.id}/draft`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to generate email draft");
+      }
+      toast.success(`Draft generated for ${lead.name}`);
+      await fetchLeads();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to generate email draft";
+      toast.error(msg);
+    } finally {
+      setDraftingLeadId(null);
+    }
+  };
+
+  const handleOpenReview = async (lead: Lead) => {
+    if (!isValidPersonName(lead.name)) {
+      toast.error(`Cannot review or send draft: "${lead.name}" is not a valid person name (pending re-discovery).`);
+      return;
+    }
+    const gateCheck = checkLeadQualificationGates(lead);
+    if (!gateCheck.qualified) {
+      toast.error(`Cannot review draft: ${gateCheck.reason}`);
+      return;
+    }
+    setReviewLead(lead);
+    if (lead.draftSubject || lead.draftBody) {
+      setEditSubject(lead.draftSubject || "");
+      setEditBody(lead.draftBody || "");
+      return;
+    }
+
+    // Fallback: fetch campaign drafts if draft content wasn't cached on lead
+    try {
+      const res = await fetch(`/api/gtm/campaigns/${lead.campaignId}/drafts`);
+      const data = await res.json();
+      if (data.drafts) {
+        const found = data.drafts.find(
+          (d: { id: string; contact?: { id: string }; subject: string; body: string }) =>
+            d.id === lead.draftId || d.contact?.id === lead.id
+        );
+        if (found) {
+          setEditSubject(found.subject || "");
+          setEditBody(found.body || "");
+          return;
+        }
+      }
+    } catch {
+      // ignore fallback error
+    }
+    setEditSubject(lead.draftSubject || "");
+    setEditBody(lead.draftBody || "");
+  };
+
+  const handleRejectDraft = async () => {
+    if (!reviewLead) return;
+    setIsActionPending(true);
+    try {
+      const draftId = reviewLead.draftId;
+      if (draftId) {
+        const res = await fetch(
+          `/api/gtm/campaigns/${reviewLead.campaignId}/drafts/${draftId}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "reject" }),
+          }
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to reject draft");
+      }
+      toast.success("Draft rejected");
+      setReviewLead(null);
+      await fetchLeads();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to reject draft";
+      toast.error(msg);
+    } finally {
+      setIsActionPending(false);
+    }
+  };
+
+  const handleSaveAndApprove = async () => {
+    if (!reviewLead) return;
+    setIsActionPending(true);
+    try {
+      const draftId = reviewLead.draftId;
+      if (draftId) {
+        const res = await fetch(
+          `/api/gtm/campaigns/${reviewLead.campaignId}/drafts/${draftId}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "approve",
+              edits: { subject: editSubject, body: editBody },
+            }),
+          }
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to approve draft");
+      }
+      toast.success("Draft approved");
+      setReviewLead(null);
+      await fetchLeads();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to approve draft";
+      toast.error(msg);
+    } finally {
+      setIsActionPending(false);
+    }
+  };
+
+  const handleSendViaGmail = async () => {
+    if (!reviewLead) return;
+    if (!isValidPersonName(reviewLead.name)) {
+      toast.error(`Sending blocked: "${reviewLead.name}" is not a valid person name.`);
+      return;
+    }
+    const gateCheck = checkLeadQualificationGates(reviewLead);
+    if (!gateCheck.qualified) {
+      toast.error(`Sending blocked: ${gateCheck.reason}`);
+      return;
+    }
+    setIsActionPending(true);
+    try {
+      const res = await fetch(`/api/gtm/leads/${reviewLead.id}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          approveFirst: true,
+          edits: { subject: editSubject, body: editBody },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to dispatch email");
+      }
+      toast.success(`Email sent via Gmail to ${reviewLead.email || reviewLead.name}`);
+      setReviewLead(null);
+      await fetchLeads();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to dispatch email";
+      toast.error(msg);
+    } finally {
+      setIsActionPending(false);
+    }
+  };
+
+  const renderLeadAction = (lead: Lead) => {
+    const isNameValid = isValidPersonName(lead.name);
+
+    // 4. Disqualified: show qualification reason
+    if (lead.status === "disqualified") {
+      const reason = lead.rejectionReason || "Disqualified during review";
+      const isPendingRediscovery = reason.toLowerCase().includes("pending re-discovery") || !isNameValid;
+      return (
+        <span
+          className={cn(
+            "text-[11px] italic truncate max-w-[150px] inline-flex items-center gap-1",
+            isPendingRediscovery ? "text-amber-600 dark:text-amber-400 font-medium" : "text-muted-foreground"
+          )}
+          title={reason}
+        >
+          {isPendingRediscovery && <AlertTriangle className="size-3 text-amber-500 shrink-0" />}
+          <span className="truncate">{reason}</span>
+        </span>
+      );
+    }
+
+    // Structurally invalid contact name (job title, etc.): disabled action
+    if (!isNameValid) {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled
+          className="h-7 px-2.5 text-xs gap-1.5 opacity-60 border-amber-500/40 text-amber-600 dark:text-amber-400 cursor-not-allowed bg-amber-500/5"
+          title="Contact name is a job title — pending re-discovery"
+        >
+          <AlertCircle className="size-3 text-amber-500" />
+          Pending Re-discovery
+        </Button>
+      );
+    }
+
+    // Hard qualification gates: Email confidence floor & LinkedIn profile required
+    const gateCheck = checkLeadQualificationGates(lead);
+    if (!gateCheck.qualified) {
+      return (
+        <span
+          className="text-[11px] italic truncate max-w-[150px] inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-medium"
+          title={gateCheck.reason}
+        >
+          <AlertTriangle className="size-3 text-amber-500 shrink-0" />
+          <span className="truncate">{gateCheck.reason}</span>
+        </span>
+      );
+    }
+
+    // 3. Sent or later: "View in Mailbox"
+    if (lead.status === "sent" || lead.status === "replied" || lead.status === "meeting_booked") {
+      const targetUrl = lead.threadId
+        ? `/dashboard/mailbox?threadId=${encodeURIComponent(lead.threadId)}`
+        : `/dashboard/mailbox?contactId=${encodeURIComponent(lead.id)}`;
+      return (
+        <Link
+          href={targetUrl}
+          className={cn(
+            buttonVariants({ variant: "outline", size: "sm" }),
+            "h-7 px-2.5 text-xs gap-1.5 text-muted-foreground hover:text-foreground border-border/80"
+          )}
+        >
+          <Inbox className="size-3" />
+          View in Mailbox
+        </Link>
+      );
+    }
+
+    // 2. Drafted, not yet sent: "Review & Send"
+    if (
+      lead.status === "drafted" ||
+      lead.status === "approved" ||
+      (lead.draftId && lead.status !== "failed")
+    ) {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleOpenReview(lead)}
+          className="h-7 px-2.5 text-xs gap-1.5 border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700 font-medium"
+        >
+          <Send className="size-3" />
+          Review & Send
+        </Button>
+      );
+    }
+
+    // Failed status: Retry
+    if (lead.status === "failed") {
+      return (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handleDraftEmail(lead)}
+          disabled={draftingLeadId === lead.id}
+          className="h-7 px-2 text-xs gap-1 text-rose-600 hover:text-rose-700 hover:bg-rose-500/10"
+        >
+          {draftingLeadId === lead.id ? (
+            <Loader2 className="size-3 animate-spin" />
+          ) : (
+            <RefreshCw className="size-3" />
+          )}
+          Retry
+        </Button>
+      );
+    }
+
+    // 1. No draft yet: "Draft Email"
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => handleDraftEmail(lead)}
+        disabled={draftingLeadId === lead.id}
+        className="h-7 px-2.5 text-xs gap-1.5 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary font-medium"
+      >
+        {draftingLeadId === lead.id ? (
+          <Loader2 className="size-3 animate-spin" />
+        ) : (
+          <Sparkles className="size-3" />
+        )}
+        Draft Email
+      </Button>
+    );
+  };
 
   const handleClearFilters = () => {
     setSearch("");
@@ -338,18 +704,19 @@ export function LeadsTableClient({
         <Table>
           <TableHeader className="bg-muted/40">
             <TableRow>
-              <TableHead className="w-[200px] font-semibold text-xs">Contact Name</TableHead>
-              <TableHead className="w-[180px] font-semibold text-xs">Title</TableHead>
-              <TableHead className="w-[220px] font-semibold text-xs">Company</TableHead>
-              <TableHead className="w-[200px] font-semibold text-xs">Campaign</TableHead>
-              <TableHead className="w-[140px] font-semibold text-xs">Status</TableHead>
+              <TableHead className="w-[180px] font-semibold text-xs">Contact Name</TableHead>
+              <TableHead className="w-[160px] font-semibold text-xs">Title</TableHead>
+              <TableHead className="w-[200px] font-semibold text-xs">Company</TableHead>
+              <TableHead className="w-[180px] font-semibold text-xs">Campaign</TableHead>
+              <TableHead className="w-[120px] font-semibold text-xs">Status</TableHead>
               <TableHead className="font-semibold text-xs">Email</TableHead>
+              <TableHead className="w-[150px] text-right font-semibold text-xs pr-4">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-xs text-muted-foreground">
+                <TableCell colSpan={7} className="h-32 text-center text-xs text-muted-foreground">
                   <div className="flex items-center justify-center gap-2">
                     <RefreshCw className="size-4 animate-spin text-muted-foreground" />
                     <span>Loading leads...</span>
@@ -358,7 +725,7 @@ export function LeadsTableClient({
               </TableRow>
             ) : leads.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-40 text-center text-xs text-muted-foreground">
+                <TableCell colSpan={7} className="h-40 text-center text-xs text-muted-foreground">
                   <div className="flex flex-col items-center justify-center gap-1.5 py-6">
                     <Users className="size-8 text-muted-foreground/40 mb-1" />
                     <p className="font-medium text-foreground">No leads found</p>
@@ -446,7 +813,7 @@ export function LeadsTableClient({
                   </TableCell>
 
                   {/* Status using shadcn Badge */}
-                  <TableCell>{getStatusBadge(lead.status)}</TableCell>
+                  <TableCell>{getStatusBadge(lead)}</TableCell>
 
                   {/* Email + Verification using shadcn Badge */}
                   <TableCell>
@@ -460,6 +827,11 @@ export function LeadsTableClient({
                     ) : (
                       <span className="text-muted-foreground text-xs">—</span>
                     )}
+                  </TableCell>
+
+                  {/* Per-row Action Button */}
+                  <TableCell className="text-right pr-4">
+                    {renderLeadAction(lead)}
                   </TableCell>
                 </TableRow>
               ))
@@ -506,6 +878,156 @@ export function LeadsTableClient({
           </div>
         </div>
       )}
+
+      {/* Stage 6 Review & Send Modal Dialog */}
+      <Dialog open={!!reviewLead} onOpenChange={(open) => !open && setReviewLead(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold">
+              <Mail className="size-4 text-primary" />
+              Review & Send Outreach Email
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Review and customize the AI-generated draft before dispatching through your connected Gmail mailbox.
+            </DialogDescription>
+          </DialogHeader>
+
+          {reviewLead && (
+            <div className="space-y-4 pt-2">
+              {/* Contact Card */}
+              <div className="bg-muted/40 rounded-lg p-3 text-xs space-y-2 border border-border/60">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-foreground text-sm">{reviewLead.name}</span>
+                    <span className="text-muted-foreground">— {reviewLead.title}</span>
+                  </div>
+                  {getStatusBadge(reviewLead)}
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground text-xs">
+                  <div>
+                    <span className="font-medium text-foreground">Company: </span>
+                    {reviewLead.companyName}
+                  </div>
+                  <div>
+                    <span className="font-medium text-foreground">Email: </span>
+                    <span className="font-mono text-foreground">{reviewLead.email || "No email available"}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium text-foreground">Campaign: </span>
+                    {reviewLead.campaignName}
+                  </div>
+                </div>
+              </div>
+
+              {/* Subject & Body Editor */}
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Subject Line</label>
+                  <Input
+                    value={editSubject}
+                    onChange={(e) => setEditSubject(e.target.value)}
+                    placeholder="Subject line..."
+                    className="text-xs font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Email Body</label>
+                  <Textarea
+                    value={editBody}
+                    onChange={(e) => setEditBody(e.target.value)}
+                    rows={8}
+                    placeholder="Email body..."
+                    className="text-xs font-sans leading-relaxed resize-y"
+                  />
+                </div>
+              </div>
+
+              {/* Alert if contact name invalid */}
+              {!isValidPersonName(reviewLead.name) && (
+                <div className="p-2.5 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-xs flex items-center gap-2">
+                  <AlertCircle className="size-4 shrink-0" />
+                  <span>
+                    <strong>Sending Blocked:</strong> &quot;{reviewLead.name}&quot; is not a valid individual name (pending re-discovery). Real outreach is disabled for this lead.
+                  </span>
+                </div>
+              )}
+
+              {/* Alert if lead fails qualification gates */}
+              {!checkLeadQualificationGates(reviewLead).qualified && (
+                <div className="p-2.5 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-xs flex items-center gap-2">
+                  <AlertCircle className="size-4 shrink-0" />
+                  <span>
+                    <strong>Sending Blocked:</strong> {checkLeadQualificationGates(reviewLead).reason}. Real outreach is disabled for this lead.
+                  </span>
+                </div>
+              )}
+
+              {/* Modal Actions */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t border-border/60">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRejectDraft}
+                  disabled={isActionPending}
+                  className="text-xs h-8 gap-1.5 text-rose-600 hover:text-rose-700 hover:bg-rose-500/10 border-rose-500/30 w-full sm:w-auto"
+                >
+                  <XCircle className="size-3.5" />
+                  Reject Draft
+                </Button>
+
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSaveAndApprove}
+                    disabled={isActionPending}
+                    className="text-xs h-8 gap-1.5 border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
+                  >
+                    <CheckCircle2 className="size-3.5" />
+                    Save & Approve
+                  </Button>
+
+                  {/* Surface verification confidence badge directly next to Send button */}
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-muted/60 border border-border/40 text-xs">
+                    <span className="text-[11px] text-muted-foreground font-medium">Confidence:</span>
+                    {getVerificationBadge(reviewLead.verificationStatus)}
+                  </div>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleSendViaGmail}
+                    disabled={
+                      isActionPending ||
+                      !reviewLead.email ||
+                      !isValidPersonName(reviewLead.name) ||
+                      !checkLeadQualificationGates(reviewLead).qualified
+                    }
+                    className="text-xs h-8 gap-1.5 bg-primary text-primary-foreground shadow-sm"
+                    title={
+                      !isValidPersonName(reviewLead.name)
+                        ? "Sending blocked: Contact name is invalid (pending re-discovery)"
+                        : !checkLeadQualificationGates(reviewLead).qualified
+                        ? `Sending blocked: ${checkLeadQualificationGates(reviewLead).reason}`
+                        : undefined
+                    }
+                  >
+                    {isActionPending ? (
+                      <Loader2 className="size-3.5 animate-spin" />
+                    ) : (
+                      <Send className="size-3.5" />
+                    )}
+                    Send via Gmail
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
