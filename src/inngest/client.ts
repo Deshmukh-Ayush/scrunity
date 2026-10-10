@@ -27,6 +27,11 @@ export type GtmEvents = {
       outreachCampaignId: string;
     };
   };
+  "gtm/campaign.qualify_contacts": {
+    data: {
+      outreachCampaignId: string;
+    };
+  };
   "gtm/campaign.write_emails": {
     data: {
       outreachCampaignId: string;
