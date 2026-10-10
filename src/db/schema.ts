@@ -109,7 +109,18 @@ export const organization = pgTable("organization", {
   slug: text("slug").notNull().unique(),
   logo: text("logo"),
 
-  plan: text("plan", { enum: ["free", "freelancer", "agency", "enterprise"] })
+  plan: text("plan", {
+    enum: [
+      "free",
+      "freelancer",
+      "agency",
+      "enterprise",
+      "pilot",
+      "starter",
+      "growth",
+      "scale",
+    ],
+  })
     .default("free")
     .notNull(),
   globalCurrency: text("global_currency", { enum: ["USD", "INR"] })
@@ -121,6 +132,7 @@ export const organization = pgTable("organization", {
   dodoCustomerId: text("dodo_customer_id"),
   dodoSubscriptionId: text("dodo_subscription_id"),
   subscriptionStatus: text("subscription_status"), // e.g., 'active', 'canceled', 'past_due', 'trialing'
+  extraSeats: integer("extra_seats").default(0).notNull(),
   trialEndsAt: timestamp("trial_ends_at"),
   currentPeriodEnd: timestamp("current_period_end"),
 
@@ -245,10 +257,7 @@ export const invitation = pgTable(
   ]
 )
 
-export const organizationRelations = relations(organization, ({ many }) => ({
-  members: many(member),
-  invitations: many(invitation),
-}))
+
 
 export const memberRelations = relations(member, ({ one }) => ({
   user: one(user, {
@@ -515,7 +524,14 @@ export const gtmEmailDraft = pgTable(
     subject: text("subject").notNull(),
     body: text("body").notNull(),
     status: text("status", {
-      enum: ["draft", "approved", "rejected", "sent", "failed"],
+      enum: [
+        "draft",
+        "approved",
+        "rejected",
+        "sent",
+        "failed",
+        "paused_credits_exhausted",
+      ],
     })
       .default("draft")
       .notNull(),
@@ -673,6 +689,75 @@ export const gtmSegmentDigest = pgTable(
   ]
 )
 
+/**
+ * Customer-facing AI Credit Period ledger (Step 1.1)
+ * Metres customer billing units: 1 AI credit = 1 prospect carried through stages 4-9.
+ * Kept strictly separate from internal Firecrawl-spend organization_credit_period.
+ */
+export const gtmAiCreditPeriod = pgTable(
+  "gtm_ai_credit_period",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    periodStart: timestamp("period_start").notNull(),
+    periodEnd: timestamp("period_end").notNull(),
+    plan: text("plan").notNull(),
+    planAllotment: integer("plan_allotment").default(0).notNull(),
+    creditsUsed: integer("credits_used").default(0).notNull(),
+    creditsRemaining: integer("credits_remaining").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("gtm_ai_credit_period_org_idx").on(table.organizationId),
+    index("gtm_ai_credit_period_dates_idx").on(
+      table.periodStart,
+      table.periodEnd
+    ),
+  ]
+)
+
+/**
+ * Customer-facing AI Credit Transaction log (Step 1.2)
+ * Backing log for usage charts and audit history: debit, topup, period_reset.
+ */
+export const gtmAiCreditTransaction = pgTable(
+  "gtm_ai_credit_transaction",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    periodId: text("period_id").references(() => gtmAiCreditPeriod.id, {
+      onDelete: "set null",
+    }),
+    type: text("type", { enum: ["debit", "topup", "period_reset"] }).notNull(),
+    amount: integer("amount").notNull(),
+    relatedCampaignId: text("related_campaign_id").references(
+      () => gtmOutreachCampaign.id,
+      { onDelete: "set null" }
+    ),
+    relatedProspectId: text("related_prospect_id"),
+    description: text("description"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("gtm_ai_credit_tx_org_idx").on(table.organizationId),
+    index("gtm_ai_credit_tx_period_idx").on(table.periodId),
+    index("gtm_ai_credit_tx_created_idx").on(table.createdAt),
+    index("gtm_ai_credit_tx_campaign_idx").on(table.relatedCampaignId),
+  ]
+)
+
 // Relations
 export const gtmResearchRunRelations = relations(
   gtmResearchRun,
@@ -724,6 +809,7 @@ export const gtmOutreachCampaignRelations = relations(
     prospectCompanies: many(gtmProspectCompany),
     emailDrafts: many(gtmEmailDraft),
     meetings: many(gtmMeeting),
+    creditTransactions: many(gtmAiCreditTransaction),
   })
 )
 
@@ -907,5 +993,42 @@ export const gtmMessageRelations = relations(gtmMessage, ({ one }) => ({
     references: [gtmConversation.id],
   }),
 }))
+
+export const organizationRelations = relations(organization, ({ many }) => ({
+  members: many(member),
+  invitations: many(invitation),
+  aiCreditPeriods: many(gtmAiCreditPeriod),
+  aiCreditTransactions: many(gtmAiCreditTransaction),
+}))
+
+export const gtmAiCreditPeriodRelations = relations(
+  gtmAiCreditPeriod,
+  ({ one, many }) => ({
+    organization: one(organization, {
+      fields: [gtmAiCreditPeriod.organizationId],
+      references: [organization.id],
+    }),
+    transactions: many(gtmAiCreditTransaction),
+  })
+)
+
+export const gtmAiCreditTransactionRelations = relations(
+  gtmAiCreditTransaction,
+  ({ one }) => ({
+    organization: one(organization, {
+      fields: [gtmAiCreditTransaction.organizationId],
+      references: [organization.id],
+    }),
+    period: one(gtmAiCreditPeriod, {
+      fields: [gtmAiCreditTransaction.periodId],
+      references: [gtmAiCreditPeriod.id],
+    }),
+    campaign: one(gtmOutreachCampaign, {
+      fields: [gtmAiCreditTransaction.relatedCampaignId],
+      references: [gtmOutreachCampaign.id],
+    }),
+  })
+)
+
 
 
