@@ -1,5 +1,6 @@
 import dns from "node:dns";
 import { extractDomain } from "./firecrawl";
+import { isValidPersonName } from "./gtm-contact-matcher";
 
 /**
  * Checks whether a domain has valid MX (Mail Exchange) records.
@@ -61,6 +62,10 @@ export function generateEmailGuesses(
   fullName: string,
   domain: string
 ): string[] {
+  if (!isValidPersonName(fullName)) {
+    return [];
+  }
+
   const cleanDomain = extractDomain(domain);
   const parts = fullName
     .toLowerCase()

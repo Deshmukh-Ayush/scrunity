@@ -28,6 +28,7 @@ import {
   parseTeamFromMarkdown,
   parseCandidatesFromSnippets,
   selectMatchingDecisionMaker,
+  isValidPersonName,
 } from "@/lib/gtm-contact-matcher"
 import { safeRealtimePublish, type InngestStep } from "./shared"
 
@@ -165,6 +166,11 @@ export async function executeFindContacts(
     }
   )
 
+  await db
+    .update(gtmOutreachCampaign)
+    .set({ lastProgressAt: new Date() })
+    .where(eq(gtmOutreachCampaign.id, outreachCampaignId))
+
   const targetRole = await deriveTargetJobFunction({
     segmentName: segment.name,
     painPoint: segment.painPoint,
@@ -298,13 +304,13 @@ export async function executeFindContacts(
       targetRole.jobFunctions
     )
 
-    if (bestMatch) {
+    if (bestMatch && isValidPersonName(bestMatch.candidate.name)) {
       personName = bestMatch.candidate.name
       personTitle = bestMatch.candidate.title
       linkedinUrl = bestMatch.candidate.url || null
     } else {
-      personName = `${targetRole.jobFunctions[0]}`
-      personTitle = targetRole.jobFunctions[0]
+      personName = `${cleanCompanyName} Team`
+      personTitle = targetRole.jobFunctions[0] || "Leadership"
     }
 
     // Email-finding chain:
@@ -338,7 +344,7 @@ export async function executeFindContacts(
         siteScrape.markdown || "",
         comp.domain
       )
-      if (extracted.length > 0) {
+      if (extracted.length > 0 && isValidPersonName(personName)) {
         const firstName = personName.split(" ")[0].toLowerCase()
         const matching = extracted.find((e) => e.includes(firstName))
         if (matching) {
@@ -358,8 +364,8 @@ export async function executeFindContacts(
       }
     }
 
-    // Step b: Pattern guess + MX verification
-    if (!resolvedEmail && personName.includes(" ")) {
+    // Step b: Pattern guess + MX verification (only for validated human names)
+    if (!resolvedEmail && isValidPersonName(personName)) {
       const guesses = generateEmailGuesses(personName, comp.domain)
       if (guesses.length > 0) {
         const hasMx = await checkDomainMxRecords(comp.domain)
@@ -467,6 +473,15 @@ export const findContactsFunction = inngest.createFunction(
     const result = await executeFindContacts(outreachCampaignId, step)
 
     // Automatically trigger Stage 6: Write Emails
+    await db
+      .update(gtmOutreachCampaign)
+      .set({
+        currentStage: "write_emails",
+        stageStartedAt: new Date(),
+        lastProgressAt: null,
+      })
+      .where(eq(gtmOutreachCampaign.id, outreachCampaignId))
+
     await step.sendEvent("trigger-stage-6-write-emails", {
       name: "gtm/campaign.write_emails",
       data: { outreachCampaignId },

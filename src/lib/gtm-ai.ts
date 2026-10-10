@@ -38,19 +38,41 @@ export async function generateStructuredWithFallback<T>({
     );
   }
 
-  const { output } = await generateText({
-    model: fallbackModel,
-    output: Output.object({ schema }),
-    system,
+  try {
+    const { output } = await generateText({
+      model: fallbackModel,
+      output: Output.object({ schema }),
+      system,
+      prompt,
+      maxOutputTokens: maxTokens,
+    });
+    if (output) return output as T;
+  } catch (err: any) {
+    console.warn(
+      "[GTM AI Fallback] Secondary model error. Attempting resilient direct JSON fallback:",
+      err?.message || err
+    );
+  }
+
+  // Level-3 Fallback: Direct JSON prompt with regex extraction (handles Groq schema validation quirks)
+  const res = await generateText({
+    model: primaryModel,
+    system: `${system}\nCRITICAL: Respond ONLY with a valid JSON object matching the requested schema. No surrounding markdown, no explanations.`,
     prompt,
     maxOutputTokens: maxTokens,
   });
 
-  if (!output) {
-    throw new Error("Both primary and fallback AI models failed to produce output.");
+  const jsonMatch = res.text.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return schema.parse(parsed);
+    } catch (parseErr) {
+      console.warn("[GTM AI Fallback] Level-3 direct JSON parse failed:", parseErr);
+    }
   }
 
-  return output as T;
+  throw new Error("Both primary, secondary, and direct AI models failed to produce output.");
 }
 
 // -------------------------------------------------------------
