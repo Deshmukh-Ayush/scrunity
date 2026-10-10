@@ -96,6 +96,57 @@ export function scoreTitleMatch(candidateTitle: string, targetRoles: string[]): 
 }
 
 /**
+ * Validates that an extracted string is a plausible real human name.
+ * Strictly rejects temporal phrases (e.g. "3 days ago"), filler text ("and co"),
+ * corporate suffixes ("Inc", "LLC"), and standalone job titles.
+ */
+export function isValidPersonName(name: string): boolean {
+  if (!name || typeof name !== "string") return false;
+  const trimmed = name.trim();
+  if (trimmed.length < 3 || trimmed.length > 50) return false;
+
+  // Reject relative dates / temporal expressions (e.g., "3 days ago", "yesterday")
+  if (/\b(days?|hours?|weeks?|months?|years?|minutes?|secs?)\s+ago\b/i.test(trimmed)) return false;
+  if (/\b(yesterday|tomorrow|today|recently|updated|published|posted)\b/i.test(trimmed)) return false;
+
+  // Reject company/legal suffixes and filler expressions
+  if (/\b(and\s+co|and\s+company|inc\.?|llc\.?|ltd\.?|corp\.?|team|solutions|services|group|holdings|agency|studios|platform|technologies|partners|consulting)\b/i.test(trimmed)) return false;
+
+  // Reject role title prefixes (e.g. "VP Business Development", "SVP Sales", "Director of...")
+  if (/^(?:vp|vice president|svp|evp|avp|chief|head|director|manager|lead)\b/i.test(trimmed)) return false;
+
+  // Reject common standalone role titles erroneously captured as names
+  const lower = trimmed.toLowerCase();
+  const bannedRoles = [
+    "vp", "vice president", "president", "founder", "co-founder", "cofounder",
+    "ceo", "cto", "coo", "cmo", "cfo", "cro", "cio", "cpo",
+    "director", "managing director", "head of", "manager", "lead", "leader",
+    "general partner", "partner", "associate", "intern", "engineer", "sales",
+    "business development", "growth", "marketing", "operations", "clinical director",
+    "practice manager", "support", "admin", "administrator", "info", "contact",
+    "suite leaders"
+  ];
+  if (bannedRoles.includes(lower)) return false;
+  if (/\b(sales|business development|suite leaders)\b/i.test(trimmed)) return false;
+
+  // Clean title prefix (Dr., Prof.) and trailing credentials (e.g. ", PhD, MBA", ", MD", ", CPA")
+  let cleaned = trimmed.replace(/^(Dr\.?|Mr\.?|Mrs\.?|Ms\.?|Prof\.?)\s+/i, "");
+  cleaned = cleaned.replace(/(?:,\s*(?:[A-Z]{2,6}|PhD|MBA|MD|CPA|Esq|MS|MA))+$/i, "").trim();
+
+  const words = cleaned.split(/\s+/);
+  if (words.length < 2 || words.length > 4) return false;
+
+  // Each word must start with an uppercase letter and be a proper noun
+  for (const w of words) {
+    if (!/^[A-Z][a-zA-Z'’-]{1,25}$/.test(w)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
  * Extracts candidate persons and titles from scraped team/about markdown.
  */
 export function parseTeamFromMarkdown(markdown: string): TeamCandidate[] {
@@ -112,11 +163,8 @@ export function parseTeamFromMarkdown(markdown: string): TeamCandidate[] {
       const rawName = linkMatch[1].trim();
       const url = linkMatch[2];
 
-      // Ignore navigation links or skip-to-content
       if (
-        !rawName.toLowerCase().includes("skip to") &&
-        !rawName.toLowerCase().includes("our team") &&
-        !rawName.toLowerCase().includes("read more") &&
+        isValidPersonName(rawName) &&
         nextLine.length > 2 &&
         nextLine.length < 80 &&
         !nextLine.startsWith("[") &&
@@ -136,11 +184,14 @@ export function parseTeamFromMarkdown(markdown: string): TeamCandidate[] {
     // Pattern 2: **Person Name** - Title or ### Person Name \n Title
     const boldMatch = line.match(/^\*\*([A-Z][a-zA-Z\s.,'-]+)\*\*\s*[-–|:]\s*(.+)$/);
     if (boldMatch) {
-      candidates.push({
-        name: boldMatch[1].trim(),
-        title: boldMatch[2].trim(),
-        source: "team_page_scrape",
-      });
+      const rawName = boldMatch[1].trim();
+      if (isValidPersonName(rawName)) {
+        candidates.push({
+          name: rawName,
+          title: boldMatch[2].trim(),
+          source: "team_page_scrape",
+        });
+      }
     }
   }
 
@@ -168,10 +219,7 @@ export function parseCandidatesFromSnippets(
         const rawTitle = parts[1].replace(/at .*$/i, "").trim();
 
         if (
-          rawName.length > 2 &&
-          rawName.length < 40 &&
-          !rawName.toLowerCase().includes("telehealth") &&
-          !rawName.toLowerCase().includes("linkedin") &&
+          isValidPersonName(rawName) &&
           rawTitle.length > 2 &&
           rawTitle.length < 80
         ) {
@@ -186,23 +234,26 @@ export function parseCandidatesFromSnippets(
     }
 
     // 2. Site Snippet patterns
-    // Example: "... Dr.Kamlesh Desai. Co-Founder - ..."
-    // Example: "... Meegan Yassa, LMFT. Clinical Director ..."
+    // Example: "... Dr. Kamlesh Desai - Co-Founder ..."
+    // Strictly case-sensitive: names must be capitalized proper nouns (NO /gi flag)
     const snippetMatches = [
-      /([A-Z][a-z]+\s+[A-Z][a-z]+(?:\s*,\s*[A-Z]{2,5})?)\s*[-–|:.•·]\s*(Co-Founder|Founder|Clinical Director|Practice Manager|Director|CEO|CTO|COO|Associate|Intern)/gi,
-      /(Dr\.?\s*[A-Z][a-z]+\s+[A-Z][a-z]+)\s*[-–|:.•·]\s*(Co-Founder|Founder|Clinical Director|Practice Manager|Director|CEO|CTO|COO)/gi,
+      /([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}(?:\s*,\s*[A-Z]{2,5})?)\s*[-–|:.•·]\s*(Co-Founder|Founder|Clinical Director|Practice Manager|Director|CEO|CTO|COO|Associate|Intern)/g,
+      /(Dr\.?\s*[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\s*[-–|:.•·]\s*(Co-Founder|Founder|Clinical Director|Practice Manager|Director|CEO|CTO|COO)/g,
     ];
 
     for (const regex of snippetMatches) {
       let match: RegExpExecArray | null;
       while ((match = regex.exec(snippet)) !== null) {
         if (match[1] && match[2]) {
-          candidates.push({
-            name: match[1].trim(),
-            title: match[2].trim(),
-            url: item.url,
-            source: "site_search_snippet",
-          });
+          const candidateName = match[1].trim();
+          if (isValidPersonName(candidateName)) {
+            candidates.push({
+              name: candidateName,
+              title: match[2].trim(),
+              url: item.url,
+              source: "site_search_snippet",
+            });
+          }
         }
       }
     }
@@ -230,6 +281,7 @@ export function selectMatchingDecisionMaker(
   let bestMatch: SelectedDecisionMaker | null = null;
 
   for (const cand of candidates) {
+    if (!isValidPersonName(cand.name)) continue;
     const match = scoreTitleMatch(cand.title, targetRoles);
     if (match.score >= 70) {
       if (!bestMatch || match.score > bestMatch.score) {
@@ -245,3 +297,11 @@ export function selectMatchingDecisionMaker(
 
   return bestMatch;
 }
+
+export {
+  checkEmailConfidenceFloor,
+  checkLinkedInProfileGate,
+  checkLeadQualificationGates,
+  evaluateContactQualification,
+  type GateCheckResult,
+} from "./gtm-stage-5-5";
