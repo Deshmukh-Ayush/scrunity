@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { db } from "@/utils/db";
-import { gtmOutreachCampaign, gtmResearchRun } from "@/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { gtmOutreachCampaign, gtmResearchRun, organization } from "@/db/schema";
+import { eq, desc, and, inArray } from "drizzle-orm";
 import { resolveAuthAndOrg, verifyIcpSegmentAccess } from "@/lib/gtm-auth";
 import { inngest } from "@/inngest/client";
 import { runFullCampaignPipeline } from "@/lib/gtm-pipeline-runner";
+import { getPlanLimits, getMaxActiveCampaigns } from "@/config/billing";
 import { z } from "zod";
 
 const createCampaignSchema = z.object({
@@ -67,6 +68,48 @@ export async function POST(req: NextRequest) {
         },
         { status: 200 }
       );
+    }
+
+    // Step 2: Plan limit check - verify active campaign capacity (Step 2 & Step 5)
+    const [org] = await db
+      .select()
+      .from(organization)
+      .where(eq(organization.id, auth.orgId));
+
+    const maxActive = getMaxActiveCampaigns(org?.plan || "free");
+    if (maxActive !== "unlimited") {
+      const activeCampaigns = await db
+        .select({ id: gtmOutreachCampaign.id })
+        .from(gtmOutreachCampaign)
+        .innerJoin(
+          gtmResearchRun,
+          eq(gtmOutreachCampaign.researchRunId, gtmResearchRun.id)
+        )
+        .where(
+          and(
+            eq(gtmResearchRun.organizationId, auth.orgId),
+            inArray(gtmOutreachCampaign.status, [
+              "in_progress",
+              "awaiting_approval",
+            ])
+          )
+        );
+
+      if (activeCampaigns.length >= maxActive) {
+        const planConfig = getPlanLimits(org?.plan || "free");
+        return NextResponse.json(
+          {
+            error: `You've reached your limit of ${maxActive} active campaign${
+              maxActive === 1 ? "" : "s"
+            } on the ${planConfig.name} plan. Upgrade to launch more or archive an existing campaign.`,
+            limitReached: true,
+            maxActiveCampaigns: maxActive,
+            currentActiveCount: activeCampaigns.length,
+            planName: planConfig.name,
+          },
+          { status: 403 }
+        );
+      }
     }
 
     // Create campaign row

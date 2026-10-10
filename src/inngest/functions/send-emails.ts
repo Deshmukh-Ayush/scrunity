@@ -7,13 +7,18 @@ import {
   gtmContact,
   gtmResearchRun,
 } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { getValidAccessToken, sendGmailMessage } from "@/lib/gmail";
 import { safeRealtimePublish, type InngestStep } from "./shared";
+import {
+  hasAvailableCredits,
+  debitProspectCredit,
+} from "@/lib/gtm-ai-credits";
 
 export interface SendEmailsResult {
   sentCount: number;
   stoppedAtCap: boolean;
+  stoppedAtCredits?: boolean;
   messageIds: string[];
 }
 
@@ -132,9 +137,51 @@ export async function executeSendEmails({
 
   const sentMessageIds: string[] = [];
   let stoppedAtCap = false;
+  let stoppedAtCredits = false;
 
   for (let i = 0; i < approvedDrafts.length; i++) {
     const draft = approvedDrafts[i];
+
+    // Check AI credits availability (Step 1.3 & Step 5)
+    const hasCredits = await hasAvailableCredits(organizationId);
+    if (!hasCredits) {
+      stoppedAtCredits = true;
+      console.warn(
+        `[Stage 7 Send] AI credits exhausted for organization ${organizationId}. Gracefully pausing remaining sends.`
+      );
+
+      // Gracefully mark all remaining approved drafts as paused_credits_exhausted
+      const remainingDraftIds = approvedDrafts.slice(i).map((d) => d.draftId);
+      if (remainingDraftIds.length > 0) {
+        await db
+          .update(gtmEmailDraft)
+          .set({
+            status: "paused_credits_exhausted",
+            errorMessage:
+              "Outreach paused: 0 AI credits remaining. Purchase a top-up pack to resume sending.",
+          })
+          .where(inArray(gtmEmailDraft.id, remainingDraftIds));
+      }
+
+      // Mark campaign as paused due to credit exhaustion
+      await db
+        .update(gtmOutreachCampaign)
+        .set({
+          status: "paused_credits_exhausted",
+          failureReason:
+            "Outreach paused: AI credits exhausted (0 remaining). Purchase a top-up pack to resume.",
+        })
+        .where(eq(gtmOutreachCampaign.id, outreachCampaignId));
+
+      await safeRealtimePublish(
+        outreachCampaignChannel(outreachCampaignId).failed,
+        {
+          stage: "send_emails",
+          error: `AI credits exhausted. Sent ${sentMessageIds.length} emails; paused ${remainingDraftIds.length} queued drafts. Top up to resume.`,
+        }
+      );
+      break;
+    }
 
     // Check if cap is reached
     if (currentDailyCount >= dailyCap) {
@@ -213,6 +260,20 @@ export async function executeSendEmails({
           })
           .where(eq(gtmConnectedMailbox.id, mailbox.id));
 
+        // Debit exactly 1 customer AI credit for this sent prospect (Step 1.3)
+        try {
+          await debitProspectCredit(organizationId, {
+            campaignId: outreachCampaignId,
+            prospectId: draft.contactId,
+            description: `Sent outreach email to ${draft.contactEmail} ("${draft.subject}")`,
+          });
+        } catch (creditErr) {
+          console.error(
+            `[Stage 7 Send] Failed to debit AI credit after successful email dispatch:`,
+            creditErr
+          );
+        }
+
         return sendResult.messageId;
       } catch (err: unknown) {
         const errorMsg =
@@ -254,8 +315,8 @@ export async function executeSendEmails({
     sentMessageIds.push(messageId);
   }
 
-  // If all intended drafts processed without hitting cap, mark campaign completed
-  if (!stoppedAtCap) {
+  // If all intended drafts processed without hitting cap or running out of credits, mark campaign completed
+  if (!stoppedAtCap && !stoppedAtCredits) {
     await db
       .update(gtmOutreachCampaign)
       .set({
@@ -276,6 +337,7 @@ export async function executeSendEmails({
   return {
     sentCount: sentMessageIds.length,
     stoppedAtCap,
+    stoppedAtCredits,
     messageIds: sentMessageIds,
   };
 }

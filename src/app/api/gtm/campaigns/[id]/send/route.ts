@@ -53,7 +53,21 @@ export async function POST(
       );
     }
 
-    // 2. Check for approved drafts
+    // 2. Check AI credit availability upfront (Step 5)
+    const { hasAvailableCredits } = await import("@/lib/gtm-ai-credits");
+    const hasCredits = await hasAvailableCredits(auth.orgId);
+    if (!hasCredits) {
+      return NextResponse.json(
+        {
+          error:
+            "AI credits exhausted (0 remaining). Please top up credits or upgrade your plan on the Billing page to start email dispatch.",
+          creditsExhausted: true,
+        },
+        { status: 402 }
+      );
+    }
+
+    // 3. Check for approved drafts
     const approvedDrafts = await db
       .select({ id: gtmEmailDraft.id })
       .from(gtmEmailDraft)

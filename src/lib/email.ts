@@ -26,7 +26,7 @@ export async function sendOrgInvitationEmail(
   email: string,
   orgName: string,
   inviteLink: string,
-  orgPlan: "free" | "freelancer" | "agency" | "enterprise" | undefined = "free",
+  orgPlan: string | undefined = "free",
   orgLogo?: string | null
 ) {
   try {
