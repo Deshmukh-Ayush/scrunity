@@ -14,6 +14,8 @@ import {
   hasAvailableCredits,
   debitProspectCredit,
 } from "@/lib/gtm-ai-credits";
+import { isValidPersonName } from "@/lib/gtm-contact-matcher";
+import { checkLeadQualificationGates } from "@/lib/gtm-stage-5-5";
 
 export interface SendEmailsResult {
   sentCount: number;
@@ -44,9 +46,11 @@ export function getDailySendCap(): number {
  */
 export async function executeSendEmails({
   outreachCampaignId,
+  draftId,
   step,
 }: {
   outreachCampaignId: string;
+  draftId?: string;
   step?: InngestStep;
 }): Promise<SendEmailsResult> {
   // 1. Load campaign, research run, and organization
@@ -96,7 +100,23 @@ export async function executeSendEmails({
     }
   );
 
+  // Update campaign progress timestamp immediately upon worker pickup
+  await db
+    .update(gtmOutreachCampaign)
+    .set({
+      lastProgressAt: new Date(),
+    })
+    .where(eq(gtmOutreachCampaign.id, outreachCampaignId));
+
   // 3. Load ONLY drafts with status === 'approved' (HARD SAFETY CHECK)
+  const draftConditions = [
+    eq(gtmEmailDraft.outreachCampaignId, outreachCampaignId),
+    eq(gtmEmailDraft.status, "approved"),
+  ];
+  if (draftId) {
+    draftConditions.push(eq(gtmEmailDraft.id, draftId));
+  }
+
   const approvedDrafts = await db
     .select({
       draftId: gtmEmailDraft.id,
@@ -106,15 +126,12 @@ export async function executeSendEmails({
       contactId: gtmContact.id,
       contactName: gtmContact.name,
       contactEmail: gtmContact.email,
+      contactVerificationStatus: gtmContact.verificationStatus,
+      contactLinkedinUrl: gtmContact.linkedinUrl,
     })
     .from(gtmEmailDraft)
     .innerJoin(gtmContact, eq(gtmEmailDraft.contactId, gtmContact.id))
-    .where(
-      and(
-        eq(gtmEmailDraft.outreachCampaignId, outreachCampaignId),
-        eq(gtmEmailDraft.status, "approved")
-      )
-    );
+    .where(and(...draftConditions));
 
   if (approvedDrafts.length === 0) {
     await safeRealtimePublish(
@@ -228,6 +245,25 @@ export async function executeSendEmails({
       }
 
       try {
+        // STRICT HARD SAFETY CHECK: Block sends to invalid contact names (e.g. titles or non-person entities)
+        if (!isValidPersonName(draft.contactName)) {
+          throw new Error(
+            `HARD SAFETY ABORT: Attempted to send draft ${draft.draftId} to invalid contact name '${draft.contactName}'. Contact name is a job title or invalid entity.`
+          );
+        }
+
+        // STRICT HARD SAFETY CHECK: Block sends to gate-failing contacts
+        const gateCheck = checkLeadQualificationGates({
+          email: draft.contactEmail,
+          verificationStatus: draft.contactVerificationStatus,
+          linkedinUrl: draft.contactLinkedinUrl,
+        });
+        if (!gateCheck.qualified) {
+          throw new Error(
+            `HARD SAFETY ABORT: Attempted to send draft ${draft.draftId} to disqualified contact '${draft.contactName}'. ${gateCheck.reason}`
+          );
+        }
+
         const accessToken = await getValidAccessToken(mailbox.id);
         const sendResult = await sendGmailMessage({
           accessToken,
@@ -248,6 +284,14 @@ export async function executeSendEmails({
             errorMessage: null,
           })
           .where(eq(gtmEmailDraft.id, draft.draftId));
+
+        // Update campaign progress timestamp on each successfully sent email
+        await db
+          .update(gtmOutreachCampaign)
+          .set({
+            lastProgressAt: new Date(),
+          })
+          .where(eq(gtmOutreachCampaign.id, outreachCampaignId));
 
         // Increment daily send count
         currentDailyCount += 1;
@@ -316,7 +360,7 @@ export async function executeSendEmails({
   }
 
   // If all intended drafts processed without hitting cap or running out of credits, mark campaign completed
-  if (!stoppedAtCap && !stoppedAtCredits) {
+  if (!stoppedAtCap && !stoppedAtCredits && !draftId) {
     await db
       .update(gtmOutreachCampaign)
       .set({
