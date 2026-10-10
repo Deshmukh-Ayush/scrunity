@@ -134,6 +134,13 @@
       "when": 1791582401166,
       "tag": "0018_huge_saracen",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791667809263,
+      "tag": "0019_loud_colonel_america",
+      "breakpoints": true
     }
   ]
 }

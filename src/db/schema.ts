@@ -325,6 +325,8 @@ export const gtmResearchRun = pgTable(
       "synthesized_profile"
     ).$type<SynthesizedCompanyProfile>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    stageStartedAt: timestamp("stage_started_at"),
+    lastProgressAt: timestamp("last_progress_at"),
     createdBy: text("created_by")
       .notNull()
       .references(() => user.id),
@@ -410,6 +412,8 @@ export const gtmOutreachCampaign = pgTable(
       .default("find_companies")
       .notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    stageStartedAt: timestamp("stage_started_at"),
+    lastProgressAt: timestamp("last_progress_at"),
   },
   (table) => [
     index("gtm_campaign_segment_idx").on(table.icpSegmentId),
