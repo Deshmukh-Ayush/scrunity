@@ -12,6 +12,7 @@ type OrgLike = {
   plan?: string | null
   name?: string | null
   logoUrl?: string | null
+  subscriptionStatus?: string | null
 }
 
 interface DashboardTopbarProps {
@@ -107,7 +108,17 @@ export function DashboardTopbar({
           )}
         </div>
 
-        <div className="hidden flex-1 md:flex" />
+        <div className="hidden flex-1 md:flex items-center justify-end">
+          {org?.subscriptionStatus === "past_due" && (
+            <Link
+              href="/dashboard/billing"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-500/20 transition-colors"
+            >
+              <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              <span>Payment past due — update billing</span>
+            </Link>
+          )}
+        </div>
       </header>
     </>
   )
