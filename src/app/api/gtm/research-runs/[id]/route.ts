@@ -9,12 +9,14 @@ import {
 } from "@/db/schema"
 import { eq, and, ne } from "drizzle-orm"
 import { resolveAuthAndOrg, verifyResearchRunAccess } from "@/lib/gtm-auth"
+import { checkInngestConnectivity } from "@/lib/inngest-connectivity"
 import { inngest } from "@/inngest/client"
 import { runFullResearchPipeline } from "@/lib/gtm-pipeline-runner"
 import { z } from "zod"
 
 const updateResearchRunSchema = z.object({
   companyDescription: z.string().min(1),
+  force: z.boolean().optional(),
 })
 
 export async function GET(
@@ -55,12 +57,15 @@ export async function GET(
         .where(eq(gtmOutreachCampaign.researchRunId, id)),
     ])
 
+    const inngestConnectivity = await checkInngestConnectivity()
+
     return NextResponse.json({
       success: true,
       researchRun: run,
       competitors,
       segments,
       campaigns,
+      inngestConnectivity,
     })
   } catch (err: any) {
     console.error("[GET /api/gtm/research-runs/[id]] Error:", err)
@@ -87,7 +92,15 @@ export async function PATCH(
       { error: "A company description is required" },
       { status: 400 }
     )
-  // Atomic conditional check-and-set: only update if status is NOT 'in_progress'
+
+  const whereCondition = parsed.data.force
+    ? eq(gtmResearchRun.id, id)
+    : and(
+        eq(gtmResearchRun.id, id),
+        ne(gtmResearchRun.status, "in_progress")
+      )
+
+  // Atomic conditional check-and-set
   const [researchRun] = await db
     .update(gtmResearchRun)
     .set({
@@ -96,13 +109,10 @@ export async function PATCH(
       status: "in_progress",
       currentStage: "research_company",
       failureReason: null,
+      stageStartedAt: new Date(),
+      lastProgressAt: null,
     })
-    .where(
-      and(
-        eq(gtmResearchRun.id, id),
-        ne(gtmResearchRun.status, "in_progress")
-      )
-    )
+    .where(whereCondition)
     .returning()
 
   if (!researchRun) {

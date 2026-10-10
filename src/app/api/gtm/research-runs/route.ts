@@ -91,6 +91,8 @@ export async function POST(req: NextRequest) {
         logoUrl,
         status: "in_progress",
         currentStage: "research_company",
+        stageStartedAt: new Date(),
+        lastProgressAt: null,
       })
       .returning();
 
