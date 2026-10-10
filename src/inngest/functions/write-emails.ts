@@ -53,6 +53,11 @@ export async function executeWriteEmails(
     }
   );
 
+  await db
+    .update(gtmOutreachCampaign)
+    .set({ lastProgressAt: new Date() })
+    .where(eq(gtmOutreachCampaign.id, outreachCampaignId));
+
   // Load companies & contacts for this campaign
   const contactsWithCompany = await db
     .select({
@@ -66,9 +71,53 @@ export async function executeWriteEmails(
     )
     .where(eq(gtmProspectCompany.outreachCampaignId, outreachCampaignId));
 
-  const usableContacts = contactsWithCompany.filter(
-    ({ contact }) => contact.emailSource !== "none" && contact.email !== null
-  );
+  const { checkLeadQualificationGates, disqualifyContactInDb } = await import("@/lib/gtm-stage-5-5");
+  const { isValidPersonName } = await import("@/lib/gtm-contact-matcher");
+
+  const qualifiedContacts: typeof contactsWithCompany = [];
+
+  for (const item of contactsWithCompany) {
+    const { contact } = item;
+
+    // Check existing rejected drafts
+    const [existingRejected] = await db
+      .select({ id: gtmEmailDraft.id })
+      .from(gtmEmailDraft)
+      .where(
+        eq(gtmEmailDraft.contactId, contact.id)
+      );
+
+    // Guardrail: Invalid person name
+    if (!isValidPersonName(contact.name)) {
+      if (!existingRejected) {
+        await disqualifyContactInDb({
+          contactId: contact.id,
+          outreachCampaignId,
+          contactName: contact.name,
+          reason: "contact name invalid — pending re-discovery",
+        });
+      }
+      continue;
+    }
+
+    // Hard Gates: Email confidence floor & LinkedIn required
+    const gateCheck = checkLeadQualificationGates(contact);
+    if (!gateCheck.qualified) {
+      if (!existingRejected) {
+        await disqualifyContactInDb({
+          contactId: contact.id,
+          outreachCampaignId,
+          contactName: contact.name,
+          reason: gateCheck.reason || "Disqualified by stage 5.5 qualification gate",
+        });
+      }
+      continue;
+    }
+
+    if (contact.emailSource !== "none" && contact.email !== null) {
+      qualifiedContacts.push(item);
+    }
+  }
 
   const draftsToInsert: Array<{
     contactId: string;
@@ -78,7 +127,7 @@ export async function executeWriteEmails(
     status: "draft";
   }> = [];
 
-  for (const { contact, company } of usableContacts) {
+  for (const { contact, company } of qualifiedContacts) {
     const draft = await generateOutreachEmailDraft({
       contactName: contact.name,
       contactTitle: contact.title,

@@ -117,6 +117,10 @@ export async function runFullCampaignPipeline(campaignId: string) {
       .where(eq(gtmOutreachCampaign.id, campaignId));
 
     if (afterS5?.currentStage === "write_emails") {
+      console.log(`[Pipeline] Running Stage 5.5 (Lead Qualification Gates) for campaign ${campaignId}`);
+      const { executeQualifyCampaignContacts } = await import("@/lib/gtm-stage-5-5");
+      await executeQualifyCampaignContacts(campaignId);
+
       console.log(`[Pipeline] Running Stage 6 (Write Drafts) for campaign ${campaignId}`);
       await executeWriteEmails(campaignId);
     }
