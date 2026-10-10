@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { formatDistanceToNow, format } from "date-fns";
 import {
   Mail,
@@ -36,6 +37,10 @@ interface ConnectedMailboxInfo {
 }
 
 export function MailboxClient() {
+  const searchParams = useSearchParams();
+  const targetContactId = searchParams?.get("contactId");
+  const targetThreadId = searchParams?.get("threadId");
+
   const [activeTab, setActiveTab] = React.useState<"conversations" | "settings">("conversations");
   const [threads, setThreads] = React.useState<MailboxThread[]>([]);
   const [mailbox, setMailbox] = React.useState<ConnectedMailboxInfo | null>(null);
@@ -64,17 +69,30 @@ export function MailboxClient() {
       setThreads(data.threads || []);
       setMailbox(data.mailbox || null);
 
-      // Select first thread if none selected
-      if (!selectedThreadId && data.threads?.length > 0) {
-        setSelectedThreadId(data.threads[0].id);
-      }
+      // Select requested thread/contact or first thread
+      setSelectedThreadId((prev) => {
+        if (targetContactId) {
+          const match = data.threads?.find((t: MailboxThread) => t.contact.id === targetContactId);
+          if (match) return match.id;
+        }
+        if (targetThreadId) {
+          const match = data.threads?.find(
+            (t: MailboxThread) => t.id === targetThreadId || t.threadId === targetThreadId || t.draftId === targetThreadId
+          );
+          if (match) return match.id;
+        }
+        if (prev && data.threads?.some((t: MailboxThread) => t.id === prev)) {
+          return prev;
+        }
+        return data.threads?.[0]?.id || null;
+      });
     } catch (err) {
       console.error("[MailboxClient] Load error:", err);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [searchQuery, intentFilter, selectedThreadId]);
+  }, [searchQuery, intentFilter]);
 
   React.useEffect(() => {
     loadThreads();
@@ -122,20 +140,20 @@ export function MailboxClient() {
       case "interested":
         return (
           <Badge
-            variant="outline"
-            className="text-[10px] px-1.5 py-0 font-medium border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 gap-1 shrink-0"
+            variant="success"
+            className="text-[10px] px-2 py-0.5 font-semibold gap-1 shrink-0"
           >
-            <span className="size-1 rounded-full bg-emerald-500" />
+            <span className="size-1.5 rounded-full bg-emerald-500" />
             Interested
           </Badge>
         );
       case "question":
         return (
           <Badge
-            variant="outline"
-            className="text-[10px] px-1.5 py-0 font-medium border-tertiary/40 text-tertiary bg-tertiary/10 gap-1 shrink-0"
+            variant="tertiary"
+            className="text-[10px] px-2 py-0.5 font-semibold gap-1 shrink-0"
           >
-            <span className="size-1 rounded-full bg-tertiary" />
+            <span className="size-1.5 rounded-full bg-tertiary" />
             Question
           </Badge>
         );
@@ -143,9 +161,9 @@ export function MailboxClient() {
         return (
           <Badge
             variant="outline"
-            className="text-[10px] px-1.5 py-0 font-medium border-border text-muted-foreground bg-muted/40 gap-1 shrink-0"
+            className="text-[10px] px-2 py-0.5 font-medium border-border/70 text-muted-foreground bg-muted/40 gap-1 shrink-0"
           >
-            <span className="size-1 rounded-full bg-muted-foreground" />
+            <span className="size-1.5 rounded-full bg-muted-foreground/60" />
             Not Interested
           </Badge>
         );
@@ -153,7 +171,7 @@ export function MailboxClient() {
         return (
           <Badge
             variant="outline"
-            className="text-[10px] px-1.5 py-0 font-medium border-border text-muted-foreground bg-muted/30 gap-1 shrink-0"
+            className="text-[10px] px-2 py-0.5 font-medium border-border/70 text-muted-foreground bg-muted/30 gap-1 shrink-0"
           >
             Auto Reply
           </Badge>
@@ -163,7 +181,7 @@ export function MailboxClient() {
         return (
           <Badge
             variant="outline"
-            className="text-[10px] px-1.5 py-0 font-medium border-border text-muted-foreground bg-muted/20 shrink-0"
+            className="text-[10px] px-2 py-0.5 font-medium border-border/70 text-muted-foreground bg-muted/20 shrink-0"
           >
             Unclear
           </Badge>
@@ -395,7 +413,7 @@ export function MailboxClient() {
                       className={cn(
                         "p-3.5 cursor-pointer transition-colors relative flex flex-col gap-1.5 select-none",
                         isSelected
-                          ? "bg-primary-8 dark:bg-primary-16 border-l-2 border-l-primary"
+                          ? "bg-primary/10 dark:bg-primary/15 border-l-2 border-l-primary shadow-2xs"
                           : "hover:bg-muted/40"
                       )}
                     >
@@ -510,7 +528,7 @@ export function MailboxClient() {
                           "rounded-xl border p-4.5 space-y-3 shadow-2xs transition-all",
                           isOutbound
                             ? "bg-card border-border/80"
-                            : "bg-tertiary-4 dark:bg-tertiary-8 border-tertiary/20"
+                            : "bg-tertiary/5 dark:bg-tertiary/10 border-tertiary/30"
                         )}
                       >
                         {/* Message Header */}

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { headers } from "next/headers";
 import { db } from "@/utils/db";
 import {
   gtmEmailDraft,
@@ -59,7 +58,7 @@ export interface MailboxThread {
 
 export async function GET(req: NextRequest) {
   try {
-    const reqHeaders = await headers();
+    const reqHeaders = req.headers;
     const { auth, error, status } = await resolveAuthAndOrg(reqHeaders);
 
     if (error || !auth) {
@@ -157,11 +156,11 @@ export async function GET(req: NextRequest) {
       eventsByDraft.set(evt.emailDraftId, list);
     }
 
-    // 4. Construct threads (one thread per threadId or contactId)
+    // 4. Construct threads (one thread per Gmail threadId or draftId)
     const threadMap = new Map<string, MailboxThread>();
 
     for (const d of drafts) {
-      const key = d.threadId || d.contactId;
+      const key = d.threadId || d.draftId;
       const draftEvents = eventsByDraft.get(d.draftId) || [];
       const replyEvents = draftEvents.filter((e) => e.type === "replied");
 
