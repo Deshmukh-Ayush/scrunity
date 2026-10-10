@@ -56,8 +56,13 @@ export async function LeadsSection({
       WHEN EXISTS (
         SELECT 1 FROM gtm_email_draft d 
         JOIN gtm_email_event e ON e.email_draft_id = d.id 
-        WHERE d.contact_id = ${gtmContact.id} AND e.type = 'replied'
+        WHERE d.contact_id = gtm_contact.id AND e.type = 'replied'
       ) THEN 'replied'
+      WHEN EXISTS (
+        SELECT 1 FROM gtm_email_draft d 
+        JOIN gtm_email_event e ON e.email_draft_id = d.id 
+        WHERE d.contact_id = gtm_contact.id AND e.type = 'bounced'
+      ) THEN 'bounced'
       WHEN EXISTS (
         SELECT 1 FROM gtm_email_draft d 
         WHERE d.contact_id = ${gtmContact.id} AND d.status = 'sent'
@@ -149,8 +154,8 @@ export async function LeadsSection({
       draftSubject: sql<string | null>`(SELECT subject FROM gtm_email_draft WHERE contact_id = ${gtmContact.id} ORDER BY created_at DESC LIMIT 1)`,
       draftBody: sql<string | null>`(SELECT body FROM gtm_email_draft WHERE contact_id = ${gtmContact.id} ORDER BY created_at DESC LIMIT 1)`,
       draftStatus: sql<string | null>`(SELECT status FROM gtm_email_draft WHERE contact_id = ${gtmContact.id} ORDER BY created_at DESC LIMIT 1)`,
-      threadId: sql<string | null>`(SELECT COALESCE(thread_id, id) FROM gtm_email_draft WHERE contact_id = ${gtmContact.id} AND status = 'sent' ORDER BY sent_at DESC LIMIT 1)`,
-      rejectionReason: sql<string | null>`(SELECT COALESCE(error_message, 'Rejected during review') FROM gtm_email_draft WHERE contact_id = ${gtmContact.id} AND status = 'rejected' ORDER BY created_at DESC LIMIT 1)`,
+      threadId: sql<string | null>`(SELECT COALESCE(thread_id, id) FROM gtm_email_draft WHERE contact_id = ${gtmContact.id} AND (status = 'sent' OR status = 'failed') ORDER BY COALESCE(sent_at, created_at) DESC LIMIT 1)`,
+      rejectionReason: sql<string | null>`(SELECT error_message FROM gtm_email_draft WHERE contact_id = ${gtmContact.id} AND error_message IS NOT NULL ORDER BY created_at DESC LIMIT 1)`,
     })
     .from(gtmContact)
     .innerJoin(
