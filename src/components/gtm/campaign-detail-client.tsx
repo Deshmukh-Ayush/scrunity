@@ -22,6 +22,7 @@ import {
   ExternalLink,
   ShieldCheck,
   AlertCircle,
+  AlertTriangle,
   HelpCircle,
   Send,
   Check,
@@ -30,6 +31,7 @@ import {
   Play,
 } from "lucide-react";
 import { SegmentDigestCard } from "./segment-digest-card";
+import { checkStageStaleness } from "@/lib/gtm-staleness";
 
 interface Contact {
   id: string;
@@ -71,6 +73,13 @@ interface CampaignData {
     failureReason?: string | null;
     firecrawlCallCount?: number;
     createdAt: string;
+    stageStartedAt?: string | null;
+    lastProgressAt?: string | null;
+  };
+  inngestConnectivity?: {
+    connected: boolean;
+    isDev: boolean;
+    statusText: string;
   };
   segment: {
     id: string;
@@ -198,11 +207,32 @@ export function CampaignDetailClient() {
     }
   };
 
+  const handleRestartStage = async () => {
+    setIsRestarting(true);
+    try {
+      const res = await fetch(`/api/gtm/campaigns/${campaignId}/restart-stage`, {
+        method: "POST",
+      });
+      const resData = await res.json();
+      if (!res.ok) throw new Error(resData.error || "Failed to restart stage");
+
+      toast.success(resData.message || "Stage restarted successfully!");
+      await fetchCampaign();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to restart stage";
+      toast.error(msg);
+    } finally {
+      setIsRestarting(false);
+    }
+  };
+
   const handleRestartPipeline = async () => {
     setIsRestarting(true);
     try {
       const res = await fetch(`/api/gtm/campaigns/${campaignId}/rerun`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force: true }),
       });
       const resData = await res.json();
       if (!res.ok) throw new Error(resData.error || "Failed to restart pipeline");
@@ -256,7 +286,19 @@ export function CampaignDetailClient() {
     );
   }
 
-  const { campaign, segment, researchRun, companies, contacts, snapshots } = data;
+  const { campaign, segment, researchRun, companies, contacts, snapshots, inngestConnectivity } = data;
+
+  const recentSentDraft = drafts.find((d) => d.sentAt);
+  const recentActivityAt = recentSentDraft?.sentAt;
+
+  const staleness = checkStageStaleness({
+    stage: campaign.currentStage,
+    status: campaign.status,
+    stageStartedAt: campaign.stageStartedAt,
+    lastProgressAt: campaign.lastProgressAt,
+    createdAt: campaign.createdAt,
+    recentActivityAt,
+  });
 
   const stageOrder = [
     "find_companies",
@@ -371,13 +413,23 @@ export function CampaignDetailClient() {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {campaign.status === "in_progress" ? (
-              <Badge
-                variant="outline"
-                className="text-xs capitalize self-start sm:self-auto py-1 px-3 border-tertiary/40 text-tertiary bg-tertiary/10 gap-1.5"
-              >
-                <Loader2 className="size-3 animate-spin" />
-                {campaign.currentStage.replace(/_/g, " ")} (Running)
-              </Badge>
+              staleness.isStalled ? (
+                <Badge
+                  variant="outline"
+                  className="text-xs capitalize self-start sm:self-auto py-1 px-3 border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10 gap-1.5 font-medium"
+                >
+                  <AlertCircle className="size-3 text-amber-500" />
+                  {campaign.currentStage.replace(/_/g, " ")} (Stalled)
+                </Badge>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="text-xs capitalize self-start sm:self-auto py-1 px-3 border-tertiary/40 text-tertiary bg-tertiary/10 gap-1.5"
+                >
+                  <Loader2 className="size-3 animate-spin" />
+                  {campaign.currentStage.replace(/_/g, " ")} (Running)
+                </Badge>
+              )
             ) : (
               <Badge
                 variant={
@@ -390,6 +442,17 @@ export function CampaignDetailClient() {
                 className="text-xs capitalize self-start sm:self-auto py-1 px-3"
               >
                 {campaign.currentStage.replace(/_/g, " ")}
+              </Badge>
+            )}
+
+            {inngestConnectivity && !inngestConnectivity.connected && (
+              <Badge
+                variant="outline"
+                className="text-xs border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/5 gap-1"
+                title="Inngest dev server is not running on port 8288"
+              >
+                <AlertCircle className="size-3 text-amber-500" />
+                Inngest Offline
               </Badge>
             )}
 
@@ -409,27 +472,104 @@ export function CampaignDetailClient() {
               </Button>
             )}
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRestartPipeline}
-              disabled={isRestarting}
-              className="text-xs h-8 gap-1.5"
-              title="Restart or re-run autonomous research pipeline"
-            >
-              {isRestarting ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <RotateCcw className="size-3.5" />
-              )}
-              {campaign.status === "in_progress" ? "Restart" : "Re-run"}
-            </Button>
+            {campaign.status === "in_progress" ? (
+              <Button
+                variant={staleness.isStalled ? "default" : "outline"}
+                size="sm"
+                onClick={handleRestartStage}
+                disabled={isRestarting}
+                className={cn(
+                  "text-xs h-8 gap-1.5",
+                  staleness.isStalled && "bg-amber-600 hover:bg-amber-700 text-white"
+                )}
+                title="Restart current pipeline stage"
+              >
+                {isRestarting ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <RotateCcw className="size-3.5" />
+                )}
+                Restart Stage
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRestartPipeline}
+                disabled={isRestarting}
+                className="text-xs h-8 gap-1.5"
+                title="Restart or re-run autonomous research pipeline"
+              >
+                {isRestarting ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <RotateCcw className="size-3.5" />
+                )}
+                Re-run
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Active Autonomous Pipeline Banner */}
-      {campaign.status === "in_progress" && (
+      {/* Stalled Autonomous Pipeline Banner */}
+      {campaign.status === "in_progress" && staleness.isStalled && (
+        <Card className="border-amber-500/40 bg-amber-500/5 p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0">
+                <AlertTriangle className="size-5" />
+              </div>
+              <div className="space-y-1">
+                <div className="font-semibold text-xs text-foreground flex items-center gap-2 flex-wrap">
+                  <span>Autonomous Pipeline Stalled:</span>
+                  <Badge
+                    variant="outline"
+                    className="text-[11px] capitalize font-medium border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10"
+                  >
+                    {campaign.currentStage.replace(/_/g, " ")} (Stalled)
+                  </Badge>
+                  {inngestConnectivity && !inngestConnectivity.connected && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10"
+                    >
+                      Inngest Offline
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {staleness.explanation}
+                </p>
+                {inngestConnectivity && !inngestConnectivity.connected && (
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300 font-mono mt-0.5">
+                    Start the background runner with: npm run inngest:dev
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleRestartStage}
+                disabled={isRestarting}
+                className="text-xs h-8 gap-1.5 bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+              >
+                {isRestarting ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <RotateCcw className="size-3.5" />
+                )}
+                Restart Stage
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Active Autonomous Pipeline Banner (Non-stalled) */}
+      {campaign.status === "in_progress" && !staleness.isStalled && (
         <Card className="border-tertiary/30 bg-tertiary/5 p-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
@@ -460,7 +600,7 @@ export function CampaignDetailClient() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleRestartPipeline}
+                onClick={handleRestartStage}
                 disabled={isRestarting}
                 className="text-xs h-8 gap-1.5"
               >
@@ -579,7 +719,9 @@ export function CampaignDetailClient() {
                   key={st.id}
                   className={`p-3 rounded-lg border flex flex-col items-center gap-1.5 transition-all ${
                     isCurrent
-                      ? "border-primary bg-primary/5 text-primary font-medium ring-1 ring-primary/20"
+                      ? staleness.isStalled
+                        ? "border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium ring-1 ring-amber-500/30"
+                        : "border-primary bg-primary/5 text-primary font-medium ring-1 ring-primary/20"
                       : isPast
                       ? "border-border bg-muted/30 text-foreground"
                       : "border-dashed text-muted-foreground opacity-60"
@@ -587,7 +729,11 @@ export function CampaignDetailClient() {
                 >
                   <div className="flex items-center gap-1.5">
                     {isCurrent && campaign.status === "in_progress" ? (
-                      <Loader2 className="size-4 animate-spin text-primary" />
+                      staleness.isStalled ? (
+                        <AlertCircle className="size-4 text-amber-500" />
+                      ) : (
+                        <Loader2 className="size-4 animate-spin text-primary" />
+                      )
                     ) : (
                       <Icon className="size-4" />
                     )}
@@ -653,28 +799,52 @@ export function CampaignDetailClient() {
         {drafts.length === 0 ? (
           <Card className="p-8 text-center text-xs border-dashed">
             {campaign.status === "in_progress" ? (
-              <div className="flex flex-col items-center justify-center space-y-3">
-                <Loader2 className="size-6 animate-spin text-primary" />
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-foreground">
-                    Autonomous Pipeline is Active
-                  </p>
-                  <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                    The agent is currently executing stage <span className="font-semibold text-foreground">{campaign.currentStage.replace(/_/g, " ")}</span>.
-                    Prospect companies, verified contacts, and tailored drafts will appear automatically here.
-                  </p>
+              staleness.isStalled ? (
+                <div className="flex flex-col items-center justify-center space-y-3">
+                  <AlertTriangle className="size-6 text-amber-500" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">
+                      Pipeline Execution Stalled
+                    </p>
+                    <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                      {staleness.explanation}
+                    </p>
+                  </div>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleRestartStage}
+                    disabled={isRestarting}
+                    className="text-xs h-8 gap-1.5 mt-2 bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    {isRestarting ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
+                    Restart Stage
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRestartPipeline}
-                  disabled={isRestarting}
-                  className="text-xs h-7 gap-1.5 mt-2"
-                >
-                  {isRestarting ? <Loader2 className="size-3 animate-spin" /> : <RotateCcw className="size-3" />}
-                  Restart Pipeline
-                </Button>
-              </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center space-y-3">
+                  <Loader2 className="size-6 animate-spin text-primary" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground">
+                      Autonomous Pipeline is Active
+                    </p>
+                    <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                      The agent is currently executing stage <span className="font-semibold text-foreground">{campaign.currentStage.replace(/_/g, " ")}</span>.
+                      Prospect companies, verified contacts, and tailored drafts will appear automatically here.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRestartStage}
+                    disabled={isRestarting}
+                    className="text-xs h-7 gap-1.5 mt-2"
+                  >
+                    {isRestarting ? <Loader2 className="size-3 animate-spin" /> : <RotateCcw className="size-3" />}
+                    Restart Stage
+                  </Button>
+                </div>
+              )
             ) : (
               <div className="flex flex-col items-center justify-center space-y-3">
                 <Mail className="size-8 text-muted-foreground/50" />

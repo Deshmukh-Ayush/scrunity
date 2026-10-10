@@ -18,8 +18,11 @@ import {
   CheckCircle2,
   Mail,
   RefreshCw,
+  AlertTriangle,
+  AlertCircle,
 } from "lucide-react";
 import { SegmentDigestCard } from "./segment-digest-card";
+import { checkStageStaleness } from "@/lib/gtm-staleness";
 
 export function CampaignsOverviewClient() {
   const [runs, setRuns] = React.useState<any[]>([]);
@@ -131,22 +134,44 @@ export function CampaignsOverviewClient() {
           </h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {campaigns.map(({ campaign, researchRun }) => {
+              const staleness = checkStageStaleness({
+                stage: campaign.currentStage,
+                status: campaign.status,
+                stageStartedAt: campaign.stageStartedAt,
+                lastProgressAt: campaign.lastProgressAt,
+                createdAt: campaign.createdAt,
+              });
+
               const isAwaitingApproval =
                 campaign.currentStage === "awaiting_approval" ||
                 campaign.status === "awaiting_approval";
 
               return (
-                <Card key={campaign.id} className={cn("hover:border-foreground/20 transition-all", isAwaitingApproval && "border-amber-500/40")}>
+                <Card
+                  key={campaign.id}
+                  className={cn(
+                    "hover:border-foreground/20 transition-all",
+                    staleness.isStalled && "border-amber-500/50 bg-amber-500/5",
+                    isAwaitingApproval && "border-amber-500/40"
+                  )}
+                >
                   <CardHeader className="p-4 pb-2">
                     <div className="flex items-center justify-between">
                       <Badge
                         variant={isAwaitingApproval ? "default" : "outline"}
                         className={cn(
                           "text-xs capitalize",
-                          isAwaitingApproval && "bg-amber-600 hover:bg-amber-700 text-white"
+                          staleness.isStalled &&
+                            "border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10 font-medium",
+                          isAwaitingApproval &&
+                            "bg-amber-600 hover:bg-amber-700 text-white"
                         )}
                       >
-                        {isAwaitingApproval ? "Awaiting Review" : campaign.currentStage.replace(/_/g, " ")}
+                        {staleness.isStalled
+                          ? `Stalled (${campaign.currentStage.replace(/_/g, " ")})`
+                          : isAwaitingApproval
+                          ? "Awaiting Review"
+                          : campaign.currentStage.replace(/_/g, " ")}
                       </Badge>
                       <span className="text-[11px] text-muted-foreground">
                         {new Date(campaign.createdAt).toLocaleDateString()}
@@ -236,20 +261,40 @@ export function CampaignsOverviewClient() {
           </Card>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {runs.map((run) => (
-              <Card
-                key={run.id}
-                className="cursor-pointer hover:border-foreground/25 transition-all"
-                onClick={() => inspectRun(run.id)}
-              >
-                <CardHeader className="p-4 pb-2">
-                  <div className="flex items-center justify-between">
-                    <Badge
-                      variant={run.status === "done" ? "default" : "secondary"}
-                      className="text-xs capitalize"
-                    >
-                      {run.status === "done" ? "Completed" : run.currentStage.replace(/_/g, " ")}
-                    </Badge>
+            {runs.map((run) => {
+              const runStaleness = checkStageStaleness({
+                stage: run.currentStage,
+                status: run.status,
+                stageStartedAt: run.stageStartedAt,
+                lastProgressAt: run.lastProgressAt,
+                createdAt: run.createdAt,
+              });
+
+              return (
+                <Card
+                  key={run.id}
+                  className={cn(
+                    "cursor-pointer hover:border-foreground/25 transition-all",
+                    runStaleness.isStalled && "border-amber-500/50 bg-amber-500/5"
+                  )}
+                  onClick={() => inspectRun(run.id)}
+                >
+                  <CardHeader className="p-4 pb-2">
+                    <div className="flex items-center justify-between">
+                      <Badge
+                        variant={run.status === "done" ? "default" : "secondary"}
+                        className={cn(
+                          "text-xs capitalize",
+                          runStaleness.isStalled &&
+                            "border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10 font-medium"
+                        )}
+                      >
+                        {runStaleness.isStalled
+                          ? `Stalled (${run.currentStage.replace(/_/g, " ")})`
+                          : run.status === "done"
+                          ? "Completed"
+                          : run.currentStage.replace(/_/g, " ")}
+                      </Badge>
                     <span className="text-[11px] text-muted-foreground">
                       {new Date(run.createdAt).toLocaleDateString()}
                     </span>
@@ -272,9 +317,10 @@ export function CampaignsOverviewClient() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
+      )}
       </div>
 
       {/* Research Run Detail Inspection Modal / View */}

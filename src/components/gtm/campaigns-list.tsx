@@ -27,6 +27,7 @@ import {
   Send,
   Building2,
 } from "lucide-react";
+import { checkStageStaleness } from "@/lib/gtm-staleness";
 
 interface CampaignItem {
   campaign: {
@@ -36,6 +37,8 @@ interface CampaignItem {
     status: string;
     currentStage: string;
     createdAt: string;
+    stageStartedAt?: string | null;
+    lastProgressAt?: string | null;
   };
   researchRun: {
     id: string;
@@ -75,8 +78,27 @@ export function CampaignsList() {
     fetchCampaigns();
   };
 
-  const getStageBadge = (stage: string) => {
-    switch (stage) {
+  const getStageBadge = (campaign: CampaignItem["campaign"]) => {
+    const staleness = checkStageStaleness({
+      stage: campaign.currentStage,
+      status: campaign.status,
+      stageStartedAt: campaign.stageStartedAt,
+      lastProgressAt: campaign.lastProgressAt,
+      createdAt: campaign.createdAt,
+    });
+
+    if (staleness.isStalled) {
+      return (
+        <Badge
+          variant="outline"
+          className="gap-1 text-xs border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium"
+        >
+          <AlertCircle className="size-3 text-amber-500" /> Stalled ({campaign.currentStage.replace(/_/g, " ")})
+        </Badge>
+      );
+    }
+
+    switch (campaign.currentStage) {
       case "find_companies":
         return (
           <Badge variant="secondary" className="gap-1 text-xs">
@@ -120,7 +142,7 @@ export function CampaignsList() {
       default:
         return (
           <Badge variant="outline" className="text-xs capitalize">
-            {stage.replace(/_/g, " ")}
+            {campaign.currentStage.replace(/_/g, " ")}
           </Badge>
         );
     }
@@ -224,11 +246,26 @@ export function CampaignsList() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>{getStageBadge(campaign.currentStage)}</TableCell>
+                    <TableCell>{getStageBadge(campaign)}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-xs capitalize">
-                        {campaign.status}
-                      </Badge>
+                      {checkStageStaleness({
+                        stage: campaign.currentStage,
+                        status: campaign.status,
+                        stageStartedAt: campaign.stageStartedAt,
+                        lastProgressAt: campaign.lastProgressAt,
+                        createdAt: campaign.createdAt,
+                      }).isStalled ? (
+                        <Badge
+                          variant="outline"
+                          className="text-xs capitalize border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-medium"
+                        >
+                          stalled
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {campaign.status}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {new Date(campaign.createdAt).toLocaleDateString(undefined, {

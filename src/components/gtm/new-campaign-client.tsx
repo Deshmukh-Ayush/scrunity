@@ -34,9 +34,11 @@ import {
   Target,
   Mail,
   AlertCircle,
+  AlertTriangle,
   Check,
   RotateCcw,
 } from "lucide-react"
+import { checkStageStaleness } from "@/lib/gtm-staleness"
 
 type FlowStep =
   | "FORM"
@@ -73,6 +75,9 @@ interface ResearchRunDetails {
   failureReason?: string | null
   firecrawlCallCount?: number
   synthesizedProfile?: SynthesizedProfile | null
+  createdAt?: string
+  stageStartedAt?: string | null
+  lastProgressAt?: string | null
 }
 
 export function NewCampaignClient() {
@@ -328,6 +333,25 @@ export function NewCampaignClient() {
     }
   }
 
+  const handleRestartResearchStage = async () => {
+    if (!researchRunId) return
+    setIsRestartingResearch(true)
+    try {
+      const res = await fetch(`/api/gtm/research-runs/${researchRunId}/restart-stage`, {
+        method: "POST",
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Could not restart stage")
+      toast.success(data.message || "Stage restarted successfully!")
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not restart stage"
+      )
+    } finally {
+      setIsRestartingResearch(false)
+    }
+  }
+
   // Toggle segment selection
   const toggleSegment = (segmentId: string) => {
     setSelectedSegmentIds((prev) => {
@@ -568,6 +592,13 @@ export function NewCampaignClient() {
   // =========================================================================
   if (currentStep === "RUNNING") {
     const currentStage = runDetails?.currentStage || "research_company"
+    const staleness = checkStageStaleness({
+      stage: currentStage,
+      status: runDetails?.status || "in_progress",
+      stageStartedAt: runDetails?.stageStartedAt,
+      lastProgressAt: runDetails?.lastProgressAt,
+      createdAt: runDetails?.createdAt,
+    })
 
     // Define timeline stages
     const timelineSteps = [
@@ -706,10 +737,14 @@ export function NewCampaignClient() {
                         </span>
                         {step.isActive && (
                           <Badge
-                            variant="secondary"
-                            className="py-0 text-[10px]"
+                            variant={staleness.isStalled ? "outline" : "secondary"}
+                            className={cn(
+                              "py-0 text-[10px]",
+                              staleness.isStalled &&
+                                "border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-500/10 font-medium"
+                            )}
                           >
-                            In Progress
+                            {staleness.isStalled ? "Stalled" : "In Progress"}
                           </Badge>
                         )}
                         {step.isComplete && (
@@ -756,6 +791,31 @@ export function NewCampaignClient() {
                 )
               })}
             </ol>
+
+            {staleness.isStalled && runDetails?.status !== "failed" && !errorMessage && (
+              <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-center">
+                <div className="flex items-center gap-2 text-xs font-medium text-amber-800 dark:text-amber-200">
+                  <AlertTriangle className="size-4 shrink-0 text-amber-500" />
+                  <span>
+                    Autonomous Pipeline Stalled: {staleness.explanation}
+                  </span>
+                </div>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleRestartResearchStage}
+                  disabled={isRestartingResearch}
+                  className="text-xs h-8 gap-1.5 bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+                >
+                  {isRestartingResearch ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <RotateCcw className="size-3.5" />
+                  )}
+                  Restart Stage
+                </Button>
+              </div>
+            )}
 
             {(errorMessage || runDetails?.status === "failed") && (
               <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-center">
