@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { db } from "@/utils/db";
 import { gtmEmailDraft, gtmContact, gtmProspectCompany } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, sql } from "drizzle-orm";
 import { resolveAuthAndOrg, verifyCampaignAccess } from "@/lib/gtm-auth";
 
 export async function GET(
@@ -37,6 +37,7 @@ export async function GET(
         providerMessageId: gtmEmailDraft.providerMessageId,
         sentAt: gtmEmailDraft.sentAt,
         errorMessage: gtmEmailDraft.errorMessage,
+        hasBounced: sql<boolean>`EXISTS (SELECT 1 FROM gtm_email_event e WHERE e.email_draft_id = ${gtmEmailDraft.id} AND e.type = 'bounced')`,
         createdAt: gtmEmailDraft.createdAt,
         reviewedBy: gtmEmailDraft.reviewedBy,
         reviewedAt: gtmEmailDraft.reviewedAt,

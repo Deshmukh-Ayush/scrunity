@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { SegmentDigestCard } from "./segment-digest-card";
 import { checkStageStaleness } from "@/lib/gtm-staleness";
+import { formatErrorMessage } from "@/lib/gtm-error-formatter";
 
 interface Contact {
   id: string;
@@ -58,6 +59,7 @@ interface Draft {
   providerMessageId?: string | null;
   sentAt?: string | null;
   errorMessage?: string | null;
+  hasBounced?: boolean;
   createdAt: string;
   reviewedBy: string | null;
   reviewedAt: string | null;
@@ -356,7 +358,28 @@ export function CampaignDetailClient() {
     }
   };
 
-  const getDraftStatusBadge = (status: Draft["status"]) => {
+  const getDraftStatusBadge = (
+    status: Draft["status"],
+    errorMessage?: string | null,
+    hasBounced?: boolean
+  ) => {
+    const isBounced =
+      hasBounced ||
+      errorMessage?.toLowerCase().includes("bounced") ||
+      errorMessage?.includes("550") ||
+      errorMessage?.toLowerCase().includes("address not found");
+
+    if (isBounced) {
+      return (
+        <Badge
+          variant="destructive"
+          className="text-xs capitalize gap-1 bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30"
+        >
+          <AlertTriangle className="size-3" /> Bounced
+        </Badge>
+      );
+    }
+
     switch (status) {
       case "sent":
         return (
@@ -897,7 +920,7 @@ export function CampaignDetailClient() {
                         </span>
                         {getEmailSourceBadge(d.contact.emailSource)}
                       </div>
-                      {getDraftStatusBadge(d.status)}
+                      {getDraftStatusBadge(d.status, d.errorMessage, d.hasBounced)}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
                       <span>
@@ -914,11 +937,36 @@ export function CampaignDetailClient() {
                         </span>
                       )}
                     </div>
-                    {d.errorMessage && (
-                      <div className="text-xs text-rose-600 dark:text-rose-400 mt-1 font-mono">
-                        Error: {d.errorMessage}
-                      </div>
-                    )}
+                    {d.errorMessage && (() => {
+                      const formatted = formatErrorMessage(d.errorMessage);
+                      return (
+                        <div className="mt-2 text-xs rounded-md bg-destructive/10 border border-destructive/25 p-2.5 space-y-1.5">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="size-3.5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                            <div className="flex-1 space-y-0.5">
+                              <p className="font-semibold text-rose-700 dark:text-rose-300">
+                                {formatted.headline}
+                              </p>
+                              {formatted.actionableStep && (
+                                <p className="text-muted-foreground text-[11px]">
+                                  {formatted.actionableStep}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          {formatted.rawError && (
+                            <details className="pt-1 text-[11px] text-muted-foreground border-t border-border/40">
+                              <summary className="cursor-pointer hover:text-foreground transition-colors select-none text-[10px] font-medium">
+                                Technical details
+                              </summary>
+                              <pre className="mt-1 font-mono text-[10px] text-muted-foreground bg-muted/50 p-1.5 rounded overflow-x-auto whitespace-pre-wrap">
+                                {formatted.rawError}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </CardHeader>
 
                   <CardContent className="p-4 pt-2 space-y-3">
