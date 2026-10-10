@@ -62,7 +62,7 @@ export function OgTemplate({
             <svg width="18" height="24" viewBox="0 0 113 188" fill="none">
               <path
                 d="M74.8486 149.697V187.121H0V149.696L74.8486 149.697ZM37.4248 74.8496H74.8486V74.8477H112.273V149.697L74.8486 149.696V112.274H0V37.4238H37.4248V74.8496ZM112.273 0.000976562V37.4248H37.4248V0L112.273 0.000976562Z"
-                fill="#00AAF7"
+                fill="#00aff9"
               />
             </svg>
           </div>
@@ -95,7 +95,7 @@ export function OgTemplate({
                 width: 6,
                 height: 6,
                 borderRadius: 999,
-                backgroundColor: "#00AAF7",
+                backgroundColor: "#00aff9",
               }}
             />
             <span

@@ -114,7 +114,7 @@ export default async function DocsPage() {
               ['Database', 'Neon (Serverless Postgres)', 'Stateless HTTP driver @neondatabase/serverless'],
               ['ORM', 'Drizzle ORM', 'Schema defined in src/db/schema.ts, versioned migrations in drizzle/'],
               ['Billing', 'Dodo Payments (MoR)', 'Automated checkout sessions, customer portal, webhook handlers'],
-              ['UI & Styling', 'Tailwind CSS v4 & Radix UI', 'Brand color #00AAF7 (bg-brand), dark mode, custom neutral tokens'],
+              ['UI & Styling', 'Tailwind CSS v4 & Radix UI', 'Brand color #00aff9 (bg-primary), dark mode, custom neutral tokens'],
               ['Icons', 'Phosphor Icons & Lucide', '@phosphor-icons/react in client components, Lucide in RSC'],
             ]}
           />
@@ -125,7 +125,7 @@ export default async function DocsPage() {
           <CodeBlock>{`src/
 ├── app/                        # Next.js App Router
 │   ├── layout.tsx              # Root layout (ThemeProvider, Sonner, font loaders)
-│   ├── globals.css             # Brand color #00AAF7, Tailwind v4 theme
+│   ├── globals.css             # Brand color #00aff9, Tailwind v4 theme
 │   ├── docs/                   # Developer documentation route
 │   ├── dashboard/              # Main dashboard
 │   │   ├── layout.tsx          # Zero-logic shell (Sidebar + Topbar)

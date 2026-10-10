@@ -6,7 +6,7 @@ export const siteConfig = {
     "Scrunity is a B2B client workspace for agencies and freelancers to manage projects, contracts, deliverables, and client collaboration in one place.",
   url: process.env.NEXT_PUBLIC_APP_URL || process.env.BETTER_AUTH_URL || "https://app.scrunity.com",
   landingUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://landing.scrunity.com",
-  brandColor: "#00AAF7",
+  brandColor: "#00aff9",
   creator: "@scrunity",
   keywords: [
     "agency client workspace",

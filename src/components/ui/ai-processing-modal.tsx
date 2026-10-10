@@ -101,7 +101,7 @@ export function AiProcessingModal({
           className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-white/20 bg-background/95 p-8 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-zinc-950/95"
         >
           {/* Ambient Glow in Modal Header */}
-          <div className="absolute -top-24 -left-24 h-48 w-48 rounded-full bg-[#00AAF7]/20 blur-3xl" />
+          <div className="absolute -top-24 -left-24 h-48 w-48 rounded-full bg-[#00aff9]/20 blur-3xl" />
           <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-violet-600/20 blur-3xl" />
 
           {/* Installed ThinkingOrb Canvas Component */}
@@ -114,7 +114,7 @@ export function AiProcessingModal({
             {!isComplete && (
               <div className="relative mt-4 w-full max-w-xs overflow-hidden rounded-lg border border-border/40 bg-muted/40 p-3 text-left shadow-inner">
                 <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground mb-1.5">
-                  <FileTextIcon className="h-3.5 w-3.5 text-[#00AAF7]" />
+                  <FileTextIcon className="h-3.5 w-3.5 text-[#00aff9]" />
                   <span className="t-shimmer" data-text={currentStepText.toUpperCase()}>
                     {currentStepText.toUpperCase()}
                   </span>
@@ -129,7 +129,7 @@ export function AiProcessingModal({
                       repeat: Infinity,
                       ease: "easeInOut",
                     }}
-                    className="h-full w-1/3 bg-gradient-to-r from-transparent via-[#00AAF7] to-transparent rounded-full"
+                    className="h-full w-1/3 bg-gradient-to-r from-transparent via-[#00aff9] to-transparent rounded-full"
                   />
                 </div>
               </div>
@@ -139,7 +139,7 @@ export function AiProcessingModal({
           {/* Header Title */}
           <div className="text-center space-y-1.5 mb-6">
             <h3 className="text-lg font-bold tracking-tight text-foreground flex items-center justify-center gap-2">
-              <SparklesIcon className="h-4 w-4 text-[#00AAF7] animate-pulse" />
+              <SparklesIcon className="h-4 w-4 text-[#00aff9] animate-pulse" />
               {isComplete ? "AI Clause Extraction Complete!" : title}
             </h3>
             <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
@@ -160,7 +160,7 @@ export function AiProcessingModal({
                 initial={{ width: 0 }}
                 animate={{ width: `${progressPercentage}%` }}
                 transition={{ duration: 0.5, ease: "easeOut" }}
-                className="h-full bg-gradient-to-r from-[#00AAF7] via-[#8B5CF6] to-[#06B6D4] rounded-full shadow-[0_0_12px_rgba(0,170,247,0.6)]"
+                className="h-full bg-gradient-to-r from-[#00aff9] via-[#8B5CF6] to-[#06B6D4] rounded-full shadow-[0_0_12px_rgba(0,170,247,0.6)]"
               />
             </div>
           </div>
@@ -181,9 +181,9 @@ export function AiProcessingModal({
                 >
                   <div className="shrink-0">
                     {isDone ? (
-                      <CheckCircle2Icon className="h-4 w-4 text-[#00AAF7]" />
+                      <CheckCircle2Icon className="h-4 w-4 text-[#00aff9]" />
                     ) : isCurrent ? (
-                      <div className="h-4 w-4 rounded-full border-2 border-[#00AAF7] border-t-transparent animate-spin" />
+                      <div className="h-4 w-4 rounded-full border-2 border-[#00aff9] border-t-transparent animate-spin" />
                     ) : (
                       <div className="h-4 w-4 rounded-full border border-border/60 bg-muted/40" />
                     )}
@@ -193,7 +193,7 @@ export function AiProcessingModal({
                       isDone
                         ? "text-foreground font-medium"
                         : isCurrent
-                        ? "text-[#00AAF7] font-semibold"
+                        ? "text-[#00aff9] font-semibold"
                         : "text-muted-foreground/60"
                     }
                   >
@@ -214,7 +214,7 @@ export function AiProcessingModal({
               {onViewResults && (
                 <Button
                   onClick={onViewResults}
-                  className="flex-1 bg-gradient-to-r from-[#00AAF7] to-[#0284C7] text-white hover:opacity-95 shadow-lg shadow-[#00AAF7]/25 font-semibold text-xs py-5 rounded-xl"
+                  className="flex-1 bg-gradient-to-r from-[#00aff9] to-[#0284C7] text-white hover:opacity-95 shadow-lg shadow-[#00aff9]/25 font-semibold text-xs py-5 rounded-xl"
                 >
                   <span>Inspect AI Clauses</span>
                   <ArrowRightIcon className="ml-1.5 h-3.5 w-3.5" />
