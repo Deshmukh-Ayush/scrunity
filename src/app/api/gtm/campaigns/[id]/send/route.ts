@@ -94,15 +94,24 @@ export async function POST(
       .set({
         currentStage: "send_emails",
         status: "in_progress",
+        failureReason: null,
+        stageStartedAt: new Date(),
+        lastProgressAt: null,
       })
       .where(eq(gtmOutreachCampaign.id, campaignId));
 
-    await inngest.send({
-      name: "gtm/campaign.send_emails",
-      data: {
-        outreachCampaignId: campaignId,
-      },
-    });
+    try {
+      await inngest.send({
+        name: "gtm/campaign.send_emails",
+        data: {
+          outreachCampaignId: campaignId,
+        },
+      });
+    } catch (inngestErr) {
+      console.warn(
+        `[POST /api/gtm/campaigns/[id]/send] inngest.send warning: ${inngestErr}`
+      );
+    }
 
     return NextResponse.json({
       success: true,

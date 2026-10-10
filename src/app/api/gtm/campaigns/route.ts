@@ -120,6 +120,8 @@ export async function POST(req: NextRequest) {
         researchRunId: verified.researchRun.id,
         status: "in_progress",
         currentStage: "find_companies",
+        stageStartedAt: new Date(),
+        lastProgressAt: null,
       })
       .returning();
 

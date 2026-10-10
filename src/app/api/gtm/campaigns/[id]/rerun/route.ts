@@ -33,20 +33,32 @@ export async function POST(
       );
     }
 
-    // Step 1: Atomic conditional check-and-set - only set in_progress if NOT already in_progress
+    let force = false;
+    try {
+      const body = await _req.json();
+      if (body?.force) force = true;
+    } catch {
+      // Body is optional
+    }
+
+    // Step 1: Atomic conditional check-and-set - only set in_progress if NOT already in_progress, unless force=true
+    const whereCondition = force
+      ? eq(gtmOutreachCampaign.id, campaignId)
+      : and(
+          eq(gtmOutreachCampaign.id, campaignId),
+          ne(gtmOutreachCampaign.status, "in_progress")
+        );
+
     const [updatedCampaign] = await db
       .update(gtmOutreachCampaign)
       .set({
         currentStage: "find_companies",
         status: "in_progress",
         failureReason: null,
+        stageStartedAt: new Date(),
+        lastProgressAt: null,
       })
-      .where(
-        and(
-          eq(gtmOutreachCampaign.id, campaignId),
-          ne(gtmOutreachCampaign.status, "in_progress")
-        )
-      )
+      .where(whereCondition)
       .returning();
 
     if (!updatedCampaign) {

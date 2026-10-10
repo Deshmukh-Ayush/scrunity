@@ -9,6 +9,7 @@ import {
 } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { resolveAuthAndOrg, verifyCampaignAccess } from "@/lib/gtm-auth";
+import { checkInngestConnectivity } from "@/lib/inngest-connectivity";
 
 export async function GET(
   req: NextRequest,
@@ -60,6 +61,8 @@ export async function GET(
       drafts = allDrafts;
     }
 
+    const inngestConnectivity = await checkInngestConnectivity();
+
     return NextResponse.json({
       success: true,
       campaign: verified.campaign,
@@ -69,6 +72,7 @@ export async function GET(
       snapshots,
       contacts,
       drafts,
+      inngestConnectivity,
     });
   } catch (err: any) {
     console.error("[GET /api/gtm/campaigns/[id]] Error:", err);
