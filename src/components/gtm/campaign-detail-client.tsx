@@ -285,7 +285,7 @@ export function CampaignDetailClient() {
         return (
           <Badge
             variant="outline"
-            className="text-[10px] gap-1 border-blue-500/50 text-blue-600 dark:text-blue-400"
+            className="text-[10px] gap-1 border-tertiary/40 text-tertiary bg-tertiary/10"
           >
             <ShieldCheck className="size-3" /> Pattern Guessed (MX Valid)
           </Badge>
@@ -373,7 +373,7 @@ export function CampaignDetailClient() {
             {campaign.status === "in_progress" ? (
               <Badge
                 variant="outline"
-                className="text-xs capitalize self-start sm:self-auto py-1 px-3 border-blue-500/40 text-blue-600 dark:text-blue-400 gap-1.5"
+                className="text-xs capitalize self-start sm:self-auto py-1 px-3 border-tertiary/40 text-tertiary bg-tertiary/10 gap-1.5"
               >
                 <Loader2 className="size-3 animate-spin" />
                 {campaign.currentStage.replace(/_/g, " ")} (Running)
@@ -430,16 +430,16 @@ export function CampaignDetailClient() {
 
       {/* Active Autonomous Pipeline Banner */}
       {campaign.status === "in_progress" && (
-        <Card className="border-blue-500/30 bg-blue-500/5 p-4">
+        <Card className="border-tertiary/30 bg-tertiary/5 p-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
-              <div className="p-2 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 mt-0.5">
+              <div className="p-2 rounded-full bg-tertiary/10 text-tertiary mt-0.5">
                 <Loader2 className="size-5 animate-spin" />
               </div>
               <div className="space-y-1">
                 <div className="font-semibold text-xs text-foreground flex items-center gap-2">
                   <span>Autonomous Pipeline In Progress:</span>
-                  <Badge variant="outline" className="text-[11px] capitalize font-medium border-blue-500/40 text-blue-600 dark:text-blue-400">
+                  <Badge variant="outline" className="text-[11px] capitalize font-medium border-tertiary/40 text-tertiary bg-tertiary/10">
                     {campaign.currentStage.replace(/_/g, " ")}
                   </Badge>
                 </div>

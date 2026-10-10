@@ -312,7 +312,7 @@ function CampaignOverviewRenderer({ output }: { output?: Record<string, unknown>
               className={cn(
                 "text-[9px] px-1.5 py-0 capitalize font-mono shrink-0",
                 camp.status === "in_progress"
-                  ? "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                  ? "border-tertiary/30 bg-tertiary/10 text-tertiary"
                   : camp.status === "done"
                   ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                   : "border-border text-muted-foreground"

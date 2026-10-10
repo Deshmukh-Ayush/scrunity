@@ -279,7 +279,7 @@ export function SegmentDigestCard({
             </Badge>
             <Badge
               variant="outline"
-              className="text-xs gap-1 border-blue-500/40 text-blue-700 dark:text-blue-300 bg-blue-500/10"
+              className="text-xs gap-1 border-tertiary/40 text-tertiary bg-tertiary/10"
             >
               Questions: {metrics.replyBreakdown?.question ?? 0}
             </Badge>

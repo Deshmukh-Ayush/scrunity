@@ -106,7 +106,7 @@ export function CampaignsList() {
         );
       case "send_emails":
         return (
-          <Badge variant="secondary" className="gap-1 text-xs text-blue-600 dark:text-blue-400">
+          <Badge variant="outline" className="gap-1 text-xs border-tertiary/30 bg-tertiary/10 text-tertiary">
             <Send className="size-3" /> Sending Emails
           </Badge>
         );
