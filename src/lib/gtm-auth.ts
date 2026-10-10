@@ -22,6 +22,22 @@ export type AuthContext = {
 export async function resolveAuthAndOrg(
   headers: Headers
 ): Promise<{ auth?: AuthContext; error?: string; status: number }> {
+  // Fast path: proxy already resolved and validated identity in request headers
+  const proxyUserId = headers.get("x-user-id");
+  const proxyOrgId = headers.get("x-org-id");
+  const proxyOrgRole = headers.get("x-org-role");
+
+  if (proxyUserId && proxyOrgId) {
+    return {
+      auth: {
+        userId: proxyUserId,
+        orgId: proxyOrgId,
+        role: proxyOrgRole || "owner",
+      },
+      status: 200,
+    };
+  }
+
   const session = await auth.api.getSession({ headers });
 
   if (!session || !session.user) {
