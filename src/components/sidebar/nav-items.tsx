@@ -30,8 +30,8 @@ export const NavItem = forwardRef<HTMLDivElement, NavItemProps>(
           "group relative flex h-10 items-center gap-2.5 rounded-md text-[14px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring select-none",
           isCollapsed ? "mx-auto w-8 justify-center px-0" : "w-full px-2.5",
           isActive
-            ? "text-foreground font-semibold"
-            : "text-neutral-700 dark:text-neutral-100 hover:bg-foreground/4 hover:text-foreground",
+            ? "text-primary font-semibold"
+            : "text-neutral-700 dark:text-neutral-300 hover:bg-foreground/4 hover:text-foreground",
           className
         )}
         {...props}
@@ -42,7 +42,7 @@ export const NavItem = forwardRef<HTMLDivElement, NavItemProps>(
               {isActive && (
                 <motion.div
                   layoutId="activeSidebarItem"
-                  className="absolute inset-0 rounded-md bg-foreground/6 border border-border/40 pointer-events-none"
+                  className="absolute inset-0 rounded-md bg-primary/10 border border-primary/20 pointer-events-none"
                   transition={{ type: "spring", stiffness: 350, damping: 30 }}
                 />
               )}
@@ -61,8 +61,8 @@ export const NavItem = forwardRef<HTMLDivElement, NavItemProps>(
           "group relative flex h-10 items-center gap-2.5 rounded-md text-[14px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring select-none",
           isCollapsed ? "mx-auto w-8 justify-center px-0" : "w-full px-2.5",
           isActive
-            ? "text-foreground font-semibold"
-            : "text-neutral-700 dark:text-neutral-100 hover:bg-foreground/4 hover:text-foreground",
+            ? "text-primary font-semibold"
+            : "text-neutral-700 dark:text-neutral-300 hover:bg-foreground/4 hover:text-foreground",
           className
         )}
         {...props}
@@ -70,7 +70,7 @@ export const NavItem = forwardRef<HTMLDivElement, NavItemProps>(
         {isActive && (
           <motion.div
             layoutId="activeSidebarItem"
-            className="absolute inset-0 rounded-md bg-foreground/6 border border-border/40 pointer-events-none"
+            className="absolute inset-0 rounded-md bg-primary/10 border border-primary/20 pointer-events-none"
             transition={{ type: "spring", stiffness: 350, damping: 30 }}
           />
         )}
