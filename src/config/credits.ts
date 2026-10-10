@@ -16,20 +16,32 @@ export interface PlanCreditConfig {
  */
 export const PLAN_CREDIT_ALLOTMENTS: Record<PlanTier, PlanCreditConfig> = {
   free: {
-    aiCredits: 50,
+    aiCredits: 0,
     searchCredits: 10,
+  },
+  pilot: {
+    aiCredits: 300,
+    searchCredits: 30,
+  },
+  starter: {
+    aiCredits: 600,
+    searchCredits: 100,
+  },
+  growth: {
+    aiCredits: 1800,
+    searchCredits: 300,
+  },
+  scale: {
+    aiCredits: 5000,
+    searchCredits: 800,
   },
   freelancer: {
     aiCredits: 300,
     searchCredits: 50,
   },
   agency: {
-    aiCredits: 1500,
+    aiCredits: 1800,
     searchCredits: 250,
-  },
-  enterprise: {
-    aiCredits: 50000,
-    searchCredits: 10000,
   },
 }
 
