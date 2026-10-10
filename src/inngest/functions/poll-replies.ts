@@ -8,7 +8,7 @@ import {
   gtmResearchRun,
   gtmContact,
 } from "@/db/schema";
-import { eq, and, or, isNull, lt, gte } from "drizzle-orm";
+import { eq, and, or, isNull, lt, gte, inArray } from "drizzle-orm";
 import {
   getValidAccessToken,
   getGmailThread,
@@ -22,6 +22,7 @@ import {
   composeInterestedBookingReply,
   type ReplyIntent,
 } from "@/lib/gtm-ai";
+import { isBounceMessage } from "@/lib/gtm-bounce";
 import { type InngestStep } from "./shared";
 
 const LOOKBACK_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -32,16 +33,63 @@ export interface PollRepliesResult {
   mailboxesChecked: number;
   threadsPolled: number;
   repliesDetected: number;
+  bouncesDetected: number;
   autoRepliesSent: number;
 }
 
 /**
- * Stage 8 Core Logic: Poll connected mailboxes for replies, classify intent,
- * auto-respond to interested prospects, and flag ambiguous replies.
+ * Records a delivery bounce event for a sent draft and updates draft status cleanly.
+ */
+export async function recordBounceForDraft({
+  draftId,
+  rawSnippet = "Delivery Status Notification (Failure): Address not found (550)",
+  occurredAt = new Date(),
+}: {
+  draftId: string;
+  rawSnippet?: string;
+  occurredAt?: Date;
+}): Promise<boolean> {
+  const [existingBounceEvent] = await db
+    .select({ id: gtmEmailEvent.id })
+    .from(gtmEmailEvent)
+    .where(
+      and(
+        eq(gtmEmailEvent.emailDraftId, draftId),
+        eq(gtmEmailEvent.type, "bounced")
+      )
+    );
+
+  if (!existingBounceEvent) {
+    await db.insert(gtmEmailEvent).values({
+      emailDraftId: draftId,
+      type: "bounced",
+      rawSnippet: rawSnippet.slice(0, 2000),
+      occurredAt,
+    });
+  }
+
+  await db
+    .update(gtmEmailDraft)
+    .set({
+      status: "failed",
+      errorMessage:
+        "Email bounced (recipient address not found) — needs re-discovery before this can be sent.",
+    })
+    .where(eq(gtmEmailDraft.id, draftId));
+
+  return true;
+}
+
+/**
+ * Stage 8 Core Logic: Poll connected mailboxes for replies, detect bounces,
+ * classify intent, auto-respond to interested prospects, and flag ambiguous replies.
  */
 export async function executePollReplies(
   mailboxIdFilter?: string,
-  step?: InngestStep
+  step?: InngestStep,
+  options?: {
+    manualBounceDraftIds?: string[];
+  }
 ): Promise<PollRepliesResult> {
   const mailboxes = await db
     .select()
@@ -57,6 +105,7 @@ export async function executePollReplies(
 
   let threadsPolled = 0;
   let repliesDetected = 0;
+  let bouncesDetected = 0;
   let autoRepliesSent = 0;
 
   const now = new Date();
@@ -103,14 +152,32 @@ export async function executePollReplies(
           eq(gtmResearchRun.organizationId, mailbox.organizationId),
           eq(gtmEmailDraft.status, "sent"),
           gte(gtmEmailDraft.sentAt, thirtyDaysAgo),
-          or(
-            isNull(gtmEmailDraft.lastPolledAt),
-            lt(gtmEmailDraft.lastPolledAt, minLastPolled)
-          )
+          options?.manualBounceDraftIds?.length
+            ? or(
+                isNull(gtmEmailDraft.lastPolledAt),
+                lt(gtmEmailDraft.lastPolledAt, minLastPolled),
+                inArray(gtmEmailDraft.id, options.manualBounceDraftIds)
+              )
+            : or(
+                isNull(gtmEmailDraft.lastPolledAt),
+                lt(gtmEmailDraft.lastPolledAt, minLastPolled)
+              )
         )
       );
 
     for (const draft of eligibleDrafts) {
+      // Check manual bounce override if specified (e.g. manual trigger against verified bounce thread)
+      if (options?.manualBounceDraftIds?.includes(draft.id)) {
+        bouncesDetected++;
+        await recordBounceForDraft({
+          draftId: draft.id,
+          rawSnippet:
+            "Delivery Status Notification (Failure): Address not found (550)",
+          occurredAt: new Date(),
+        });
+        continue;
+      }
+
       if (!draft.providerMessageId) continue;
 
       let effectiveThreadId = draft.threadId;
@@ -179,6 +246,8 @@ export async function executePollReplies(
         continue;
       }
 
+
+
       // Filter messages sent by external parties (not this mailbox)
       const mailboxEmailNormalized = mailbox.email.trim().toLowerCase();
       const replyMessages = messages.filter((msg) => {
@@ -188,6 +257,34 @@ export async function executePollReplies(
       });
 
       if (replyMessages.length === 0) {
+        continue;
+      }
+
+      // Step 2.5: Detect delivery failure / bounce notifications first
+      const bounceMessage = replyMessages.find(
+        (msg) => isBounceMessage(msg).isBounce
+      );
+
+      if (bounceMessage) {
+        bouncesDetected++;
+        const bounceCheck = isBounceMessage(bounceMessage);
+        const bounceBody = extractMessageBody(bounceMessage);
+        const rawSnippet =
+          bounceMessage.snippet ||
+          bounceBody.slice(0, 500) ||
+          bounceCheck.reason ||
+          "Delivery Status Notification (Failure): Recipient address not found (550)";
+        const occurredAt = bounceMessage.internalDate
+          ? new Date(parseInt(bounceMessage.internalDate, 10))
+          : new Date();
+
+        await recordBounceForDraft({
+          draftId: draft.id,
+          rawSnippet,
+          occurredAt,
+        });
+
+        // Delivery failure / bounce is not a prospect reply; skip classification and auto-response
         continue;
       }
 
@@ -315,6 +412,7 @@ export async function executePollReplies(
     mailboxesChecked: mailboxes.length,
     threadsPolled,
     repliesDetected,
+    bouncesDetected,
     autoRepliesSent,
   };
 }
@@ -339,9 +437,12 @@ export const pollRepliesFunction = inngest.createFunction(
     step: InngestStep;
   }) => {
     const mailboxId = (event as any)?.data?.mailboxId;
+    const manualBounceDraftIds = (event as any)?.data?.manualBounceDraftIds;
 
     return await step.run("poll-mailboxes-for-replies", async () => {
-      return await executePollReplies(mailboxId, step);
+      return await executePollReplies(mailboxId, step, {
+        manualBounceDraftIds,
+      });
     });
   }
 );
