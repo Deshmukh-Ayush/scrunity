@@ -19,7 +19,7 @@ import {
   Gear, 
   CreditCard 
 } from "@phosphor-icons/react"
-import { Target, Sparkles } from "lucide-react"
+import { Target, Sparkles, Users, Mail } from "lucide-react"
 import { AgentConversationNav } from "@/components/chat/agent-chat-sidebar"
 
 type OrgLike = {
@@ -38,6 +38,8 @@ const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)"
 const dashboardNavItems = [
   { name: "Overview", href: "/dashboard", icon: House },
   { name: "Campaigns", href: "/dashboard/campaigns", icon: Target },
+  { name: "Leads", href: "/dashboard/leads", icon: Users },
+  { name: "Mailbox", href: "/dashboard/mailbox", icon: Mail },
   { name: "Settings", href: "/dashboard/settings", icon: Gear },
   { name: "Billing", href: "/dashboard/billing", icon: CreditCard },
 ]
