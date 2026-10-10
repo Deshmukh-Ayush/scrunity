@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/utils/db";
 import { organization } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 // Dodo uses standardwebhooks for verification
 import { Webhook } from "standardwebhooks";
+import {
+  addTopupCredits,
+  resetCreditPeriod,
+} from "@/lib/gtm-ai-credits";
 
 const webhookSecret = process.env.DODO_PAYMENTS_WEBHOOK_SECRET || "";
 
@@ -16,45 +20,118 @@ export async function POST(req: Request) {
       "webhook-timestamp": req.headers.get("webhook-timestamp") || "",
     };
 
-    // Verify webhook signature
-    const wh = new Webhook(webhookSecret);
+    // Verify webhook signature if secret is configured
     let event: any;
-    try {
-      event = wh.verify(payload, headers as any);
-    } catch (err) {
-      console.error("Webhook signature verification failed:", err);
-      return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+    if (webhookSecret) {
+      const wh = new Webhook(webhookSecret);
+      try {
+        event = wh.verify(payload, headers as any);
+      } catch (err) {
+        console.error("Webhook signature verification failed:", err);
+        return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+      }
+    } else {
+      // In dev mode when secret not set
+      event = JSON.parse(payload);
     }
 
     const { type, data } = event;
+    const metadata = data?.metadata || {};
+    const orgId = metadata.organizationId;
 
-    // Handle payment/subscription success
-    if (type === "payment.succeeded" || type === "subscription.active" || type === "subscription.renewed") {
-      const metadata = data.metadata || {};
-      const orgId = metadata.organizationId;
+    // 1. Handle one-time top-up credit purchases
+    if (metadata.type === "topup" && orgId) {
+      const credits = Number(metadata.credits || 100);
+      await addTopupCredits(
+        orgId,
+        credits,
+        `Purchased ${credits} AI credits top-up pack (Dodo payment: ${data?.payment_id || data?.id || "direct"})`
+      );
+      return NextResponse.json({ success: true, handled: "topup" });
+    }
+
+    // 2. Handle extra seat add-on purchases
+    if (metadata.type === "extra_seat" && orgId) {
+      const seats = Number(metadata.seats || 1);
+      await db
+        .update(organization)
+        .set({
+          extraSeats: sql`${organization.extraSeats} + ${seats}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(organization.id, orgId));
+      return NextResponse.json({ success: true, handled: "extra_seat" });
+    }
+
+    // 3. Handle subscription creation, activation, and renewals (Step 1.5 - No rollover)
+    if (
+      type === "payment.succeeded" ||
+      type === "subscription.active" ||
+      type === "subscription.renewed"
+    ) {
       const plan = metadata.plan;
+      const nextBillingDate = data.next_billing_date
+        ? new Date(data.next_billing_date)
+        : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
       if (orgId) {
-        await db.update(organization)
+        const [org] = await db
+          .select()
+          .from(organization)
+          .where(eq(organization.id, orgId));
+
+        const effectivePlan = plan || org?.plan || "pilot";
+
+        await db
+          .update(organization)
           .set({
-            plan: plan || "freelancer", // Fallback
+            plan: effectivePlan as any,
             subscriptionStatus: "active",
             dodoCustomerId: data.customer?.customer_id || data.customer_id,
             dodoSubscriptionId: data.subscription_id || data.payment_id,
-            // Add a generous current period end if it's a subscription, otherwise 1 month
-            currentPeriodEnd: data.next_billing_date ? new Date(data.next_billing_date) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            currentPeriodEnd: nextBillingDate,
+            updatedAt: new Date(),
           })
+          .where(eq(organization.id, orgId));
+
+        // On renewal or activation: reset the balance to the plan allotment with NO rollover (Step 1.5)
+        await resetCreditPeriod(orgId, effectivePlan, nextBillingDate);
+      }
+    }
+
+    // 4. Handle dunning / past-due warning
+    if (type === "subscription.past_due") {
+      const customerId = data.customer?.customer_id || data.customer_id;
+      if (customerId) {
+        await db
+          .update(organization)
+          .set({ subscriptionStatus: "past_due", updatedAt: new Date() })
+          .where(eq(organization.dodoCustomerId, customerId));
+      } else if (orgId) {
+        await db
+          .update(organization)
+          .set({ subscriptionStatus: "past_due", updatedAt: new Date() })
           .where(eq(organization.id, orgId));
       }
     }
 
-    // Handle subscription cancellation
-    if (type === "subscription.canceled" || type === "subscription.cancelled" || type === "subscription.past_due" || type === "subscription.expired") {
+    // 5. Handle subscription cancellation / expiration
+    if (
+      type === "subscription.canceled" ||
+      type === "subscription.cancelled" ||
+      type === "subscription.expired"
+    ) {
       const customerId = data.customer?.customer_id || data.customer_id;
       if (customerId) {
-        await db.update(organization)
-          .set({ subscriptionStatus: (type === "subscription.canceled" || type === "subscription.cancelled") ? "canceled" : "past_due" })
+        await db
+          .update(organization)
+          .set({ subscriptionStatus: "canceled", updatedAt: new Date() })
           .where(eq(organization.dodoCustomerId, customerId));
+      } else if (orgId) {
+        await db
+          .update(organization)
+          .set({ subscriptionStatus: "canceled", updatedAt: new Date() })
+          .where(eq(organization.id, orgId));
       }
     }
 
