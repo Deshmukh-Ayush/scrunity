@@ -13,6 +13,7 @@ import {
   Sparkles,
   RefreshCw,
   AlertCircle,
+  AlertTriangle,
   Inbox,
   VolumeX,
   Building2,
@@ -362,6 +363,7 @@ export function MailboxClient() {
                 {[
                   { id: "all", label: "All" },
                   { id: "unread", label: "Unread" },
+                  { id: "bounced", label: "Bounced" },
                   { id: "interested", label: "Interested" },
                   { id: "question", label: "Questions" },
                   { id: "not_interested", label: "Not Interested" },
@@ -460,6 +462,15 @@ export function MailboxClient() {
                         >
                           {thread.campaign.name}
                         </Badge>
+                        {thread.isBounced && (
+                          <Badge
+                            variant="destructive"
+                            className="text-[9px] px-1.5 py-0 bg-rose-500/10 text-rose-600 border-rose-500/30 gap-1 font-medium"
+                          >
+                            <AlertTriangle className="size-2.5" />
+                            Bounced
+                          </Badge>
+                        )}
                         {renderIntentBadge(thread.classifiedIntent)}
                       </div>
                     </div>
@@ -480,6 +491,14 @@ export function MailboxClient() {
                       <h2 className="text-sm font-semibold tracking-tight text-foreground truncate">
                         {selectedThread.subject}
                       </h2>
+                      {selectedThread.isBounced && (
+                        <Badge
+                          variant="destructive"
+                          className="text-[11px] bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 gap-1 font-semibold"
+                        >
+                          <AlertTriangle className="size-3" /> Delivery Bounced
+                        </Badge>
+                      )}
                       {renderIntentBadge(selectedThread.classifiedIntent)}
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
@@ -516,6 +535,19 @@ export function MailboxClient() {
                     </span>
                   </div>
                 </div>
+
+                {/* Bounced alert banner if thread failed */}
+                {selectedThread.isBounced && (
+                  <div className="mx-4 mt-3 p-3 rounded-lg bg-rose-500/10 border border-rose-500/25 flex items-start gap-2.5 text-xs text-rose-700 dark:text-rose-300">
+                    <AlertCircle className="size-4 shrink-0 text-rose-500 mt-0.5" />
+                    <div className="space-y-0.5">
+                      <p className="font-semibold">Email Delivery Failed (Bounced)</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {selectedThread.bounceReason || "Recipient address not found (550). This contact requires re-discovery before outreach can resume."}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Messages Timeline (Scrollable) */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">

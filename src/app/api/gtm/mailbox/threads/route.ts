@@ -10,7 +10,7 @@ import {
   gtmResearchRun,
   gtmConnectedMailbox,
 } from "@/db/schema";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, or, desc, inArray, sql } from "drizzle-orm";
 import { resolveAuthAndOrg } from "@/lib/gtm-auth";
 
 export interface MailboxMessage {
@@ -53,6 +53,8 @@ export interface MailboxThread {
   classifiedIntent: "interested" | "not_interested" | "question" | "auto_reply" | "unclear" | null;
   hasReply: boolean;
   isUnread: boolean;
+  isBounced?: boolean;
+  bounceReason?: string | null;
   messages: MailboxMessage[];
 }
 
@@ -120,7 +122,11 @@ export async function GET(req: NextRequest) {
       .where(
         and(
           eq(gtmResearchRun.organizationId, auth.orgId),
-          eq(gtmEmailDraft.status, "sent")
+          or(
+            eq(gtmEmailDraft.status, "sent"),
+            sql`EXISTS (SELECT 1 FROM gtm_email_event e WHERE e.email_draft_id = ${gtmEmailDraft.id} AND e.type = 'bounced')`,
+            sql`(${gtmEmailDraft.sentAt} IS NOT NULL AND ${gtmEmailDraft.status} = 'failed')`
+          )
         )
       )
       .orderBy(desc(gtmEmailDraft.sentAt));
@@ -163,6 +169,7 @@ export async function GET(req: NextRequest) {
       const key = d.threadId || d.draftId;
       const draftEvents = eventsByDraft.get(d.draftId) || [];
       const replyEvents = draftEvents.filter((e) => e.type === "replied");
+      const bounceEvents = draftEvents.filter((e) => e.type === "bounced");
 
       const mailboxEmail = connectedMailbox?.email || "outreach@scrunity.ai";
 
@@ -193,6 +200,21 @@ export async function GET(req: NextRequest) {
         });
       }
 
+      for (const bounce of bounceEvents) {
+        messages.push({
+          id: bounce.id,
+          from: "mailer-daemon@googlemail.com",
+          fromName: "Mail Delivery Subsystem",
+          to: mailboxEmail,
+          toName: "You",
+          timestamp: bounce.occurredAt.toISOString(),
+          body:
+            bounce.rawSnippet ||
+            "Delivery to the following recipient failed permanently: Recipient address not found (550).",
+          isOutbound: false,
+        });
+      }
+
       // Sort messages chronologically
       messages.sort(
         (a, b) =>
@@ -201,6 +223,12 @@ export async function GET(req: NextRequest) {
 
       const latestMessage = messages[messages.length - 1];
       const latestReply = replyEvents[replyEvents.length - 1];
+      const isBounced =
+        bounceEvents.length > 0 ||
+        (d.status === "failed" && Boolean(d.sentAt));
+      const bounceReason =
+        bounceEvents[0]?.rawSnippet ||
+        (isBounced ? "Delivery failed: Recipient address not found (550)" : null);
 
       const thread: MailboxThread = {
         id: key,
@@ -225,13 +253,19 @@ export async function GET(req: NextRequest) {
         },
         sentAt: (d.sentAt || new Date()).toISOString(),
         lastActivityAt: latestMessage.timestamp,
-        latestSnippet: latestMessage.body,
-        latestSender: latestMessage.isOutbound ? "You" : d.contactName,
-        classifiedIntent:
-          (latestReply?.classifiedIntent as MailboxThread["classifiedIntent"]) ||
-          null,
+        latestSnippet: isBounced
+          ? (bounceReason || latestMessage.body)
+          : latestMessage.body,
+        latestSender: isBounced
+          ? "Mail Delivery Subsystem"
+          : (latestMessage.isOutbound ? "You" : d.contactName),
+        classifiedIntent: isBounced
+          ? null
+          : ((latestReply?.classifiedIntent as MailboxThread["classifiedIntent"]) || null),
         hasReply: replyEvents.length > 0,
-        isUnread: replyEvents.length > 0, // marks reply as unread
+        isUnread: replyEvents.length > 0 || isBounced,
+        isBounced,
+        bounceReason,
         messages,
       };
 
