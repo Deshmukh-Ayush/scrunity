@@ -61,6 +61,20 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: "/settings",
+        destination: "/dashboard/mailbox?tab=settings",
+        permanent: false,
+      },
+      {
+        source: "/dashboard/settings",
+        destination: "/dashboard/mailbox?tab=settings",
+        permanent: false,
+      },
+    ];
+  },
 }
 
 export default nextConfig

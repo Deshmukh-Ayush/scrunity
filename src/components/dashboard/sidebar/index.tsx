@@ -40,7 +40,7 @@ const dashboardNavItems = [
   { name: "Campaigns", href: "/dashboard/campaigns", icon: Target },
   { name: "Leads", href: "/dashboard/leads", icon: Users },
   { name: "Mailbox", href: "/dashboard/mailbox", icon: Mail },
-  { name: "Settings", href: "/dashboard/settings", icon: Gear },
+  { name: "Settings", href: "/dashboard/mailbox?tab=settings", icon: Gear },
   { name: "Billing", href: "/dashboard/billing", icon: CreditCard },
 ]
 
@@ -227,7 +227,17 @@ export function DashboardSidebar({
                 <ul role="list" className="space-y-0.5">
                   {dashboardNavItems.map((item) => {
                     const Icon = item.icon
-                    const isActive = pathname === item.href || (pathname.startsWith(item.href) && item.href !== "/dashboard")
+                    const itemBase = item.href.split("?")[0]
+                    const isSettingsItem = item.href.includes("tab=settings")
+                    const isMailboxItem = item.href === "/dashboard/mailbox"
+                    const currentSearch = typeof window !== "undefined" ? window.location.search : ""
+                    const isTabSettings = currentSearch.includes("tab=settings")
+                    
+                    const isActive = isSettingsItem
+                      ? pathname === "/dashboard/mailbox" && isTabSettings
+                      : isMailboxItem
+                      ? pathname === "/dashboard/mailbox" && !isTabSettings
+                      : pathname === itemBase || (pathname.startsWith(itemBase) && itemBase !== "/dashboard")
                     
                     return (
                       <li key={item.name}>
