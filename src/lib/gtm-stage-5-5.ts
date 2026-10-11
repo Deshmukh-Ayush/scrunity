@@ -3,118 +3,23 @@ import { gtmEmailDraft, gtmContact, gtmProspectCompany, gtmOutreachCampaign } fr
 import { eq, desc } from "drizzle-orm";
 import { scoreTitleMatch, TitleMatchResult, isValidPersonName } from "./gtm-contact-matcher";
 
-export interface ContactGateData {
-  id?: string;
-  name?: string | null;
-  title?: string | null;
-  email?: string | null;
-  verificationStatus?: string | null;
-  emailSource?: string | null;
-  linkedinUrl?: string | null;
-}
+import {
+  type ContactGateData,
+  type GateCheckResult,
+  ALLOWED_EMAIL_VERIFICATION_STATUSES,
+  checkEmailConfidenceFloor,
+  checkLinkedInProfileGate,
+  checkLeadQualificationGates,
+} from "./gtm-qualification-gates";
 
-export interface GateCheckResult {
-  qualified: boolean;
-  reason?: string;
-  failedGate?: "email_confidence" | "linkedin" | "title_score";
-  titleMatch?: TitleMatchResult;
-}
-
-/**
- * Permitted verification statuses that pass the email confidence floor.
- * Must be at least MX-validated or provider/enrich verified.
- */
-export const ALLOWED_EMAIL_VERIFICATION_STATUSES = new Set([
-  "pattern_guessed_mx_valid",
-  "enrich_verified",
-  "verified",
-  "provider_verified",
-]);
-
-/**
- * Gate 1: Email Confidence Floor
- * Rejects unverified, plain pattern_guessed (without MX check), company fallback, or missing email.
- */
-export function checkEmailConfidenceFloor(contact: ContactGateData): {
-  passed: boolean;
-  reason?: string;
-} {
-  const email = contact.email?.trim();
-  if (!email) {
-    return {
-      passed: false,
-      reason: "Email confidence too low — unverified",
-    };
-  }
-
-  const vStatus = (contact.verificationStatus || contact.emailSource || "unverified").trim();
-
-  if (!ALLOWED_EMAIL_VERIFICATION_STATUSES.has(vStatus)) {
-    if (
-      vStatus === "pattern_guessed_unverified" ||
-      vStatus === "pattern_guessed" ||
-      vStatus === "company_fallback"
-    ) {
-      return {
-        passed: false,
-        reason: "Email confidence too low — pattern-guessed with no MX validation",
-      };
-    }
-
-    return {
-      passed: false,
-      reason: "Email confidence too low — unverified",
-    };
-  }
-
-  return { passed: true };
-}
-
-/**
- * Gate 2: LinkedIn Profile Required
- * Requires a real LinkedIn profile URL captured during Stage 5 discovery.
- */
-export function checkLinkedInProfileGate(contact: ContactGateData): {
-  passed: boolean;
-  reason?: string;
-} {
-  const li = contact.linkedinUrl?.trim();
-  if (!li || !li.toLowerCase().includes("linkedin.com")) {
-    return {
-      passed: false,
-      reason: "No LinkedIn profile found",
-    };
-  }
-
-  return { passed: true };
-}
-
-/**
- * Evaluates the two hard gates ahead of stage 5.5 qualification scoring.
- */
-export function checkLeadQualificationGates(contact: ContactGateData): GateCheckResult {
-  // Gate 1: Email Confidence Floor
-  const emailCheck = checkEmailConfidenceFloor(contact);
-  if (!emailCheck.passed) {
-    return {
-      qualified: false,
-      reason: emailCheck.reason,
-      failedGate: "email_confidence",
-    };
-  }
-
-  // Gate 2: LinkedIn Required
-  const liCheck = checkLinkedInProfileGate(contact);
-  if (!liCheck.passed) {
-    return {
-      qualified: false,
-      reason: liCheck.reason,
-      failedGate: "linkedin",
-    };
-  }
-
-  return { qualified: true };
-}
+export {
+  type ContactGateData,
+  type GateCheckResult,
+  ALLOWED_EMAIL_VERIFICATION_STATUSES,
+  checkEmailConfidenceFloor,
+  checkLinkedInProfileGate,
+  checkLeadQualificationGates,
+};
 
 /**
  * Full Stage 5.5 Qualification Evaluation:
