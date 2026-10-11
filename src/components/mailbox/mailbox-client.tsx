@@ -41,8 +41,19 @@ export function MailboxClient() {
   const searchParams = useSearchParams();
   const targetContactId = searchParams?.get("contactId");
   const targetThreadId = searchParams?.get("threadId");
+  const tabParam = searchParams?.get("tab");
 
-  const [activeTab, setActiveTab] = React.useState<"conversations" | "settings">("conversations");
+  const [activeTab, setActiveTab] = React.useState<"conversations" | "settings">(
+    () => (tabParam === "settings" ? "settings" : "conversations")
+  );
+
+  React.useEffect(() => {
+    if (tabParam === "settings") {
+      setActiveTab("settings");
+    } else if (tabParam === "conversations") {
+      setActiveTab("conversations");
+    }
+  }, [tabParam]);
   const [threads, setThreads] = React.useState<MailboxThread[]>([]);
   const [mailbox, setMailbox] = React.useState<ConnectedMailboxInfo | null>(null);
   const [selectedThreadId, setSelectedThreadId] = React.useState<string | null>(null);
