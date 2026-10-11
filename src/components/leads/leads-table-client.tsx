@@ -49,7 +49,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { isValidPersonName } from "@/lib/gtm-contact-matcher";
-import { checkLeadQualificationGates } from "@/lib/gtm-stage-5-5";
+import { checkLeadQualificationGates } from "@/lib/gtm-qualification-gates";
 import { formatErrorMessage } from "@/lib/gtm-error-formatter";
 
 function LinkedinIcon({ className = "size-3" }: { className?: string }) {
