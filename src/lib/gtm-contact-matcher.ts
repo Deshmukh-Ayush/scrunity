@@ -1,4 +1,4 @@
-import { SearchResultItem } from "./firecrawl";
+import type { SearchResultItem } from "./firecrawl";
 
 export interface TeamCandidate {
   name: string;
@@ -302,6 +302,5 @@ export {
   checkEmailConfidenceFloor,
   checkLinkedInProfileGate,
   checkLeadQualificationGates,
-  evaluateContactQualification,
   type GateCheckResult,
-} from "./gtm-stage-5-5";
+} from "./gtm-qualification-gates";
