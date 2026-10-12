@@ -8,7 +8,7 @@ import {
   gtmResearchRun,
 } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import { getValidAccessToken, sendGmailMessage } from "@/lib/gmail";
+import { sendEmailThroughMailbox } from "@/lib/mailbox-dispatcher";
 import { safeRealtimePublish, type InngestStep } from "./shared";
 import {
   hasAvailableCredits,
@@ -80,7 +80,7 @@ export async function executeSendEmails({
     .where(eq(gtmConnectedMailbox.organizationId, organizationId));
 
   if (!mailbox || mailbox.status !== "connected") {
-    const errorMsg = `No active connected Gmail mailbox found for organization. Please connect a Gmail mailbox before sending.`;
+    const errorMsg = `No active connected mailbox found for organization. Please connect a mailbox (Google, Microsoft 365, or IMAP/SMTP) before sending.`;
     await safeRealtimePublish(
       outreachCampaignChannel(outreachCampaignId).failed,
       { stage: "send_emails", error: errorMsg }
@@ -264,13 +264,11 @@ export async function executeSendEmails({
           );
         }
 
-        const accessToken = await getValidAccessToken(mailbox.id);
-        const sendResult = await sendGmailMessage({
-          accessToken,
+        const sendResult = await sendEmailThroughMailbox({
+          mailbox,
           to: draft.contactEmail,
           subject: draft.subject,
           body: draft.body,
-          fromEmail: mailbox.email,
         });
 
         // Update draft to sent

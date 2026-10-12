@@ -8,9 +8,10 @@ import {
   gtmResearchRun,
   gtmContact,
   gtmProspectCompany,
+  gtmMeeting,
 } from "@/db/schema";
 import { recordSuppressionEntry } from "@/lib/gtm-suppression";
-import { eq, and, or, isNull, lt, gte, inArray } from "drizzle-orm";
+import { eq, and, or, isNull, lt, gte, inArray, sql } from "drizzle-orm";
 import {
   getValidAccessToken,
   getGmailThread,
@@ -18,10 +19,20 @@ import {
   sendGmailMessage,
   extractMessageBody,
   extractMessageHeader,
+  type GmailThreadMessage,
 } from "@/lib/gmail";
+import {
+  getValidMicrosoftAccessToken,
+  getMicrosoftConversationMessages,
+  normalizeMicrosoftMessage,
+} from "@/lib/microsoft";
+import { pollImapMessages } from "@/lib/imap-smtp";
+import { sendEmailThroughMailbox } from "@/lib/mailbox-dispatcher";
 import {
   classifyReplyIntent,
   composeInterestedBookingReply,
+  composeNegotiationReply,
+  type ConversationTurn,
   type ReplyIntent,
 } from "@/lib/gtm-ai";
 import { isBounceMessage } from "@/lib/gtm-bounce";
@@ -30,6 +41,15 @@ import { type InngestStep } from "./shared";
 const LOOKBACK_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const POLL_INTERVAL_MS = 9 * 60 * 1000; // 9 minutes
 const DAILY_SEND_CAP = 50;
+export const MAX_NEGOTIATION_TURNS = 3;
+
+export interface PollRepliesOptions {
+  manualBounceDraftIds?: string[];
+  maxNegotiationTurns?: number;
+  mockThreads?: Map<string, any>;
+  mockSender?: (params: any) => Promise<any>;
+  forcePoll?: boolean;
+}
 
 export interface PollRepliesResult {
   mailboxesChecked: number;
@@ -149,9 +169,7 @@ export async function recordBounceForDraft({
 export async function executePollReplies(
   mailboxIdFilter?: string,
   step?: InngestStep,
-  options?: {
-    manualBounceDraftIds?: string[];
-  }
+  options?: PollRepliesOptions
 ): Promise<PollRepliesResult> {
   const mailboxes = await db
     .select()
@@ -175,29 +193,47 @@ export async function executePollReplies(
   const minLastPolled = new Date(now.getTime() - POLL_INTERVAL_MS);
 
   for (const mailbox of mailboxes) {
-    let accessToken: string;
-    try {
-      accessToken = await getValidAccessToken(mailbox.id);
-    } catch (err: any) {
-      console.warn(
-        `[Poll Replies] Failed to obtain valid access token for mailbox ${mailbox.id}:`,
-        err?.message || err
-      );
-      continue;
+    let accessToken = "mock_access_token";
+    if (!options?.mockThreads) {
+      try {
+        if (mailbox.provider === "microsoft") {
+          accessToken = await getValidMicrosoftAccessToken(mailbox.id);
+        } else if (mailbox.provider === "imap_smtp") {
+          accessToken = "imap_session";
+        } else {
+          accessToken = await getValidAccessToken(mailbox.id);
+        }
+      } catch (err: any) {
+        console.warn(
+          `[Poll Replies] Failed to obtain valid credentials for mailbox ${mailbox.id} (${mailbox.provider}):`,
+          err?.message || err
+        );
+        continue;
+      }
     }
 
     // Query sent drafts belonging to campaigns within this mailbox's organization
     const eligibleDrafts = await db
       .select({
         id: gtmEmailDraft.id,
+        contactId: gtmEmailDraft.contactId,
         subject: gtmEmailDraft.subject,
         body: gtmEmailDraft.body,
         providerMessageId: gtmEmailDraft.providerMessageId,
         threadId: gtmEmailDraft.threadId,
+        sentAt: gtmEmailDraft.sentAt,
         lastPolledAt: gtmEmailDraft.lastPolledAt,
+        negotiationTurns: gtmEmailDraft.negotiationTurns,
         contactName: gtmContact.name,
         contactEmail: gtmContact.email,
+        contactTitle: gtmContact.title,
+        prospectCompanyId: gtmContact.prospectCompanyId,
+        prospectCompanyName: gtmProspectCompany.name,
         campaignId: gtmEmailDraft.outreachCampaignId,
+        companyName: gtmResearchRun.companyName,
+        companyDescription: gtmResearchRun.companyDescription,
+        contextDoc: gtmResearchRun.contextDoc,
+        synthesizedProfile: gtmResearchRun.synthesizedProfile,
       })
       .from(gtmEmailDraft)
       .innerJoin(
@@ -209,21 +245,27 @@ export async function executePollReplies(
         eq(gtmOutreachCampaign.researchRunId, gtmResearchRun.id)
       )
       .innerJoin(gtmContact, eq(gtmEmailDraft.contactId, gtmContact.id))
+      .leftJoin(
+        gtmProspectCompany,
+        eq(gtmContact.prospectCompanyId, gtmProspectCompany.id)
+      )
       .where(
         and(
           eq(gtmResearchRun.organizationId, mailbox.organizationId),
           eq(gtmEmailDraft.status, "sent"),
           gte(gtmEmailDraft.sentAt, thirtyDaysAgo),
-          options?.manualBounceDraftIds?.length
-            ? or(
-                isNull(gtmEmailDraft.lastPolledAt),
-                lt(gtmEmailDraft.lastPolledAt, minLastPolled),
-                inArray(gtmEmailDraft.id, options.manualBounceDraftIds)
-              )
-            : or(
-                isNull(gtmEmailDraft.lastPolledAt),
-                lt(gtmEmailDraft.lastPolledAt, minLastPolled)
-              )
+          options?.forcePoll
+            ? sql`TRUE`
+            : options?.manualBounceDraftIds?.length
+              ? or(
+                  isNull(gtmEmailDraft.lastPolledAt),
+                  lt(gtmEmailDraft.lastPolledAt, minLastPolled),
+                  inArray(gtmEmailDraft.id, options.manualBounceDraftIds)
+                )
+              : or(
+                  isNull(gtmEmailDraft.lastPolledAt),
+                  lt(gtmEmailDraft.lastPolledAt, minLastPolled)
+                )
         )
       );
 
@@ -246,23 +288,27 @@ export async function executePollReplies(
 
       // If threadId is not yet cached on the draft row, resolve it once
       if (!effectiveThreadId) {
-        try {
-          const msgMeta = await getGmailMessage({
-            accessToken,
-            messageId: draft.providerMessageId,
-          });
-          if (msgMeta.threadId) {
-            effectiveThreadId = msgMeta.threadId;
-            await db
-              .update(gtmEmailDraft)
-              .set({ threadId: effectiveThreadId })
-              .where(eq(gtmEmailDraft.id, draft.id));
+        if (mailbox.provider === "gmail") {
+          try {
+            const msgMeta = await getGmailMessage({
+              accessToken,
+              messageId: draft.providerMessageId,
+            });
+            if (msgMeta.threadId) {
+              effectiveThreadId = msgMeta.threadId;
+              await db
+                .update(gtmEmailDraft)
+                .set({ threadId: effectiveThreadId })
+                .where(eq(gtmEmailDraft.id, draft.id));
+            }
+          } catch (msgErr: any) {
+            console.warn(
+              `[Poll Replies] Could not resolve threadId for message ${draft.providerMessageId}:`,
+              msgErr?.message || msgErr
+            );
           }
-        } catch (msgErr: any) {
-          console.warn(
-            `[Poll Replies] Could not resolve threadId for message ${draft.providerMessageId}:`,
-            msgErr?.message || msgErr
-          );
+        } else {
+          effectiveThreadId = draft.providerMessageId;
         }
       }
 
@@ -275,16 +321,106 @@ export async function executePollReplies(
         continue;
       }
 
-      // Fetch the full Gmail thread
-      let thread;
+      // Fetch the full thread across providers (Gmail, Microsoft 365, or IMAP)
+      let thread: { id: string; messages: any[] };
       try {
-        thread = await getGmailThread({
-          accessToken,
-          threadId: effectiveThreadId,
-        });
+        if (options?.mockThreads?.has(effectiveThreadId)) {
+          thread = options.mockThreads.get(effectiveThreadId);
+        } else if (mailbox.provider === "microsoft") {
+          const msMessages = await getMicrosoftConversationMessages({
+            accessToken,
+            conversationId: effectiveThreadId,
+          });
+          thread = {
+            id: effectiveThreadId,
+            messages: msMessages.map((m) => {
+              const norm = normalizeMicrosoftMessage(m, mailbox.email);
+              return {
+                id: norm.id,
+                threadId: norm.threadId,
+                snippet: norm.snippet,
+                internalDate: String(norm.timestamp.getTime()),
+                payload: {
+                  headers: [
+                    {
+                      name: "From",
+                      value: norm.fromName ? `"${norm.fromName}" <${norm.from}>` : norm.from,
+                    },
+                    { name: "To", value: norm.to },
+                    { name: "Subject", value: norm.subject },
+                    ...Object.entries(norm.headers || {}).map(([name, value]) => ({
+                      name,
+                      value,
+                    })),
+                  ],
+                  body: { data: Buffer.from(norm.body, "utf-8").toString("base64url") },
+                },
+              };
+            }),
+          };
+        } else if (mailbox.provider === "imap_smtp") {
+          const imapMessages = await pollImapMessages({
+            mailboxId: mailbox.id,
+            sinceDate: thirtyDaysAgo,
+          });
+          const matched = imapMessages.filter(
+            (im) =>
+              im.threadId === effectiveThreadId ||
+              (draft.providerMessageId && im.headers?.["in-reply-to"] === draft.providerMessageId) ||
+              (draft.providerMessageId && im.headers?.["references"]?.includes(draft.providerMessageId)) ||
+              (im.from.toLowerCase() === draft.contactEmail?.toLowerCase() &&
+                im.subject.toLowerCase().includes(draft.subject.toLowerCase().replace(/^re:\s*/i, "")))
+          );
+
+          thread = {
+            id: effectiveThreadId,
+            messages: [
+              {
+                id: draft.providerMessageId,
+                threadId: effectiveThreadId,
+                snippet: draft.body.slice(0, 100),
+                internalDate: String(draft.sentAt ? draft.sentAt.getTime() : Date.now()),
+                payload: {
+                  headers: [
+                    { name: "From", value: mailbox.email },
+                    { name: "To", value: draft.contactEmail || "" },
+                    { name: "Subject", value: draft.subject },
+                  ],
+                  body: { data: Buffer.from(draft.body, "utf-8").toString("base64url") },
+                },
+              },
+              ...matched.map((im) => ({
+                id: im.id,
+                threadId: im.threadId,
+                snippet: im.snippet,
+                internalDate: String(im.timestamp.getTime()),
+                payload: {
+                  headers: [
+                    {
+                      name: "From",
+                      value: im.fromName ? `"${im.fromName}" <${im.from}>` : im.from,
+                    },
+                    { name: "To", value: im.to },
+                    { name: "Subject", value: im.subject },
+                    ...Object.entries(im.headers || {}).map(([name, value]) => ({
+                      name,
+                      value,
+                    })),
+                  ],
+                  body: { data: Buffer.from(im.body, "utf-8").toString("base64url") },
+                },
+              })),
+            ],
+          };
+        } else {
+          thread = await getGmailThread({
+            accessToken,
+            threadId: effectiveThreadId,
+          });
+        }
       } catch (threadErr: any) {
         console.warn(
-          `[Poll Replies] threads.get failed for thread ${effectiveThreadId}:`,
+          `[Poll Replies] Thread fetch failed for thread ${effectiveThreadId} (${mailbox.provider}):`,
           threadErr?.message || threadErr
         );
         await db
@@ -302,42 +438,45 @@ export async function executePollReplies(
         .set({ lastPolledAt: new Date() })
         .where(eq(gtmEmailDraft.id, draft.id));
 
-      const messages = thread.messages || [];
+      const messages = thread?.messages || [];
       if (messages.length <= 1) {
         // No replies in this thread yet
         continue;
       }
 
+      // Sort thread messages chronologically
+      const sortedMessages = [...messages].sort(
+        (a, b) =>
+          parseInt(a.internalDate || "0", 10) -
+          parseInt(b.internalDate || "0", 10)
+      );
 
-
-      // Filter messages sent by external parties (not this mailbox)
       const mailboxEmailNormalized = mailbox.email.trim().toLowerCase();
-      const replyMessages = messages.filter((msg) => {
-        if (msg.id === draft.providerMessageId) return false;
+      const isMsgSentByMailbox = (msg: GmailThreadMessage): boolean => {
+        if (msg.id === draft.providerMessageId) return true;
         const fromHeader = extractMessageHeader(msg, "From") || "";
-        return !fromHeader.toLowerCase().includes(mailboxEmailNormalized);
-      });
+        return fromHeader.toLowerCase().includes(mailboxEmailNormalized);
+      };
 
-      if (replyMessages.length === 0) {
+      const latestThreadMessage = sortedMessages[sortedMessages.length - 1];
+
+      // If the latest message in thread was sent by us, we are awaiting prospect response
+      if (isMsgSentByMailbox(latestThreadMessage)) {
         continue;
       }
 
-      // Step 2.5: Detect delivery failure / bounce notifications first
-      const bounceMessage = replyMessages.find(
-        (msg) => isBounceMessage(msg).isBounce
-      );
-
-      if (bounceMessage) {
+      // Check delivery failure / bounce notifications
+      const bounceCheck = isBounceMessage(latestThreadMessage);
+      if (bounceCheck.isBounce) {
         bouncesDetected++;
-        const bounceCheck = isBounceMessage(bounceMessage);
-        const bounceBody = extractMessageBody(bounceMessage);
+        const bounceBody = extractMessageBody(latestThreadMessage);
         const rawSnippet =
-          bounceMessage.snippet ||
+          latestThreadMessage.snippet ||
           bounceBody.slice(0, 500) ||
           bounceCheck.reason ||
           "Delivery Status Notification (Failure): Recipient address not found (550)";
-        const occurredAt = bounceMessage.internalDate
-          ? new Date(parseInt(bounceMessage.internalDate, 10))
+        const occurredAt = latestThreadMessage.internalDate
+          ? new Date(parseInt(latestThreadMessage.internalDate, 10))
           : new Date();
 
         await recordBounceForDraft({
@@ -345,128 +484,301 @@ export async function executePollReplies(
           rawSnippet,
           occurredAt,
         });
-
-        // Delivery failure / bounce is not a prospect reply; skip classification and auto-response
         continue;
       }
 
-      // Check idempotency: have we already recorded a 'replied' event for this draft?
-      const [existingEvent] = await db
+      // Fetch all recorded events for this draft
+      const existingEvents = await db
         .select()
         .from(gtmEmailEvent)
+        .where(eq(gtmEmailEvent.emailDraftId, draft.id))
+        .orderBy(gtmEmailEvent.occurredAt);
+
+      // Check idempotency: have we already processed this specific incoming message?
+      const alreadyProcessed = existingEvents.some(
+        (evt) =>
+          evt.providerMessageId === latestThreadMessage.id ||
+          (evt.type === "replied" &&
+            evt.rawSnippet &&
+            latestThreadMessage.snippet &&
+            evt.rawSnippet.includes(latestThreadMessage.snippet.slice(0, 50)))
+      );
+
+      if (alreadyProcessed) {
+        continue;
+      }
+
+      // Stop Condition 1: Check if contact already has a confirmed meeting booking (Cal.com webhook)
+      const [existingBooking] = await db
+        .select({ id: gtmMeeting.id, status: gtmMeeting.status })
+        .from(gtmMeeting)
         .where(
           and(
-            eq(gtmEmailEvent.emailDraftId, draft.id),
-            eq(gtmEmailEvent.type, "replied")
+            eq(gtmMeeting.contactId, draft.contactId),
+            eq(gtmMeeting.status, "booked")
           )
-        );
+        )
+        .limit(1);
 
-      if (existingEvent) {
-        // Reply was already processed previously
+      if (existingBooking) {
+        console.log(
+          `[Poll Replies] Contact ${draft.contactId} already booked meeting ${existingBooking.id}. Terminating reply loop.`
+        );
+        continue;
+      }
+
+      // Stop Condition 2: Explicit decline previously received
+      const previouslyDeclined = existingEvents.some(
+        (evt) =>
+          evt.type === "replied" && evt.classifiedIntent === "not_interested"
+      );
+      if (previouslyDeclined) {
+        console.log(
+          `[Poll Replies] Contact ${draft.contactId} previously declined outreach. Terminating reply loop.`
+        );
         continue;
       }
 
       repliesDetected++;
 
-      // Newest reply
-      const newestReply = replyMessages[replyMessages.length - 1];
-      const replyText = extractMessageBody(newestReply);
-      const rawSnippet = newestReply.snippet || replyText.slice(0, 500);
-      const occurredAt = newestReply.internalDate
-        ? new Date(parseInt(newestReply.internalDate, 10))
+      const replyText = extractMessageBody(latestThreadMessage);
+      const rawSnippet = latestThreadMessage.snippet || replyText.slice(0, 500);
+      const occurredAt = latestThreadMessage.internalDate
+        ? new Date(parseInt(latestThreadMessage.internalDate, 10))
         : new Date();
 
-      // Step 3: Intent Classification
+      // Build structured thread history across all messages
+      const conversationHistory: ConversationTurn[] = [];
+      for (const msg of sortedMessages) {
+        const sentByUs = isMsgSentByMailbox(msg);
+        const msgBody =
+          extractMessageBody(msg) ||
+          (msg.id === draft.providerMessageId
+            ? draft.body
+            : msg.snippet || "");
+        const time = msg.internalDate
+          ? new Date(parseInt(msg.internalDate, 10))
+          : undefined;
+
+        if (sentByUs) {
+          conversationHistory.push({
+            role: "agent",
+            senderName: "Our Team",
+            body: msgBody,
+            timestamp: time,
+          });
+        } else {
+          const matchingEvt = existingEvents.find(
+            (e) => e.providerMessageId === msg.id
+          );
+          conversationHistory.push({
+            role: "prospect",
+            senderName: draft.contactName,
+            body: msgBody,
+            timestamp: time,
+            intent: (matchingEvt?.classifiedIntent as ReplyIntent) || null,
+          });
+        }
+      }
+
+      // Classify latest prospect message with full thread context
       const classification = await classifyReplyIntent({
         replyText: replyText || rawSnippet,
         originalSubject: draft.subject,
         originalBody: draft.body,
+        conversationHistory,
       });
 
-      // Store the gtm_email_event row
-      await db.insert(gtmEmailEvent).values({
-        emailDraftId: draft.id,
-        type: "replied",
-        classifiedIntent: classification.intent,
-        rawSnippet: rawSnippet.slice(0, 2000),
-        occurredAt,
-      });
+      // Handle auto_reply (out-of-office): record event but do NOT count as turn or send follow-up
+      if (classification.intent === "auto_reply") {
+        await db.insert(gtmEmailEvent).values({
+          emailDraftId: draft.id,
+          type: "replied",
+          classifiedIntent: "auto_reply",
+          rawSnippet: rawSnippet.slice(0, 2000),
+          providerMessageId: latestThreadMessage.id,
+          occurredAt,
+        });
+        continue;
+      }
 
-      // Step 4: Auto-response for 'interested' replies
+      // Handle explicit decline: record event, mark draft, stop permanently
+      if (classification.intent === "not_interested") {
+        await db.insert(gtmEmailEvent).values({
+          emailDraftId: draft.id,
+          type: "replied",
+          classifiedIntent: "not_interested",
+          rawSnippet: rawSnippet.slice(0, 2000),
+          providerMessageId: latestThreadMessage.id,
+          metadata: {
+            intentReasoning: classification.reasoning,
+          },
+          occurredAt,
+        });
+        await db
+          .update(gtmEmailDraft)
+          .set({
+            errorMessage: "Prospect explicitly declined outreach (not_interested)",
+          })
+          .where(eq(gtmEmailDraft.id, draft.id));
+        continue;
+      }
+
+      // Turn Cap Check: count how many outbound negotiation turns have been sent after the initial email
+      const outboundFollowUpsSent = sortedMessages.filter(
+        (m) => isMsgSentByMailbox(m) && m.id !== draft.providerMessageId
+      ).length;
+
+      const maxTurns = options?.maxNegotiationTurns ?? MAX_NEGOTIATION_TURNS;
+
+      if (outboundFollowUpsSent >= maxTurns) {
+        console.log(
+          `[Poll Replies] Draft ${draft.id} reached maximum negotiation turns (${outboundFollowUpsSent}/${maxTurns}). Flagging for human attention.`
+        );
+        await db.insert(gtmEmailEvent).values({
+          emailDraftId: draft.id,
+          type: "replied",
+          classifiedIntent: classification.intent,
+          rawSnippet: rawSnippet.slice(0, 2000),
+          providerMessageId: latestThreadMessage.id,
+          metadata: {
+            intentReasoning: classification.reasoning,
+            turnCapExhausted: true,
+          },
+          occurredAt,
+        });
+        await db
+          .update(gtmEmailDraft)
+          .set({
+            errorMessage: `Needs human attention: reached maximum negotiation turns (${maxTurns})`,
+            negotiationTurns: outboundFollowUpsSent,
+          })
+          .where(eq(gtmEmailDraft.id, draft.id));
+        continue;
+      }
+
+      // Send auto-response for interested, question, or unclear
+      const todayStr = new Date().toISOString().slice(0, 10);
+      let currentDailyCount =
+        mailbox.lastSendResetDate === todayStr ? mailbox.dailySendCount : 0;
+
+      if (currentDailyCount >= DAILY_SEND_CAP) {
+        console.warn(
+          `[Poll Replies] Daily send cap reached for mailbox ${mailbox.email} (${currentDailyCount}/${DAILY_SEND_CAP}). Skipping auto-response.`
+        );
+        continue;
+      }
+
+      const bookingUrl =
+        process.env.CALCOM_BOOKING_URL || "https://cal.com/sales-team/15min";
+
+      let replyBody: string;
+
       if (classification.intent === "interested") {
-        const todayStr = new Date().toISOString().slice(0, 10);
-        let currentDailyCount =
-          mailbox.lastSendResetDate === todayStr ? mailbox.dailySendCount : 0;
-
-        if (currentDailyCount >= DAILY_SEND_CAP) {
-          console.warn(
-            `[Poll Replies] Daily send cap reached for mailbox ${mailbox.email} (${currentDailyCount}/${DAILY_SEND_CAP}). Skipping auto-response.`
-          );
-          continue;
-        }
-
-        const bookingUrl =
-          process.env.CALCOM_BOOKING_URL || "https://cal.com/sales-team/15min";
-
-        const replyBody = await composeInterestedBookingReply({
+        replyBody = await composeInterestedBookingReply({
           recipientName: draft.contactName,
           bookingUrl,
           replyText,
+          conversationHistory,
         });
+      } else {
+        // 'question' or 'unclear' (objections, inquiries, next quarter)
+        replyBody = await composeNegotiationReply({
+          recipientName: draft.contactName,
+          contactTitle: draft.contactTitle,
+          prospectCompanyName: draft.prospectCompanyName,
+          conversationHistory,
+          latestReplyText: replyText || rawSnippet,
+          classifiedIntent: classification.intent,
+          groundedContext: {
+            companyName: draft.companyName,
+            companyDescription: draft.companyDescription,
+            productFocus: draft.synthesizedProfile?.productFocus,
+            targetCustomerLanguage:
+              draft.synthesizedProfile?.targetCustomerLanguage,
+            synthesizedProfileSummary: draft.synthesizedProfile?.summary,
+            contextDoc: draft.contextDoc,
+            bookingUrl,
+          },
+        });
+      }
 
-        const fromHeader = extractMessageHeader(newestReply, "From") || "";
-        const emailMatch = fromHeader.match(/<([^>]+)>/);
-        const recipientEmail = emailMatch
-          ? emailMatch[1].trim()
-          : draft.contactEmail || fromHeader.trim();
+      const fromHeader = extractMessageHeader(latestThreadMessage, "From") || "";
+      const emailMatch = fromHeader.match(/<([^>]+)>/);
+      const recipientEmail = emailMatch
+        ? emailMatch[1].trim()
+        : draft.contactEmail || fromHeader.trim();
 
-        const cleanSubject = draft.subject.toLowerCase().startsWith("re:")
-          ? draft.subject
-          : `Re: ${draft.subject}`;
+      const cleanSubject = draft.subject.toLowerCase().startsWith("re:")
+        ? draft.subject
+        : `Re: ${draft.subject}`;
 
-        try {
-          await sendGmailMessage({
+      try {
+        if (options?.mockSender) {
+          await options.mockSender({
             accessToken,
             to: recipientEmail,
             subject: cleanSubject,
             body: replyBody,
             fromEmail: mailbox.email,
             threadId: effectiveThreadId,
-            inReplyTo: newestReply.id,
-            references: newestReply.id,
+            inReplyTo: latestThreadMessage.id,
+            references: latestThreadMessage.id,
           });
-
-          autoRepliesSent++;
-
-          // Increment daily count
-          currentDailyCount += 1;
-          await db
-            .update(gtmConnectedMailbox)
-            .set({
-              dailySendCount: currentDailyCount,
-              lastSendResetDate: todayStr,
-              updatedAt: new Date(),
-            })
-            .where(eq(gtmConnectedMailbox.id, mailbox.id));
-        } catch (sendErr: any) {
-          console.error(
-            `[Poll Replies] Failed to send interested auto-reply for draft ${draft.id}:`,
-            sendErr?.message || sendErr
-          );
+        } else {
+          await sendEmailThroughMailbox({
+            mailbox,
+            to: recipientEmail,
+            subject: cleanSubject,
+            body: replyBody,
+            threadId: effectiveThreadId,
+            inReplyTo: latestThreadMessage.id,
+            references: latestThreadMessage.id,
+          });
         }
-      } else if (
-        classification.intent === "question" ||
-        classification.intent === "unclear"
-      ) {
-        // Flag for human attention
+
+        autoRepliesSent++;
+        currentDailyCount += 1;
+
+        await db
+          .update(gtmConnectedMailbox)
+          .set({
+            dailySendCount: currentDailyCount,
+            lastSendResetDate: todayStr,
+            updatedAt: new Date(),
+          })
+          .where(eq(gtmConnectedMailbox.id, mailbox.id));
+
+        const newTurnNumber = outboundFollowUpsSent + 1;
+
+        await db.insert(gtmEmailEvent).values({
+          emailDraftId: draft.id,
+          type: "replied",
+          classifiedIntent: classification.intent,
+          rawSnippet: rawSnippet.slice(0, 2000),
+          providerMessageId: latestThreadMessage.id,
+          metadata: {
+            agentReplyBody: replyBody,
+            turnNumber: newTurnNumber,
+            intentReasoning: classification.reasoning,
+          },
+          occurredAt,
+        });
+
         await db
           .update(gtmEmailDraft)
           .set({
-            errorMessage: `Needs human attention: classified as '${classification.intent}'`,
+            negotiationTurns: newTurnNumber,
+            errorMessage: null,
+            lastPolledAt: new Date(),
           })
           .where(eq(gtmEmailDraft.id, draft.id));
+      } catch (sendErr: any) {
+        console.error(
+          `[Poll Replies] Failed to send auto-reply for draft ${draft.id}:`,
+          sendErr?.message || sendErr
+        );
       }
-      // 'not_interested' and 'auto_reply' simply stop after recording event
     }
   }
 
