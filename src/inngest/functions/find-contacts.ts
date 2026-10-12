@@ -14,7 +14,9 @@ import {
   FirecrawlRateLimitError,
   FirecrawlCallCapExceededError,
   FirecrawlSpendPausedError,
+  isAggregatorOrReviewDomain,
 } from "@/lib/firecrawl"
+import { checkSuppression, recordSuppressionEntry } from "@/lib/gtm-suppression"
 import { deriveTargetJobFunction } from "@/lib/gtm-ai"
 import {
   checkDomainMxRecords,
@@ -191,14 +193,59 @@ export async function executeFindContacts(
   }
 
   for (const comp of companies) {
-    let personName = ""
-    let personTitle = targetRole.jobFunctions[0] || "Leader"
-    let linkedinUrl: string | null = null
-
     const cleanCompanyName = comp.name
       .replace(/\s*[-–|:].*$/, "")
       .replace(/\s+(Inc|LLC|PLLC|Services|Platform|Practice)$/i, "")
       .trim()
+
+    // 0. Platform-Wide Domain Suppression & Aggregator Check
+    const domainSuppressed = await checkSuppression({ domain: comp.domain })
+    const isAggregator = isAggregatorOrReviewDomain(comp.domain)
+
+    if (domainSuppressed || isAggregator) {
+      if (isAggregator && !domainSuppressed) {
+        await recordSuppressionEntry({
+          email: null,
+          domain: comp.domain,
+          reason: "aggregator_domain",
+          sourceOrgId: researchRun.organizationId,
+          rawSnippet: `Aggregator domain ${comp.domain}`,
+        })
+      }
+      console.log(
+        `[Stage 5] Domain ${comp.domain} is suppressed (${domainSuppressed?.reason || "aggregator_domain"}). Skipping external Firecrawl and enrich.so lookups.`
+      )
+      const [contact] = await db
+        .insert(gtmContact)
+        .values({
+          prospectCompanyId: comp.id,
+          name: `${cleanCompanyName} Team`,
+          title: targetRole.jobFunctions[0] || "Leadership",
+          linkedinUrl: null,
+          email: null,
+          emailSource: "none",
+          verificationStatus: "unverified",
+          enrichMetadata: null,
+          geo: "United States",
+        })
+        .returning()
+
+      insertedContacts.push({
+        id: contact.id,
+        name: contact.name,
+        title: contact.title,
+        email: contact.email,
+        emailSource: contact.emailSource,
+        companyId: comp.id,
+        companyName: comp.name,
+        companyDescription: comp.description,
+      })
+      continue
+    }
+
+    let personName = ""
+    let personTitle = targetRole.jobFunctions[0] || "Leader"
+    let linkedinUrl: string | null = null
 
     const candidates: TeamCandidate[] = []
 
@@ -368,33 +415,80 @@ export async function executeFindContacts(
     if (!resolvedEmail && isValidPersonName(personName)) {
       const guesses = generateEmailGuesses(personName, comp.domain)
       if (guesses.length > 0) {
-        const hasMx = await checkDomainMxRecords(comp.domain)
-        resolvedEmail = guesses[0]
-        emailSource = hasMx
-          ? "pattern_guessed_mx_valid"
-          : "pattern_guessed_unverified"
+        const candidateEmail = guesses[0]
+        const suppressed = await checkSuppression({
+          email: candidateEmail,
+          domain: comp.domain,
+        })
+
+        if (suppressed) {
+          console.log(
+            `[Stage 5] Contact ${candidateEmail} is previously suppressed (${suppressed.reason}). Skipping MX check and enrich.so lookup.`
+          )
+          resolvedEmail = candidateEmail
+          emailSource = "none"
+        } else {
+          const hasMx = await checkDomainMxRecords(comp.domain)
+          resolvedEmail = candidateEmail
+          if (!hasMx) {
+            await recordSuppressionEntry({
+              email: candidateEmail,
+              domain: comp.domain,
+              reason: "mx_invalid",
+              sourceOrgId: researchRun.organizationId,
+              rawSnippet: `MX check failed for ${comp.domain}`,
+            })
+          }
+          emailSource = hasMx
+            ? "pattern_guessed_mx_valid"
+            : "pattern_guessed_unverified"
+        }
       }
     }
 
     // Step c: paid enrich.so verification, layered over the completed free chain.
-    ;({
-      email: resolvedEmail,
-      emailSource,
-      enrichMetadata,
-    } = await enrichStage5Email({
-      email: resolvedEmail,
-      emailSource,
-      personName,
-      domain: comp.domain,
-      organizationId: researchRun.organizationId,
-      step,
-    }))
+    const isSuppressedForEnrich = resolvedEmail
+      ? await checkSuppression({ email: resolvedEmail, domain: comp.domain })
+      : null
+
+    if (!isSuppressedForEnrich && emailSource !== "none") {
+      ;({
+        email: resolvedEmail,
+        emailSource,
+        enrichMetadata,
+      } = await enrichStage5Email({
+        email: resolvedEmail,
+        emailSource,
+        personName,
+        domain: comp.domain,
+        organizationId: researchRun.organizationId,
+        step,
+      }))
+    } else if (isSuppressedForEnrich) {
+      console.log(
+        `[Stage 5] Skipping enrich.so for ${resolvedEmail} — contact is previously suppressed (${isSuppressedForEnrich.reason}).`
+      )
+    }
 
     // Step d: Company-level fallback (info@/hello@/contact@)
     if (!resolvedEmail) {
-      const hasMx = await checkDomainMxRecords(comp.domain).catch(() => false)
-      resolvedEmail = `contact@${comp.domain}`
-      emailSource = hasMx ? "company_fallback" : "pattern_guessed_unverified"
+      const fallbackEmail = `contact@${comp.domain}`
+      const fallbackSuppressed = await checkSuppression({
+        email: fallbackEmail,
+        domain: comp.domain,
+      })
+
+      if (fallbackSuppressed) {
+        console.log(
+          `[Stage 5] Fallback contact ${fallbackEmail} is previously suppressed (${fallbackSuppressed.reason}). Skipping MX check.`
+        )
+        resolvedEmail = fallbackEmail
+        emailSource = "none"
+      } else {
+        const hasMx = await checkDomainMxRecords(comp.domain).catch(() => false)
+        resolvedEmail = fallbackEmail
+        emailSource = hasMx ? "company_fallback" : "pattern_guessed_unverified"
+      }
     }
 
     const [contact] = await db
