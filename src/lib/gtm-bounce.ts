@@ -10,16 +10,42 @@ export interface BounceDetectionResult {
   statusCode?: string;
 }
 
+export interface InspectableMessage {
+  id?: string;
+  from?: string;
+  subject?: string;
+  snippet?: string;
+  body?: string;
+  payload?: any;
+  headers?: Record<string, string>;
+}
+
 /**
- * Inspects a Gmail message object to determine if it represents a delivery failure (bounce) notification.
- * Checks sender (mailer-daemon/Mail Delivery Subsystem), subject patterns, SMTP 55x status codes,
+ * Inspects an email message object to determine if it represents a delivery failure (bounce) notification.
+ * Works across Gmail, Microsoft 365, and IMAP/SMTP messages.
+ * Checks sender (mailer-daemon/Mail Delivery Subsystem/postmaster), subject patterns, SMTP 55x status codes,
  * and standard bounce failure phrases.
  */
-export function isBounceMessage(msg: GmailThreadMessage): BounceDetectionResult {
-  const fromHeader = (extractMessageHeader(msg, "From") || "").toLowerCase();
-  const subjectHeader = (extractMessageHeader(msg, "Subject") || "").toLowerCase();
+export function isBounceMessage(msg: InspectableMessage | GmailThreadMessage): BounceDetectionResult {
+  const fromHeader = (
+    ("from" in msg && typeof msg.from === "string" && msg.from) ||
+    extractMessageHeader(msg as GmailThreadMessage, "From") ||
+    ""
+  ).toLowerCase();
+
+  const subjectHeader = (
+    ("subject" in msg && typeof msg.subject === "string" && msg.subject) ||
+    extractMessageHeader(msg as GmailThreadMessage, "Subject") ||
+    ""
+  ).toLowerCase();
+
   const snippet = (msg.snippet || "").toLowerCase();
-  const body = (extractMessageBody(msg) || "").toLowerCase();
+  const body = (
+    ("body" in msg && typeof msg.body === "string" && msg.body) ||
+    extractMessageBody(msg as GmailThreadMessage) ||
+    ""
+  ).toLowerCase();
+
   const combinedText = `${fromHeader} ${subjectHeader} ${snippet} ${body}`;
 
   // 1. Sender indicators

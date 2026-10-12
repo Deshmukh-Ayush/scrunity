@@ -180,6 +180,10 @@ if (!clientId || !clientSecret) {
   );
 }
 
+  if (!mailbox.encryptedRefreshToken) {
+    throw new Error(`Connected mailbox (${mailbox.email}) has no refresh token`);
+  }
+
   const plainRefreshToken = decryptToken(mailbox.encryptedRefreshToken);
 
   const refreshResponse = await fetch(GOOGLE_TOKEN_ENDPOINT, {
