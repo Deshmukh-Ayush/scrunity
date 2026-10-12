@@ -65,10 +65,13 @@ export async function GET(req: NextRequest) {
       await db
         .update(gtmConnectedMailbox)
         .set({
+          provider: "gmail",
           email: tokens.email,
           encryptedRefreshToken,
           encryptedAccessToken,
           accessTokenExpiresAt,
+          encryptedPassword: null,
+          metadata: null,
           status: "connected",
           connectedBy: userId,
           updatedAt: new Date(),
@@ -88,7 +91,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.redirect(
-      new URL("/dashboard/campaigns?mailbox_connected=true", origin)
+      new URL("/dashboard/mailbox?tab=settings&mailbox_connected=true", origin)
     );
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to connect mailbox";

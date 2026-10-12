@@ -76,7 +76,9 @@ export async function GET(req: NextRequest) {
       .select({
         id: gtmConnectedMailbox.id,
         email: gtmConnectedMailbox.email,
+        provider: gtmConnectedMailbox.provider,
         status: gtmConnectedMailbox.status,
+        metadata: gtmConnectedMailbox.metadata,
       })
       .from(gtmConnectedMailbox)
       .where(eq(gtmConnectedMailbox.organizationId, auth.orgId));
@@ -148,6 +150,7 @@ export async function GET(req: NextRequest) {
         type: gtmEmailEvent.type,
         classifiedIntent: gtmEmailEvent.classifiedIntent,
         rawSnippet: gtmEmailEvent.rawSnippet,
+        metadata: gtmEmailEvent.metadata,
         occurredAt: gtmEmailEvent.occurredAt,
       })
       .from(gtmEmailEvent)
@@ -198,6 +201,21 @@ export async function GET(req: NextRequest) {
           isOutbound: false,
           classifiedIntent: reply.classifiedIntent,
         });
+
+        if (reply.metadata?.agentReplyBody) {
+          messages.push({
+            id: `${reply.id}-agent-followup`,
+            from: mailboxEmail,
+            fromName: "You",
+            to: d.contactEmail || "prospect@company.com",
+            toName: d.contactName,
+            timestamp: new Date(
+              new Date(reply.occurredAt).getTime() + 1000
+            ).toISOString(),
+            body: reply.metadata.agentReplyBody,
+            isOutbound: true,
+          });
+        }
       }
 
       for (const bounce of bounceEvents) {

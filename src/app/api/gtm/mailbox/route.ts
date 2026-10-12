@@ -23,6 +23,7 @@ export async function GET() {
         dailySendCount: gtmConnectedMailbox.dailySendCount,
         lastSendResetDate: gtmConnectedMailbox.lastSendResetDate,
         connectedAt: gtmConnectedMailbox.connectedAt,
+        metadata: gtmConnectedMailbox.metadata,
       })
       .from(gtmConnectedMailbox)
       .where(eq(gtmConnectedMailbox.organizationId, auth.orgId));
