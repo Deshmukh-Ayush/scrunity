@@ -1,7 +1,20 @@
 import { db } from "@/utils/db";
-import { gtmEmailDraft, gtmContact, gtmProspectCompany, gtmOutreachCampaign } from "@/db/schema";
+import {
+  gtmEmailDraft,
+  gtmContact,
+  gtmProspectCompany,
+  gtmOutreachCampaign,
+  gtmResearchRun,
+} from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { scoreTitleMatch, TitleMatchResult, isValidPersonName } from "./gtm-contact-matcher";
+import { isAggregatorOrReviewDomain } from "./firecrawl";
+import {
+  checkSuppression,
+  recordSuppressionEntry,
+  getSuppressionDisqualificationMessage,
+  type SuppressionReason,
+} from "./gtm-suppression";
 
 import {
   type ContactGateData,
@@ -133,25 +146,94 @@ export async function executeQualifyCampaignContacts(outreachCampaignId: string)
   let disqualifiedCount = 0;
   const newlyDisqualified: Array<{ contactId: string; name: string; reason: string }> = [];
 
-  for (const { contact } of contactsWithCompany) {
-    // 1. Valid person name check
-    if (!isValidPersonName(contact.name)) {
+  const [campaignRun] = await db
+    .select({
+      organizationId: gtmResearchRun.organizationId,
+    })
+    .from(gtmOutreachCampaign)
+    .innerJoin(
+      gtmResearchRun,
+      eq(gtmOutreachCampaign.researchRunId, gtmResearchRun.id)
+    )
+    .where(eq(gtmOutreachCampaign.id, outreachCampaignId));
+  const sourceOrgId = campaignRun?.organizationId || null;
+
+  for (const { contact, company } of contactsWithCompany) {
+    // 0. Platform-Wide Suppression Check (negative cache)
+    const suppression = await checkSuppression({
+      email: contact.email,
+      domain: company.domain,
+    });
+    if (suppression) {
       disqualifiedCount++;
+      const reason = getSuppressionDisqualificationMessage(suppression);
       await disqualifyContactInDb({
         contactId: contact.id,
         outreachCampaignId,
         contactName: contact.name,
-        reason: "contact name invalid — pending re-discovery",
+        reason,
       });
       newlyDisqualified.push({
         contactId: contact.id,
         name: contact.name,
-        reason: "contact name invalid — pending re-discovery",
+        reason,
       });
       continue;
     }
 
-    // 2. Stage 5.5 Hard Gates Check
+    // 1. Aggregator or directory domain check
+    if (isAggregatorOrReviewDomain(company.domain)) {
+      disqualifiedCount++;
+      const reason = "Domain is an aggregator or review directory";
+      await disqualifyContactInDb({
+        contactId: contact.id,
+        outreachCampaignId,
+        contactName: contact.name,
+        reason,
+      });
+      await recordSuppressionEntry({
+        email: null,
+        domain: company.domain,
+        reason: "aggregator_domain",
+        sourceOrgId,
+        sourceContactId: contact.id,
+        rawSnippet: `Aggregator domain ${company.domain}`,
+      });
+      newlyDisqualified.push({
+        contactId: contact.id,
+        name: contact.name,
+        reason,
+      });
+      continue;
+    }
+
+    // 2. Valid person name check
+    if (!isValidPersonName(contact.name)) {
+      disqualifiedCount++;
+      const reason = "contact name invalid — pending re-discovery";
+      await disqualifyContactInDb({
+        contactId: contact.id,
+        outreachCampaignId,
+        contactName: contact.name,
+        reason,
+      });
+      await recordSuppressionEntry({
+        email: contact.email,
+        domain: company.domain,
+        reason: "invalid_contact_name",
+        sourceOrgId,
+        sourceContactId: contact.id,
+        rawSnippet: contact.name,
+      });
+      newlyDisqualified.push({
+        contactId: contact.id,
+        name: contact.name,
+        reason,
+      });
+      continue;
+    }
+
+    // 3. Stage 5.5 Hard Gates Check
     const gateCheck = checkLeadQualificationGates(contact);
     if (!gateCheck.qualified) {
       disqualifiedCount++;
@@ -162,6 +244,24 @@ export async function executeQualifyCampaignContacts(outreachCampaignId: string)
         contactName: contact.name,
         reason,
       });
+
+      // Record hard disqualification negative findings to platform-wide suppression
+      let suppressionReason: SuppressionReason = "mx_invalid";
+      if (gateCheck.failedGate === "linkedin") {
+        suppressionReason = "no_linkedin_found";
+      } else if (gateCheck.failedGate === "email_confidence") {
+        suppressionReason = "mx_invalid";
+      }
+
+      await recordSuppressionEntry({
+        email: contact.email,
+        domain: company.domain,
+        reason: suppressionReason,
+        sourceOrgId,
+        sourceContactId: contact.id,
+        rawSnippet: reason,
+      });
+
       newlyDisqualified.push({
         contactId: contact.id,
         name: contact.name,
