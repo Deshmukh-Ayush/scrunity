@@ -583,6 +583,7 @@ export const gtmEmailDraft = pgTable(
     sentAt: timestamp("sent_at"),
     lastPolledAt: timestamp("last_polled_at"),
     errorMessage: text("error_message"),
+    negotiationTurns: integer("negotiation_turns").default(0).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     reviewedBy: text("reviewed_by").references(() => user.id, {
       onDelete: "set null",
@@ -596,6 +597,23 @@ export const gtmEmailDraft = pgTable(
   ]
 )
 
+export interface MailboxMetadata {
+  smtp?: {
+    host: string;
+    port: number;
+    secure: boolean;
+    user: string;
+  };
+  imap?: {
+    host: string;
+    port: number;
+    secure: boolean;
+    user: string;
+  };
+  microsoftTenantId?: string;
+  providerDisplayName?: string;
+}
+
 export const gtmConnectedMailbox = pgTable(
   "gtm_connected_mailbox",
   {
@@ -607,9 +625,11 @@ export const gtmConnectedMailbox = pgTable(
       .references(() => organization.id, { onDelete: "cascade" }),
     provider: text("provider").default("gmail").notNull(),
     email: text("email").notNull(),
-    encryptedRefreshToken: text("encrypted_refresh_token").notNull(),
+    encryptedRefreshToken: text("encrypted_refresh_token"),
     encryptedAccessToken: text("encrypted_access_token"),
     accessTokenExpiresAt: timestamp("access_token_expires_at"),
+    encryptedPassword: text("encrypted_password"),
+    metadata: jsonb("metadata").$type<MailboxMetadata>(),
     status: text("status", {
       enum: ["connected", "revoked"],
     })
@@ -648,11 +668,19 @@ export const gtmEmailEvent = pgTable(
       ],
     }),
     rawSnippet: text("raw_snippet"),
+    providerMessageId: text("provider_message_id"),
+    metadata: jsonb("metadata").$type<{
+      agentReplyBody?: string;
+      turnNumber?: number;
+      intentReasoning?: string;
+      [key: string]: any;
+    }>(),
     occurredAt: timestamp("occurred_at").defaultNow().notNull(),
   },
   (table) => [
     index("gtm_email_event_draft_idx").on(table.emailDraftId),
     index("gtm_email_event_type_idx").on(table.type),
+    index("gtm_email_event_provider_msg_idx").on(table.providerMessageId),
   ]
 )
 
