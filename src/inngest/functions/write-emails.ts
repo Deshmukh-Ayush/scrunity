@@ -87,6 +87,25 @@ export async function executeWriteEmails(
         eq(gtmEmailDraft.contactId, contact.id)
       );
 
+    // Platform-wide suppression check
+    const { checkSuppression, getSuppressionDisqualificationMessage } = await import("@/lib/gtm-suppression");
+    const suppression = await checkSuppression({
+      email: contact.email,
+      domain: item.company.domain,
+    });
+    if (suppression) {
+      if (!existingRejected) {
+        const reason = getSuppressionDisqualificationMessage(suppression);
+        await disqualifyContactInDb({
+          contactId: contact.id,
+          outreachCampaignId,
+          contactName: contact.name,
+          reason,
+        });
+      }
+      continue;
+    }
+
     // Guardrail: Invalid person name
     if (!isValidPersonName(contact.name)) {
       if (!existingRejected) {
