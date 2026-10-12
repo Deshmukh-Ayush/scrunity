@@ -513,6 +513,45 @@ export const gtmContact = pgTable(
   (table) => [index("gtm_contact_company_idx").on(table.prospectCompanyId)]
 )
 
+export const gtmSuppressionEntry = pgTable(
+  "gtm_suppression_entry",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    email: text("email"),
+    domain: text("domain").notNull(),
+    reason: text("reason", {
+      enum: [
+        "hard_bounce",
+        "invalid_contact_name",
+        "no_linkedin_found",
+        "aggregator_domain",
+        "mx_invalid",
+        "duplicate",
+      ],
+    }).notNull(),
+    sourceOrgId: text("source_org_id"),
+    sourceContactId: text("source_contact_id"),
+    isRealSendBounce: boolean("is_real_send_bounce").default(false).notNull(),
+    statusCode: text("status_code"),
+    rawSnippet: text("raw_snippet"),
+    metadata: jsonb("metadata").$type<{
+      bounceMessageId?: string;
+      occurredAt?: string;
+      reasonDescription?: string;
+      [key: string]: any;
+    }>(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("gtm_suppression_email_idx").on(table.email),
+    index("gtm_suppression_domain_idx").on(table.domain),
+    index("gtm_suppression_reason_idx").on(table.reason),
+    index("gtm_suppression_email_reason_idx").on(table.email, table.reason),
+  ]
+)
+
 export const gtmEmailDraft = pgTable(
   "gtm_email_draft",
   {

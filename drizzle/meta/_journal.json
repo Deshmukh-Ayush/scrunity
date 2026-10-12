@@ -141,6 +141,13 @@
       "when": 1791667809263,
       "tag": "0019_loud_colonel_america",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791790542169,
+      "tag": "0020_tricky_night_thrasher",
+      "breakpoints": true
     }
   ]
 }
