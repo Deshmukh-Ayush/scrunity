@@ -22,6 +22,9 @@ import {
   ChevronRight,
   User,
   Info,
+  Server,
+  Check,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,8 +36,15 @@ import type { MailboxThread, MailboxMessage } from "@/app/api/gtm/mailbox/thread
 interface ConnectedMailboxInfo {
   id: string;
   email: string;
+  provider?: string;
   status: string;
   dailySendCount?: number;
+  metadata?: {
+    smtp?: { host: string; port: number; secure: boolean; user: string };
+    imap?: { host: string; port: number; secure: boolean; user: string };
+    microsoftTenantId?: string;
+    providerDisplayName?: string;
+  };
 }
 
 export function MailboxClient() {
@@ -63,6 +73,82 @@ export function MailboxClient() {
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [replyText, setReplyText] = React.useState("");
   const [isMuted, setIsMuted] = React.useState(false);
+
+  // URL notification params
+  const errorParam = searchParams?.get("error");
+  const connectedParam = searchParams?.get("mailbox_connected");
+
+  // IMAP/SMTP Connection State
+  const [showImapSmtpForm, setShowImapSmtpForm] = React.useState(false);
+  const [imapSmtpData, setImapSmtpData] = React.useState({
+    email: "",
+    displayName: "",
+    smtpHost: "",
+    smtpPort: "587",
+    smtpSecure: false,
+    smtpUser: "",
+    smtpPass: "",
+    sameCredentials: true,
+    imapHost: "",
+    imapPort: "993",
+    imapSecure: true,
+    imapUser: "",
+    imapPass: "",
+  });
+  const [isConnectingImapSmtp, setIsConnectingImapSmtp] = React.useState(false);
+  const [imapSmtpError, setImapSmtpError] = React.useState<string | null>(null);
+  const [imapSmtpSuccess, setImapSmtpSuccess] = React.useState<string | null>(null);
+
+  const handleConnectImapSmtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsConnectingImapSmtp(true);
+    setImapSmtpError(null);
+    setImapSmtpSuccess(null);
+
+    try {
+      const payload = {
+        email: imapSmtpData.email.trim(),
+        displayName: imapSmtpData.displayName.trim() || undefined,
+        smtp: {
+          host: imapSmtpData.smtpHost.trim(),
+          port: parseInt(imapSmtpData.smtpPort, 10),
+          secure: Boolean(imapSmtpData.smtpSecure),
+          user: (imapSmtpData.smtpUser || imapSmtpData.email).trim(),
+          pass: imapSmtpData.smtpPass,
+        },
+        imap: {
+          host: imapSmtpData.imapHost.trim(),
+          port: parseInt(imapSmtpData.imapPort, 10),
+          secure: Boolean(imapSmtpData.imapSecure),
+          user: (imapSmtpData.sameCredentials
+            ? imapSmtpData.smtpUser || imapSmtpData.email
+            : imapSmtpData.imapUser || imapSmtpData.email).trim(),
+          pass: imapSmtpData.sameCredentials
+            ? imapSmtpData.smtpPass
+            : imapSmtpData.imapPass,
+        },
+      };
+
+      const res = await fetch("/api/gtm/mailbox/imap-smtp/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to connect mailbox");
+      }
+
+      setImapSmtpSuccess("Mailbox connected successfully!");
+      setShowImapSmtpForm(false);
+      await loadThreads();
+    } catch (err: any) {
+      setImapSmtpError(err.message || "Failed to connect mailbox");
+    } finally {
+      setIsConnectingImapSmtp(false);
+    }
+  };
 
   // Load threads
   const loadThreads = React.useCallback(async (silent = false) => {
@@ -269,32 +355,78 @@ export function MailboxClient() {
       {/* ─── TAB CONTENT ─── */}
       {activeTab === "settings" ? (
         /* Mailbox Settings Screen */
-        <div className="p-6 max-w-3xl mx-auto space-y-6 w-full">
+        <div className="p-6 max-w-4xl mx-auto space-y-6 w-full">
+          {/* Status Alerts from URL Callback */}
+          {connectedParam && (
+            <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex items-start gap-3 text-emerald-800 dark:text-emerald-200">
+              <CheckCircle2 className="size-5 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
+              <div className="space-y-0.5 text-xs">
+                <p className="font-semibold">Mailbox Connected Successfully</p>
+                <p className="text-muted-foreground">
+                  Your sending mailbox is verified. Throttled stage 7 campaign sends and stage 8 autonomous reply triage are now active.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {errorParam && (
+            <div className="p-4 rounded-xl border border-rose-500/30 bg-rose-500/10 flex items-start gap-3 text-rose-800 dark:text-rose-200">
+              <AlertCircle className="size-5 shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
+              <div className="space-y-0.5 text-xs">
+                <p className="font-semibold">Mailbox Connection Error</p>
+                <p className="text-muted-foreground">
+                  {decodeURIComponent(errorParam)}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {imapSmtpSuccess && (
+            <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex items-start gap-3 text-emerald-800 dark:text-emerald-200">
+              <CheckCircle2 className="size-5 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
+              <div className="space-y-0.5 text-xs">
+                <p className="font-semibold">{imapSmtpSuccess}</p>
+                <p className="text-muted-foreground">
+                  SMTP outbound transport and IMAP inbox reading are verified and ready.
+                </p>
+              </div>
+            </div>
+          )}
+
           <Card>
             <CardContent className="p-6 space-y-6">
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Connected Sending Mailbox</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Google Workspace or Gmail account used for throttled stage 7 cold outreach dispatch and stage 8 reply polling.
+                  Account used for throttled stage 7 cold outreach dispatch and stage 8 autonomous reply triage.
                 </p>
               </div>
 
               {mailbox && mailbox.status === "connected" ? (
-                <div className="rounded-lg border border-border/80 p-4 bg-muted/20 space-y-4">
-                  <div className="flex items-center justify-between">
+                <div className="rounded-xl border border-border/80 p-5 bg-muted/20 space-y-4">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                        <CheckCircle2 className="size-4" />
+                      <div className="p-2.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <CheckCircle2 className="size-5" />
                       </div>
                       <div>
                         <div className="font-semibold text-xs text-foreground flex items-center gap-2">
                           <span>{mailbox.email}</span>
-                          <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 text-[10px]">
-                            Connected
+                          <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 text-[10px] font-medium">
+                            {mailbox.provider === "microsoft"
+                              ? "Microsoft 365 / Outlook"
+                              : mailbox.provider === "imap_smtp"
+                                ? "Generic IMAP / SMTP"
+                                : "Google Workspace"}
                           </Badge>
                         </div>
-                        <div className="text-[11px] text-muted-foreground mt-0.5">
-                          Provider: Gmail OAuth 2.0 (send & readonly permissions)
+                        <div className="text-[11px] text-muted-foreground mt-1">
+                          {mailbox.provider === "microsoft" &&
+                            "Connected via Microsoft Graph OAuth 2.0 (Mail.Send, Mail.Read, Mail.ReadWrite)"}
+                          {mailbox.provider === "imap_smtp" &&
+                            `Connected via Custom SMTP (${mailbox.metadata?.smtp?.host || "configured"}:${mailbox.metadata?.smtp?.port || "587"}) & IMAP (${mailbox.metadata?.imap?.host || "configured"}:${mailbox.metadata?.imap?.port || "993"})`}
+                          {(!mailbox.provider || mailbox.provider === "gmail") &&
+                            "Connected via Google OAuth 2.0 (gmail.send & gmail.readonly)"}
                         </div>
                       </div>
                     </div>
@@ -308,13 +440,13 @@ export function MailboxClient() {
                           await loadThreads();
                         }
                       }}
-                      className="text-xs h-7"
+                      className="text-xs h-8 cursor-pointer"
                     >
                       Disconnect Mailbox
                     </Button>
                   </div>
 
-                  <div className="pt-3 border-t border-border/40 grid grid-cols-2 gap-4 text-xs">
+                  <div className="pt-3 border-t border-border/40 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
                     <div>
                       <span className="text-muted-foreground text-[11px] block">Daily Dispatch Throttling</span>
                       <span className="font-medium text-foreground text-xs mt-0.5 block">50 emails/day cap</span>
@@ -325,28 +457,395 @@ export function MailboxClient() {
                         Autonomous Stage 8 Polling Active
                       </span>
                     </div>
+                    <div>
+                      <span className="text-muted-foreground text-[11px] block">Today&apos;s Sends</span>
+                      <span className="font-medium text-foreground text-xs mt-0.5 block">
+                        {mailbox.dailySendCount || 0} / 50 dispatched
+                      </span>
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-5 space-y-4">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="size-5 text-amber-600 shrink-0 mt-0.5" />
-                    <div className="space-y-1">
-                      <h4 className="text-xs font-semibold text-amber-900 dark:text-amber-200">
-                        No Active Gmail Account Connected
-                      </h4>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        Connect an outbound mailbox to send approved outreach drafts and automatically capture inbound prospective replies.
-                      </p>
+                <div className="space-y-6">
+                  <div className="rounded-xl border border-border/80 bg-card/60 p-5 space-y-2">
+                    <h4 className="text-xs font-semibold text-foreground">
+                      Choose Your Mailbox Connection Provider
+                    </h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Connect your outbound mailbox to send approved outreach drafts and automatically capture inbound prospective replies. Both OAuth 2.0 and manual IMAP/SMTP configurations are supported.
+                    </p>
+                  </div>
+
+                  {/* 3 Provider Options */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Option 1: Google */}
+                    <div className="rounded-xl border border-border/80 p-5 flex flex-col justify-between space-y-4 hover:border-primary/50 transition-all bg-card/40">
+                      <div className="space-y-2">
+                        <div className="size-9 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center font-semibold text-sm">
+                          G
+                        </div>
+                        <h5 className="text-xs font-semibold text-foreground">Google Workspace / Gmail</h5>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Connect with OAuth 2.0 using least-privilege Gmail scopes (<code className="text-[10px]">gmail.send</code>, <code className="text-[10px]">gmail.readonly</code>).
+                        </p>
+                      </div>
+                      <a
+                        href="/api/gtm/mailbox/connect"
+                        className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-2xs transition-colors w-full text-center"
+                      >
+                        <Mail className="size-3.5" />
+                        Connect Google Account
+                      </a>
+                    </div>
+
+                    {/* Option 2: Microsoft 365 (Coming Soon) */}
+                    <div className="rounded-xl border border-border/50 p-5 flex flex-col justify-between space-y-4 bg-muted/20 opacity-80 relative select-none">
+                      <div className="space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="size-9 rounded-lg bg-muted text-muted-foreground flex items-center justify-center font-semibold text-sm border border-border/40">
+                            M
+                          </div>
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] px-2 py-0.5 bg-muted text-muted-foreground font-medium border border-border/60"
+                          >
+                            Coming Soon
+                          </Badge>
+                        </div>
+                        <div>
+                          <h5 className="text-xs font-semibold text-foreground/80">Microsoft 365 / Outlook</h5>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed mt-1">
+                            Microsoft 365 / Outlook support is coming soon — in the meantime, connect via Google or the generic IMAP/SMTP option.
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        disabled
+                        variant="outline"
+                        className="w-full text-xs h-9 cursor-not-allowed opacity-60 bg-muted/30 text-muted-foreground border-dashed border-border/80"
+                      >
+                        <Clock className="size-3.5 mr-1" />
+                        Coming Soon
+                      </Button>
+                    </div>
+
+                    {/* Option 3: Custom IMAP / SMTP */}
+                    <div className="rounded-xl border border-border/80 p-5 flex flex-col justify-between space-y-4 hover:border-primary/50 transition-all bg-card/40">
+                      <div className="space-y-2">
+                        <div className="size-9 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-semibold text-sm">
+                          <Server className="size-4" />
+                        </div>
+                        <h5 className="text-xs font-semibold text-foreground">Generic IMAP / SMTP</h5>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          Connect any custom provider (Zoho, Fastmail, iCloud, Private Email) with credentials encrypted using AES-256-GCM.
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setShowImapSmtpForm(!showImapSmtpForm);
+                          setImapSmtpError(null);
+                        }}
+                        className="text-xs h-9 w-full cursor-pointer border-border/80 hover:bg-muted"
+                      >
+                        <Server className="size-3.5 mr-1" />
+                        {showImapSmtpForm ? "Close Form" : "Configure IMAP / SMTP"}
+                      </Button>
                     </div>
                   </div>
-                  <a
-                    href="/api/gtm/mailbox/connect"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-amber-600 hover:bg-amber-700 text-white shadow-xs transition-colors"
-                  >
-                    <Mail className="size-3.5" />
-                    Connect Google Workspace Account
-                  </a>
+
+                  {/* IMAP / SMTP Manual Form Drawer/Panel */}
+                  {showImapSmtpForm && (
+                    <form
+                      onSubmit={handleConnectImapSmtp}
+                      className="rounded-xl border border-border/90 p-6 bg-card/60 space-y-5 animate-in fade-in-50 duration-200"
+                    >
+                      <div className="flex items-start justify-between border-b border-border/60 pb-3">
+                        <div>
+                          <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                            <Server className="size-3.5 text-primary" />
+                            <span>Generic IMAP / SMTP Mailbox Settings</span>
+                          </h4>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Both SMTP (sending) and IMAP (reply listening) must be configured so autonomous stages function properly.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Guidance banner on App Passwords */}
+                      <div className="p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/25 flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200">
+                        <Info className="size-4 shrink-0 text-amber-600 mt-0.5" />
+                        <div className="space-y-1 text-[11px] leading-relaxed">
+                          <p className="font-semibold">App-Specific Passwords Required for 2FA Accounts</p>
+                          <p className="text-muted-foreground">
+                            If your mail provider (Zoho, iCloud, Fastmail, Yahoo, Google) has Two-Factor Authentication enabled, generate and enter an <strong>App Password</strong> rather than your primary login password.
+                          </p>
+                        </div>
+                      </div>
+
+                      {imapSmtpError && (
+                        <div className="p-3.5 rounded-lg bg-rose-500/10 border border-rose-500/25 flex items-start gap-2.5 text-xs text-rose-800 dark:text-rose-200">
+                          <AlertTriangle className="size-4 shrink-0 text-rose-600 mt-0.5" />
+                          <div className="space-y-0.5 text-[11px]">
+                            <p className="font-semibold">Connection Verification Failed</p>
+                            <p className="text-muted-foreground">{imapSmtpError}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* General Identity */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-medium text-foreground">
+                            Mailbox Email Address *
+                          </label>
+                          <Input
+                            type="email"
+                            required
+                            placeholder="outreach@company.com"
+                            value={imapSmtpData.email}
+                            onChange={(e) =>
+                              setImapSmtpData({ ...imapSmtpData, email: e.target.value })
+                            }
+                            className="h-8 text-xs bg-background"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[11px] font-medium text-foreground">
+                            Sender Display Name (Optional)
+                          </label>
+                          <Input
+                            placeholder="Sarah Jenkins"
+                            value={imapSmtpData.displayName}
+                            onChange={(e) =>
+                              setImapSmtpData({ ...imapSmtpData, displayName: e.target.value })
+                            }
+                            className="h-8 text-xs bg-background"
+                          />
+                        </div>
+                      </div>
+
+                      {/* SMTP Section */}
+                      <div className="space-y-3 pt-2 border-t border-border/40">
+                        <h5 className="text-[11px] font-semibold text-foreground uppercase tracking-wider">
+                          Outbound SMTP Configuration (Stage 7 Dispatch)
+                        </h5>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="sm:col-span-2 space-y-1.5">
+                            <label className="text-[11px] font-medium text-foreground">
+                              SMTP Host *
+                            </label>
+                            <Input
+                              required
+                              placeholder="smtp.zoho.com or mail.privateemail.com"
+                              value={imapSmtpData.smtpHost}
+                              onChange={(e) =>
+                                setImapSmtpData({ ...imapSmtpData, smtpHost: e.target.value })
+                              }
+                              className="h-8 text-xs bg-background"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-foreground">
+                              SMTP Port *
+                            </label>
+                            <Input
+                              required
+                              type="number"
+                              placeholder="587"
+                              value={imapSmtpData.smtpPort}
+                              onChange={(e) =>
+                                setImapSmtpData({ ...imapSmtpData, smtpPort: e.target.value })
+                              }
+                              className="h-8 text-xs bg-background"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-foreground">
+                              SMTP Username *
+                            </label>
+                            <Input
+                              required
+                              placeholder="outreach@company.com"
+                              value={imapSmtpData.smtpUser}
+                              onChange={(e) =>
+                                setImapSmtpData({ ...imapSmtpData, smtpUser: e.target.value })
+                              }
+                              className="h-8 text-xs bg-background"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-foreground">
+                              SMTP Password / App Password *
+                            </label>
+                            <Input
+                              type="password"
+                              required
+                              placeholder="••••••••••••••••"
+                              value={imapSmtpData.smtpPass}
+                              onChange={(e) =>
+                                setImapSmtpData({ ...imapSmtpData, smtpPass: e.target.value })
+                              }
+                              className="h-8 text-xs bg-background"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 pt-1">
+                          <input
+                            type="checkbox"
+                            id="smtpSecure"
+                            checked={imapSmtpData.smtpSecure}
+                            onChange={(e) =>
+                              setImapSmtpData({ ...imapSmtpData, smtpSecure: e.target.checked })
+                            }
+                            className="rounded border-border/80"
+                          />
+                          <label htmlFor="smtpSecure" className="text-xs text-muted-foreground cursor-pointer">
+                            Use SSL/TLS (port 465). Leave unchecked for STARTTLS (port 587).
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* IMAP Section */}
+                      <div className="space-y-3 pt-2 border-t border-border/40">
+                        <div className="flex items-center justify-between">
+                          <h5 className="text-[11px] font-semibold text-foreground uppercase tracking-wider">
+                            Inbound IMAP Configuration (Stage 8 Reply Triage)
+                          </h5>
+                          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={imapSmtpData.sameCredentials}
+                              onChange={(e) =>
+                                setImapSmtpData({
+                                  ...imapSmtpData,
+                                  sameCredentials: e.target.checked,
+                                })
+                              }
+                              className="rounded border-border/80"
+                            />
+                            <span>Use same credentials as SMTP</span>
+                          </label>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="sm:col-span-2 space-y-1.5">
+                            <label className="text-[11px] font-medium text-foreground">
+                              IMAP Host *
+                            </label>
+                            <Input
+                              required
+                              placeholder="imappro.zoho.com or mail.privateemail.com"
+                              value={imapSmtpData.imapHost}
+                              onChange={(e) =>
+                                setImapSmtpData({ ...imapSmtpData, imapHost: e.target.value })
+                              }
+                              className="h-8 text-xs bg-background"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-foreground">
+                              IMAP Port *
+                            </label>
+                            <Input
+                              required
+                              type="number"
+                              placeholder="993"
+                              value={imapSmtpData.imapPort}
+                              onChange={(e) =>
+                                setImapSmtpData({ ...imapSmtpData, imapPort: e.target.value })
+                              }
+                              className="h-8 text-xs bg-background"
+                            />
+                          </div>
+                        </div>
+
+                        {!imapSmtpData.sameCredentials && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                            <div className="space-y-1.5">
+                              <label className="text-[11px] font-medium text-foreground">
+                                IMAP Username *
+                              </label>
+                              <Input
+                                required
+                                placeholder="outreach@company.com"
+                                value={imapSmtpData.imapUser}
+                                onChange={(e) =>
+                                  setImapSmtpData({ ...imapSmtpData, imapUser: e.target.value })
+                                }
+                                className="h-8 text-xs bg-background"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[11px] font-medium text-foreground">
+                                IMAP Password *
+                              </label>
+                              <Input
+                                type="password"
+                                required
+                                placeholder="••••••••••••••••"
+                                value={imapSmtpData.imapPass}
+                                onChange={(e) =>
+                                  setImapSmtpData({ ...imapSmtpData, imapPass: e.target.value })
+                                }
+                                className="h-8 text-xs bg-background"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2 pt-1">
+                          <input
+                            type="checkbox"
+                            id="imapSecure"
+                            checked={imapSmtpData.imapSecure}
+                            onChange={(e) =>
+                              setImapSmtpData({ ...imapSmtpData, imapSecure: e.target.checked })
+                            }
+                            className="rounded border-border/80"
+                          />
+                          <label htmlFor="imapSecure" className="text-xs text-muted-foreground cursor-pointer">
+                            Use SSL/TLS for IMAP (port 993, recommended).
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Submit Actions */}
+                      <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/60">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowImapSmtpForm(false)}
+                          className="text-xs h-8"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          size="sm"
+                          disabled={isConnectingImapSmtp}
+                          className="text-xs h-8 gap-1.5 bg-primary text-white cursor-pointer"
+                        >
+                          {isConnectingImapSmtp ? (
+                            <>
+                              <Loader2 className="size-3.5 animate-spin" />
+                              <span>Verifying & Saving...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Check className="size-3.5" />
+                              <span>Test & Save Mailbox</span>
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </form>
+                  )}
                 </div>
               )}
             </CardContent>
