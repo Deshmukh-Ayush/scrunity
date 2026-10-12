@@ -484,6 +484,32 @@ export type ReplyIntent =
   | "auto_reply"
   | "unclear";
 
+export interface ConversationTurn {
+  role: "agent" | "prospect";
+  senderName: string;
+  senderEmail?: string;
+  body: string;
+  timestamp?: Date;
+  intent?: ReplyIntent | null;
+}
+
+/**
+ * Formats conversation turns chronologically for inclusion in LLM prompts.
+ */
+export function formatConversationThread(turns?: ConversationTurn[]): string {
+  if (!turns || turns.length === 0) return "N/A";
+  return turns
+    .map((turn, i) => {
+      const roleLabel =
+        turn.role === "agent"
+          ? "Our Team (Outreach / Follow-up)"
+          : `${turn.senderName} (Prospect)`;
+      const intentNote = turn.intent ? ` [Intent: ${turn.intent}]` : "";
+      return `[Turn ${i + 1} - ${roleLabel}${intentNote}]:\n${turn.body.trim()}`;
+    })
+    .join("\n\n");
+}
+
 const replyIntentSchema = z.object({
   intent: z.enum([
     "interested",
@@ -499,10 +525,12 @@ export async function classifyReplyIntent({
   replyText,
   originalSubject,
   originalBody,
+  conversationHistory,
 }: {
   replyText: string;
   originalSubject?: string;
   originalBody?: string;
+  conversationHistory?: ConversationTurn[];
 }): Promise<{ intent: ReplyIntent; reasoning: string }> {
   // Pre-filter obvious out of office / auto-replies
   const lower = replyText.toLowerCase();
@@ -522,19 +550,30 @@ export async function classifyReplyIntent({
     };
   }
 
+  const threadContext =
+    conversationHistory && conversationHistory.length > 0
+      ? `\n\nFull Conversation Thread History:\n${formatConversationThread(conversationHistory)}`
+      : "";
+
   return await generateStructuredWithFallback({
     schema: replyIntentSchema,
     maxTokens: 500,
     system:
-      "You are an email intent classification engine. Classify the prospect's reply into exactly one category: 'interested', 'not_interested', 'question', 'auto_reply', or 'unclear'.\n\n" +
+      "You are an email intent classification engine. Classify the prospect's latest reply into exactly one category:\n" +
+      "- 'interested': Prospect expresses interest, agrees to talk, asks for times/links, or says yes.\n" +
+      "- 'question': Prospect asks a question, raises an objection (e.g. competitor comparisons, timing 'check back next quarter', pricing/feature inquiries), or requests more information.\n" +
+      "- 'not_interested': Prospect explicitly declines, asks to be removed/unsubscribed, or clearly rejects outreach (e.g. 'not interested', 'stop emailing me', 'unsubscribe').\n" +
+      "- 'auto_reply': Out-of-office, automated bounce, or automated mail responder.\n" +
+      "- 'unclear': Message is completely ambiguous or cannot be determined.\n\n" +
       "CONCISENESS RULES:\n" +
       "- 'reasoning' must be 1 to 2 concise sentences, strictly under 30 words total.\n" +
       "- DO NOT restate the prospect email, DO NOT explain reasoning steps, and DO NOT hedge.\n" +
       "- Be decisive and accurate.",
     prompt:
       `Original Email Subject: ${originalSubject || "N/A"}\n` +
-      `Original Email Body: ${originalBody || "N/A"}\n` +
-      `Prospect Reply:\n"${replyText}"`,
+      `Original Email Body: ${originalBody || "N/A"}` +
+      threadContext +
+      `\n\nLatest Prospect Reply To Classify:\n"${replyText}"`,
   });
 }
 
@@ -546,12 +585,18 @@ export async function composeInterestedBookingReply({
   recipientName,
   bookingUrl,
   replyText,
+  conversationHistory,
 }: {
   recipientName: string;
   bookingUrl: string;
   replyText?: string;
+  conversationHistory?: ConversationTurn[];
 }): Promise<string> {
   const firstName = recipientName.split(" ")[0] || recipientName;
+  const threadContext =
+    conversationHistory && conversationHistory.length > 0
+      ? `\nPrior Thread Context:\n${formatConversationThread(conversationHistory)}`
+      : "";
 
   try {
     const result = await generateStructuredWithFallback({
@@ -562,8 +607,13 @@ export async function composeInterestedBookingReply({
         "CONCISENESS RULES:\n" +
         "- Keep it to 2-3 sentences max, strictly under 60 words total.\n" +
         "- Include the exact booking link provided.\n" +
+        "- Acknowledge any context from earlier turns naturally without repeating prior messages.\n" +
         "- No preamble, no postscript, no filler.",
-      prompt: `Prospect Name: ${firstName}\nBooking URL: ${bookingUrl}\nTheir Reply: "${replyText || "Sounds good, let's talk"}"`,
+      prompt:
+        `Prospect Name: ${firstName}\n` +
+        `Booking URL: ${bookingUrl}` +
+        threadContext +
+        `\nTheir Latest Reply: "${replyText || "Sounds good, let's talk"}"`,
     });
     if (result.body && result.body.includes(bookingUrl)) {
       return result.body;
@@ -577,6 +627,108 @@ export async function composeInterestedBookingReply({
     `Hi ${firstName},\n\n` +
     `Thanks for getting back to me! I would love to connect and share more. ` +
     `Feel free to pick a time that works best for you here: ${bookingUrl}\n\n` +
+    `Looking forward to speaking with you!`
+  );
+}
+
+export interface GroundedCompanyContext {
+  companyName: string;
+  companyDescription: string;
+  productFocus?: string;
+  targetCustomerLanguage?: string;
+  contextDoc?: string | null;
+  synthesizedProfileSummary?: string;
+  bookingUrl: string;
+}
+
+export interface ComposeNegotiationReplyParams {
+  recipientName: string;
+  contactTitle?: string | null;
+  prospectCompanyName?: string | null;
+  conversationHistory: ConversationTurn[];
+  latestReplyText: string;
+  classifiedIntent: ReplyIntent;
+  groundedContext: GroundedCompanyContext;
+}
+
+const negotiationReplySchema = z.object({
+  body: z
+    .string()
+    .describe(
+      "Contextual 2-4 sentence negotiation reply strictly under 100 words answering with grounded facts or honestly steering to a call"
+    ),
+});
+
+/**
+ * Drafts an intelligent, context-aware follow-up for questions and objections.
+ * Grounded strictly in verified company facts, with a fail-safe steering fallback
+ * for anything uncertain or unverified.
+ */
+export async function composeNegotiationReply({
+  recipientName,
+  contactTitle,
+  prospectCompanyName,
+  conversationHistory,
+  latestReplyText,
+  classifiedIntent,
+  groundedContext,
+}: ComposeNegotiationReplyParams): Promise<string> {
+  const firstName = recipientName.split(" ")[0] || recipientName;
+  const verifiedFacts = [
+    `Our Company: ${groundedContext.companyName}`,
+    `What We Do: ${groundedContext.companyDescription}`,
+    groundedContext.productFocus ? `Product Focus: ${groundedContext.productFocus}` : null,
+    groundedContext.targetCustomerLanguage ? `Target Customer Context: ${groundedContext.targetCustomerLanguage}` : null,
+    groundedContext.synthesizedProfileSummary ? `Profile Summary: ${groundedContext.synthesizedProfileSummary}` : null,
+    groundedContext.contextDoc ? `Company Knowledge Doc:\n${groundedContext.contextDoc.slice(0, 2000)}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const threadContext = formatConversationThread(conversationHistory);
+
+  try {
+    const result = await generateStructuredWithFallback({
+      schema: negotiationReplySchema,
+      maxTokens: 500,
+      system:
+        "You are an executive SDR assistant continuing an email conversation with a prospect.\n\n" +
+        "CRITICAL GROUNDING & HONESTY RULES:\n" +
+        "1. STRICT FACTUAL GROUNDING: Base answers about our product, features, integrations, and capabilities ONLY on the verified facts in [VERIFIED COMPANY FACTS].\n" +
+        "2. NO HALLUCINATION / STEER TO CALL: If the prospect asks about custom features, unverified integrations, detailed pricing, or specifics not explicitly confirmed in the verified facts, DO NOT guess or invent answers. Honestly acknowledge the question and steer to a quick call:\n" +
+        "   e.g. 'Great question — that depends on your specific setup, so let's walk through that together on a brief 15-minute call.'\n" +
+        "3. CONVERSATION CONTINUITY: Review the prior thread turns. Respond directly to their latest question/objection without repeating greetings or pitches from previous turns.\n" +
+        "4. CALL TO ACTION: Include the exact booking URL provided to schedule a 15-minute conversation.\n" +
+        "5. CONCISENESS RULES:\n" +
+        "- Keep it to 2-4 sentences maximum, strictly under 100 words total.\n" +
+        "- Human, thoughtful, professional, low-friction tone. No corporate fluff.",
+      prompt:
+        `[PROSPECT DETAILS]\n` +
+        `Name: ${firstName} (${contactTitle || "Team Member"} at ${prospectCompanyName || "their company"})\n` +
+        `Booking URL: ${groundedContext.bookingUrl}\n\n` +
+        `[VERIFIED COMPANY FACTS]\n` +
+        `${verifiedFacts}\n\n` +
+        `[CONVERSATION THREAD HISTORY]\n` +
+        `${threadContext}\n\n` +
+        `[LATEST PROSPECT MESSAGE (${classifiedIntent})]\n` +
+        `"${latestReplyText}"`,
+    });
+
+    if (result.body) {
+      if (result.body.includes(groundedContext.bookingUrl)) {
+        return result.body;
+      }
+      return `${result.body}\n\nFeel free to pick a time here: ${groundedContext.bookingUrl}`;
+    }
+  } catch (err) {
+    console.warn("[GTM AI] Fallback to standard grounded negotiation template:", err);
+  }
+
+  // Guaranteed fail-safe template
+  return (
+    `Hi ${firstName},\n\n` +
+    `Thanks for getting back to me! That's a great question regarding how we can best support ${prospectCompanyName || "your team"}. ` +
+    `To make sure I share the most accurate details for your setup, let's cover that on a quick 15-minute call: ${groundedContext.bookingUrl}\n\n` +
     `Looking forward to speaking with you!`
   );
 }
