@@ -22,6 +22,7 @@ import {
   generateFallbackProspectCompanies,
 } from "@/lib/gtm-ai";
 import { safeRealtimePublish, type InngestStep } from "./shared";
+import { checkSuppression } from "@/lib/gtm-suppression";
 
 export interface ProspectCompanyData {
   id: string;
@@ -197,6 +198,14 @@ export async function executeFindCompanies(
       }
     } catch (fbErr) {
       console.warn("[Stage 4] Fallback prospect company synthesis failed:", fbErr);
+    }
+  }
+
+  // Filter out any domains present in platform-wide suppression
+  for (const dom of Array.from(prospectMap.keys())) {
+    const isSupp = await checkSuppression({ domain: dom });
+    if (isSupp) {
+      prospectMap.delete(dom);
     }
   }
 
