@@ -13,7 +13,8 @@ import {
   gtmSegmentDigest,
 } from "@/db/schema";
 import { eq, and, desc, ilike, or } from "drizzle-orm";
-import { runFullResearchPipeline } from "@/lib/gtm-pipeline-runner";
+import { dispatchResearchRun } from "@/lib/pipeline/dispatch";
+import { researchRunIsIdle } from "@/lib/pipeline/stage-state";
 
 function toSafeJson<T>(data: T): T {
   return JSON.parse(
@@ -370,26 +371,27 @@ export function createGtmAgentTools(organizationId: string, userId: string) {
               status: "in_progress",
               currentStage: "research_company",
               failureReason: null,
+              stageStartedAt: new Date(),
+              lastProgressAt: null,
             })
             .where(
               and(
                 eq(gtmResearchRun.id, researchRunId),
-                eq(gtmResearchRun.organizationId, organizationId)
+                eq(gtmResearchRun.organizationId, organizationId),
+                // Never reset a run that a live executor is still working on.
+                researchRunIsIdle()
               )
             )
             .returning();
 
           if (!updated) {
             return {
-              error: "Research run not found or does not belong to this organization.",
+              error:
+                "Research run not found, does not belong to this organization, or is still actively running.",
             };
           }
 
-          setImmediate(() => {
-            runFullResearchPipeline(researchRunId).catch((err) => {
-              console.error("[Agent Tool Retrigger] Pipeline error:", err);
-            });
-          });
+          await dispatchResearchRun(researchRunId);
 
           return {
             success: true,
