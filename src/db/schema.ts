@@ -414,6 +414,8 @@ export const gtmOutreachCampaign = pgTable(
     currentStage: text("current_stage", {
       enum: [
         "find_companies",
+        // Database mode only: the user picks which discovered companies continue.
+        "awaiting_company_selection",
         "find_contacts",
         "write_emails",
         "awaiting_approval",
@@ -463,6 +465,17 @@ export const gtmProspectCompany = pgTable(
     industry: text("industry"),
     headcount: integer("headcount"),
     revenueRange: text("revenue_range"),
+    // Set at the company-selection gate; excluded companies stay visible but every
+    // later stage skips them. Existing rows default to selected.
+    selectionStatus: text("selection_status", { enum: ["selected", "excluded"] })
+      .default("selected")
+      .notNull(),
+    // One short LLM line on why the company fits the segment (database mode).
+    fitNote: text("fit_note"),
+    // Database-mode Stage 5 outcome; null until decision-maker discovery has run.
+    decisionMakerStatus: text("decision_maker_status", {
+      enum: ["found", "no_decision_maker_found"],
+    }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
@@ -561,6 +574,11 @@ export const gtmContact = pgTable(
       processingTimeMs?: number
     }>(),
     geo: text("geo"),
+    // Database-mode decision makers: where the person came from and the provider
+    // id for a later lookup. emailStatus is null for legacy contacts.
+    source: text("source"),
+    providerPersonId: text("provider_person_id"),
+    emailStatus: text("email_status", { enum: ["not_looked_up"] }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [index("gtm_contact_company_idx").on(table.prospectCompanyId)]

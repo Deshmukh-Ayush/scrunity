@@ -169,6 +169,13 @@
       "when": 1791919007781,
       "tag": "0023_chilly_jamie_braddock",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791932073090,
+      "tag": "0024_dapper_madame_hydra",
+      "breakpoints": true
     }
   ]
 }
