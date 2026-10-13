@@ -7,6 +7,7 @@ import {
   index,
   integer,
   jsonb,
+  bigint,
 } from "drizzle-orm/pg-core"
 import { nanoid } from "nanoid"
 
@@ -304,6 +305,14 @@ export const gtmResearchRun = pgTable(
       enum: ["1-10", "11-50", "51-200", "200+"],
     }).notNull(),
     contextDoc: text("context_doc"),
+    // Where the user wants to sell. A blank region means the whole country.
+    targetCountryCode: text("target_country_code"),
+    targetRegion: text("target_region"),
+    // The user's own company metrics as they entered them (whole currency units).
+    ownArrAmount: bigint("own_arr_amount", { mode: "number" }),
+    ownArrCurrency: text("own_arr_currency"),
+    ownTamAmount: bigint("own_tam_amount", { mode: "number" }),
+    ownTamCurrency: text("own_tam_currency"),
     status: text("status").default("in_progress").notNull(),
     failureReason: text("failure_reason"),
     firecrawlCallCount: integer("firecrawl_call_count").default(0).notNull(),
@@ -378,6 +387,10 @@ export const gtmIcpSegment = pgTable(
       .notNull(),
     // Explicitly labeled as an LLM best-guess estimate, not a verified/sourced figure
     estimatedSizeLabel: text("estimated_size_label"),
+    // Company-database search filters for Stage 4 (null on older segments)
+    targetKeywords: jsonb("target_keywords").$type<string[]>(),
+    headcountMin: integer("headcount_min"),
+    headcountMax: integer("headcount_max"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [index("gtm_icp_segment_run_idx").on(table.researchRunId)]
@@ -411,6 +424,11 @@ export const gtmOutreachCampaign = pgTable(
     })
       .default("find_companies")
       .notNull(),
+    // Copied from the research run at creation so they can differ per campaign later.
+    targetCountryCode: text("target_country_code"),
+    targetRegion: text("target_region"),
+    // Visible Stage 4 outcome, e.g. "Only 7 companies matched these filters."
+    discoveryNote: text("discovery_note"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     stageStartedAt: timestamp("stage_started_at"),
     lastProgressAt: timestamp("last_progress_at"),
@@ -435,10 +453,45 @@ export const gtmProspectCompany = pgTable(
     description: text("description").notNull(),
     location: text("location").notNull(),
     linkedinUrl: text("linkedin_url"),
+    // Provider-sourced fields (database-mode Stage 4). Unknown values stay null.
+    source: text("source").default("web_search").notNull(),
+    providerId: text("provider_id"),
+    website: text("website"),
+    country: text("country"),
+    state: text("state"),
+    city: text("city"),
+    industry: text("industry"),
+    headcount: integer("headcount"),
+    revenueRange: text("revenue_range"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
     index("gtm_prospect_company_campaign_idx").on(table.outreachCampaignId),
+  ]
+)
+
+/**
+ * Ledger of credits spent with paid data vendors (Apollo, ...). Checked against
+ * the monthly cap before every credit-consuming call. No secrets, no personal data.
+ */
+export const gtmVendorUsage = pgTable(
+  "gtm_vendor_usage",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    vendor: text("vendor").notNull(),
+    endpoint: text("endpoint").notNull(),
+    creditsUsed: integer("credits_used").notNull(),
+    organizationId: text("organization_id").references(() => organization.id, {
+      onDelete: "set null",
+    }),
+    researchRunId: text("research_run_id"),
+    campaignId: text("campaign_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("gtm_vendor_usage_vendor_created_idx").on(table.vendor, table.createdAt),
   ]
 )
 

@@ -162,6 +162,13 @@
       "when": 1791798254083,
       "tag": "0022_giant_obadiah_stane",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791919007781,
+      "tag": "0023_chilly_jamie_braddock",
+      "breakpoints": true
     }
   ]
 }
