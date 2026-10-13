@@ -1,4 +1,4 @@
-import { inngest, outreachCampaignChannel, type GtmEvents } from "../client";
+import { outreachCampaignChannel } from "../client";
 import { db } from "@/utils/db";
 import {
   gtmOutreachCampaign,
@@ -8,6 +8,7 @@ import {
   gtmCompanyMetricSnapshot,
 } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { advanceCampaign } from "@/lib/pipeline/stage-state";
 import {
   searchFirecrawl,
   extractDomain,
@@ -23,6 +24,8 @@ import {
 } from "@/lib/gtm-ai";
 import { safeRealtimePublish, type InngestStep } from "./shared";
 import { checkSuppression } from "@/lib/gtm-suppression";
+import { getDiscoveryMode } from "@/lib/providers/config";
+import { executeFindCompaniesFromDatabase } from "./find-companies-database";
 
 export interface ProspectCompanyData {
   id: string;
@@ -43,6 +46,10 @@ export async function executeFindCompanies(
   outreachCampaignId: string,
   step?: InngestStep
 ): Promise<FindCompaniesResult> {
+  if (getDiscoveryMode() === "database") {
+    return executeFindCompaniesFromDatabase(outreachCampaignId);
+  }
+
   const [context] = await db
     .select({
       campaign: gtmOutreachCampaign,
@@ -273,10 +280,9 @@ export async function executeFindCompanies(
     }
   }
 
-  await db
-    .update(gtmOutreachCampaign)
-    .set({ currentStage: "find_contacts" })
-    .where(eq(gtmOutreachCampaign.id, outreachCampaignId));
+  await advanceCampaign(outreachCampaignId, "find_companies", {
+    currentStage: "find_contacts",
+  });
 
   const rateLimitSummary =
     rateLimitedQueries > 0
@@ -300,42 +306,3 @@ export async function executeFindCompanies(
     rateLimitSummary,
   };
 }
-
-/**
- * Inngest Function: Stage 4 - Find Prospect Companies
- */
-export const findCompaniesFunction = inngest.createFunction(
-  {
-    id: "gtm-stage-4-find-companies",
-    name: "GTM Stage 4: Find Prospect Companies",
-    triggers: [{ event: "gtm/campaign.find_companies" }],
-  },
-  async ({
-    event,
-    step,
-  }: {
-    event: GtmEvents["gtm/campaign.find_companies"];
-    step: InngestStep;
-  }) => {
-    const { outreachCampaignId } = event.data;
-
-    const result = await executeFindCompanies(outreachCampaignId, step);
-
-    // Automatically trigger Stage 5: Find Contacts
-    await db
-      .update(gtmOutreachCampaign)
-      .set({
-        currentStage: "find_contacts",
-        stageStartedAt: new Date(),
-        lastProgressAt: null,
-      })
-      .where(eq(gtmOutreachCampaign.id, outreachCampaignId));
-
-    await step.sendEvent("trigger-stage-5-find-contacts", {
-      name: "gtm/campaign.find_contacts",
-      data: { outreachCampaignId },
-    });
-
-    return result;
-  }
-);

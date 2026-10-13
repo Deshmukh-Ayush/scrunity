@@ -1,7 +1,8 @@
-import { inngest, researchRunChannel, type GtmEvents } from "../client";
+import { researchRunChannel } from "../client";
 import { db } from "@/utils/db";
 import { gtmResearchRun, type SynthesizedCompanyProfile } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { advanceResearchRun } from "@/lib/pipeline/stage-state";
 import {
   scrapeUrl,
   searchFirecrawl,
@@ -14,6 +15,7 @@ import {
   type ScrapeResult,
 } from "@/lib/firecrawl";
 import { synthesizeCompanyProfile } from "@/lib/gtm-ai";
+import { formatTargetMarket } from "@/lib/geo/countries";
 import { safeRealtimePublish, type InngestStep } from "./shared";
 
 export interface ResearchCompanyResult {
@@ -42,13 +44,11 @@ export async function executeResearchCompany(
     throw new Error(`Research run ${researchRunId} not found`);
   }
 
+  // Ownership of the stage (and the in_progress status) is established by
+  // claimResearchStage before this runs; never rewrite currentStage here.
   await db
     .update(gtmResearchRun)
-    .set({
-      currentStage: "research_company",
-      status: "in_progress",
-      lastProgressAt: new Date(),
-    })
+    .set({ lastProgressAt: new Date() })
     .where(eq(gtmResearchRun.id, researchRunId));
 
   await safeRealtimePublish(researchRunChannel(researchRunId).started, {
@@ -147,6 +147,7 @@ export async function executeResearchCompany(
       companyDescription: run.companyDescription,
       contextDoc: run.contextDoc,
       scrapedContent: scrapedContent || run.companyDescription,
+      targetMarket: formatTargetMarket(run.targetCountryCode, run.targetRegion),
     });
   } catch (err) {
     console.warn(`[Stage 1] Company profile synthesis failed, using basic profile:`, err);
@@ -234,19 +235,16 @@ export async function executeResearchCompany(
       ? homepageScrape.keywords
       : null;
 
-  // Update research run
-  await db
-    .update(gtmResearchRun)
-    .set({
-      logoUrl,
-      linkedinUrl,
-      twitterUrl,
-      instagramUrl,
-      seoKeywords,
-      synthesizedProfile,
-      currentStage: "research_competitors",
-    })
-    .where(eq(gtmResearchRun.id, researchRunId));
+  // Save findings and move to Stage 2 (only if the run is still at Stage 1)
+  await advanceResearchRun(researchRunId, "research_company", {
+    logoUrl,
+    linkedinUrl,
+    twitterUrl,
+    instagramUrl,
+    seoKeywords,
+    synthesizedProfile,
+    currentStage: "research_competitors",
+  });
 
   const summary = socialRateLimited
     ? `Homepage & about research synthesized. Social search hit Firecrawl rate limits; branding partially discovered.`
@@ -269,42 +267,3 @@ export async function executeResearchCompany(
       : undefined,
   };
 }
-
-/**
- * Inngest Function: Stage 1 - Research Company
- */
-export const researchCompanyFunction = inngest.createFunction(
-  {
-    id: "gtm-stage-1-research-company",
-    name: "GTM Stage 1: Research Company",
-    triggers: [{ event: "gtm/research.requested" }],
-  },
-  async ({
-    event,
-    step,
-  }: {
-    event: GtmEvents["gtm/research.requested"];
-    step: InngestStep;
-  }) => {
-    const { researchRunId } = event.data;
-
-    const result = await executeResearchCompany(researchRunId, step);
-
-    // Automatically trigger Stage 2: Explore Competitors
-    await db
-      .update(gtmResearchRun)
-      .set({
-        currentStage: "research_competitors",
-        stageStartedAt: new Date(),
-        lastProgressAt: null,
-      })
-      .where(eq(gtmResearchRun.id, researchRunId));
-
-    await step.sendEvent("trigger-stage-2-explore-competitors", {
-      name: "gtm/research.explore_competitors",
-      data: { researchRunId },
-    });
-
-    return result;
-  }
-);

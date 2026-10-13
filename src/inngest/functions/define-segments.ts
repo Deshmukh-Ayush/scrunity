@@ -1,7 +1,8 @@
-import { inngest, researchRunChannel, type GtmEvents } from "../client";
+import { researchRunChannel } from "../client";
 import { db } from "@/utils/db";
 import { gtmResearchRun, gtmCompetitor, gtmIcpSegment } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { advanceResearchRun } from "@/lib/pipeline/stage-state";
 import {
   searchFirecrawl,
   extractDomain,
@@ -11,6 +12,7 @@ import {
   FirecrawlSpendPausedError,
 } from "@/lib/firecrawl";
 import { generateIcpSegments } from "@/lib/gtm-ai";
+import { formatMoneyAmount, formatTargetMarket } from "@/lib/geo/countries";
 import { safeRealtimePublish, type InngestStep } from "./shared";
 
 export interface DefineSegmentsResult {
@@ -60,6 +62,8 @@ export async function executeDefineSegments(
       description: c.description,
     })),
     contextDoc: run.contextDoc,
+    targetMarket: formatTargetMarket(run.targetCountryCode, run.targetRegion),
+    userProvidedTam: formatMoneyAmount(run.ownTamAmount, run.ownTamCurrency),
   });
 
   const ownDomain = extractDomain(run.websiteUrl);
@@ -138,13 +142,16 @@ export async function executeDefineSegments(
       criteria: seg.criteria,
       exampleCompanies,
       estimatedSizeLabel: seg.estimatedSizeLabel,
+      targetKeywords: seg.targetKeywords.map((k) => k.trim()).filter(Boolean),
+      headcountMin: Math.min(seg.headcountMin, seg.headcountMax),
+      headcountMax: Math.max(seg.headcountMin, seg.headcountMax),
     });
   }
 
-  await db
-    .update(gtmResearchRun)
-    .set({ currentStage: "done", status: "done" })
-    .where(eq(gtmResearchRun.id, researchRunId));
+  await advanceResearchRun(researchRunId, "define_segments", {
+    currentStage: "done",
+    status: "done",
+  });
 
   const rateLimitSummary =
     rateLimitedQueries > 0
@@ -165,25 +172,3 @@ export async function executeDefineSegments(
     rateLimitSummary,
   };
 }
-
-/**
- * Inngest Function: Stage 3 - Define Segments
- */
-export const defineSegmentsFunction = inngest.createFunction(
-  {
-    id: "gtm-stage-3-define-segments",
-    name: "GTM Stage 3: Define Segments",
-    triggers: [{ event: "gtm/research.define_segments" }],
-  },
-  async ({
-    event,
-    step,
-  }: {
-    event: GtmEvents["gtm/research.define_segments"];
-    step: InngestStep;
-  }) => {
-    const { researchRunId } = event.data;
-
-    return await executeDefineSegments(researchRunId, step);
-  }
-);

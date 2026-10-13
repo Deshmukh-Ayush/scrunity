@@ -1,4 +1,5 @@
-import { inngest, outreachCampaignChannel, type GtmEvents } from "../client";
+
+import { outreachCampaignChannel } from "../client";
 import { db } from "@/utils/db";
 import {
   gtmOutreachCampaign,
@@ -9,8 +10,9 @@ import {
   gtmEmailDraft,
 } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { advanceCampaign, touchCampaignProgress } from "@/lib/pipeline/stage-state";
 import { generateOutreachEmailDraft } from "@/lib/gtm-ai";
-import { safeRealtimePublish, type InngestStep } from "./shared";
+import { safeRealtimePublish } from "./shared";
 
 export interface WriteEmailsResult {
   draftCount: number;
@@ -147,6 +149,7 @@ export async function executeWriteEmails(
   }> = [];
 
   for (const { contact, company } of qualifiedContacts) {
+    await touchCampaignProgress(outreachCampaignId);
     const draft = await generateOutreachEmailDraft({
       contactName: contact.name,
       contactTitle: contact.title,
@@ -171,13 +174,10 @@ export async function executeWriteEmails(
   }
 
   // Move campaign to awaiting_approval checkpoint - STOP HERE
-  await db
-    .update(gtmOutreachCampaign)
-    .set({
-      currentStage: "awaiting_approval",
-      status: "awaiting_approval",
-    })
-    .where(eq(gtmOutreachCampaign.id, outreachCampaignId));
+  await advanceCampaign(outreachCampaignId, "write_emails", {
+    currentStage: "awaiting_approval",
+    status: "awaiting_approval",
+  });
 
   await safeRealtimePublish(
     outreachCampaignChannel(outreachCampaignId).completed,
@@ -189,27 +189,3 @@ export async function executeWriteEmails(
 
   return { draftCount: draftsToInsert.length };
 }
-
-/**
- * Inngest Function: Stage 6 - Write Personalized Emails
- */
-export const writeEmailsFunction = inngest.createFunction(
-  {
-    id: "gtm-stage-6-write-emails",
-    name: "GTM Stage 6: Write Personalized Emails",
-    triggers: [{ event: "gtm/campaign.write_emails" }],
-  },
-  async ({
-    event,
-    step,
-  }: {
-    event: GtmEvents["gtm/campaign.write_emails"];
-    step: InngestStep;
-  }) => {
-    const { outreachCampaignId } = event.data;
-
-    return await step.run("stage-6-write-emails", async () => {
-      return await executeWriteEmails(outreachCampaignId);
-    });
-  }
-);

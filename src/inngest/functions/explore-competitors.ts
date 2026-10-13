@@ -1,7 +1,8 @@
-import { inngest, researchRunChannel, type GtmEvents } from "../client";
+import { researchRunChannel } from "../client";
 import { db } from "@/utils/db";
 import { gtmResearchRun, gtmCompetitor } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { advanceResearchRun } from "@/lib/pipeline/stage-state";
 import {
   scrapeUrl,
   searchFirecrawl,
@@ -17,6 +18,7 @@ import {
   generateCompetitorSearchQueries,
   generateFallbackCompetitors,
 } from "@/lib/gtm-ai";
+import { formatTargetMarket } from "@/lib/geo/countries";
 import { safeRealtimePublish, type InngestStep } from "./shared";
 
 export interface ExploreCompetitorsResult {
@@ -57,6 +59,7 @@ export async function executeExploreCompetitors(
     companySize: run.companySize,
     synthesizedProfile: run.synthesizedProfile,
     contextDoc: run.contextDoc,
+    targetMarket: formatTargetMarket(run.targetCountryCode, run.targetRegion),
   });
 
   const runContext = {
@@ -190,10 +193,9 @@ export async function executeExploreCompetitors(
     await db.insert(gtmCompetitor).values(competitorsToInsert);
   }
 
-  await db
-    .update(gtmResearchRun)
-    .set({ currentStage: "define_segments" })
-    .where(eq(gtmResearchRun.id, researchRunId));
+  await advanceResearchRun(researchRunId, "research_competitors", {
+    currentStage: "define_segments",
+  });
 
   const rateLimitSummary =
     rateLimitedQueries > 0
@@ -214,42 +216,3 @@ export async function executeExploreCompetitors(
     rateLimitSummary,
   };
 }
-
-/**
- * Inngest Function: Stage 2 - Explore Competitors
- */
-export const exploreCompetitorsFunction = inngest.createFunction(
-  {
-    id: "gtm-stage-2-explore-competitors",
-    name: "GTM Stage 2: Explore Competitors",
-    triggers: [{ event: "gtm/research.explore_competitors" }],
-  },
-  async ({
-    event,
-    step,
-  }: {
-    event: GtmEvents["gtm/research.explore_competitors"];
-    step: InngestStep;
-  }) => {
-    const { researchRunId } = event.data;
-
-    const result = await executeExploreCompetitors(researchRunId, step);
-
-    // Automatically trigger Stage 3: Define Segments
-    await db
-      .update(gtmResearchRun)
-      .set({
-        currentStage: "define_segments",
-        stageStartedAt: new Date(),
-        lastProgressAt: null,
-      })
-      .where(eq(gtmResearchRun.id, researchRunId));
-
-    await step.sendEvent("trigger-stage-3-define-segments", {
-      name: "gtm/research.define_segments",
-      data: { researchRunId },
-    });
-
-    return result;
-  }
-);

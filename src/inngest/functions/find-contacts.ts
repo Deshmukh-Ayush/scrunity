@@ -1,4 +1,4 @@
-import { inngest, outreachCampaignChannel, type GtmEvents } from "../client"
+import { outreachCampaignChannel } from "../client"
 import { db } from "@/utils/db"
 import {
   gtmOutreachCampaign,
@@ -8,6 +8,7 @@ import {
   gtmContact,
 } from "@/db/schema"
 import { eq } from "drizzle-orm"
+import { advanceCampaign, touchCampaignProgress } from "@/lib/pipeline/stage-state"
 import {
   scrapeUrl,
   searchFirecrawl,
@@ -193,6 +194,7 @@ export async function executeFindContacts(
   }
 
   for (const comp of companies) {
+    await touchCampaignProgress(outreachCampaignId)
     const cleanCompanyName = comp.name
       .replace(/\s*[-–|:].*$/, "")
       .replace(/\s+(Inc|LLC|PLLC|Services|Platform|Practice)$/i, "")
@@ -518,10 +520,9 @@ export async function executeFindContacts(
     })
   }
 
-  await db
-    .update(gtmOutreachCampaign)
-    .set({ currentStage: "write_emails" })
-    .where(eq(gtmOutreachCampaign.id, outreachCampaignId))
+  await advanceCampaign(outreachCampaignId, "find_contacts", {
+    currentStage: "write_emails",
+  })
 
   const rateLimitSummary =
     rateLimitedCalls > 0
@@ -545,42 +546,3 @@ export async function executeFindContacts(
     rateLimitSummary,
   }
 }
-
-/**
- * Inngest Function: Stage 5 - Find Contacts
- */
-export const findContactsFunction = inngest.createFunction(
-  {
-    id: "gtm-stage-5-find-contacts",
-    name: "GTM Stage 5: Find Decision-Makers",
-    triggers: [{ event: "gtm/campaign.find_contacts" }],
-  },
-  async ({
-    event,
-    step,
-  }: {
-    event: GtmEvents["gtm/campaign.find_contacts"]
-    step: InngestStep
-  }) => {
-    const { outreachCampaignId } = event.data
-
-    const result = await executeFindContacts(outreachCampaignId, step)
-
-    // Automatically trigger Stage 6: Write Emails
-    await db
-      .update(gtmOutreachCampaign)
-      .set({
-        currentStage: "write_emails",
-        stageStartedAt: new Date(),
-        lastProgressAt: null,
-      })
-      .where(eq(gtmOutreachCampaign.id, outreachCampaignId))
-
-    await step.sendEvent("trigger-stage-6-write-emails", {
-      name: "gtm/campaign.write_emails",
-      data: { outreachCampaignId },
-    })
-
-    return result
-  }
-)
