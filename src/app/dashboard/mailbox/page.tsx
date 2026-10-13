@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { MailboxClient } from "@/components/mailbox/mailbox-client";
+import { Mailbox } from "@/components/mailbox/mailbox";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = {
@@ -48,7 +48,7 @@ export default function MailboxPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       <Suspense fallback={<MailboxSkeleton />}>
-        <MailboxClient />
+        <Mailbox />
       </Suspense>
     </div>
   );

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Suspense } from "react";
-import { CampaignsOverviewClient } from "@/components/gtm/campaigns-overview-client";
+import { CampaignsOverview } from "@/components/gtm/campaigns-overview/campaigns-overview";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function CampaignsOverviewSkeleton() {
@@ -26,7 +26,7 @@ export default function CampaignsPage() {
   return (
     <div className="p-6 md:p-8">
       <Suspense fallback={<CampaignsOverviewSkeleton />}>
-        <CampaignsOverviewClient />
+        <CampaignsOverview />
       </Suspense>
     </div>
   );
