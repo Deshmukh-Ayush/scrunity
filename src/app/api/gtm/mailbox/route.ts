@@ -4,6 +4,7 @@ import { db } from "@/utils/db";
 import { gtmConnectedMailbox } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { resolveAuthAndOrg } from "@/lib/gtm-auth";
+import { getConnectedMailbox } from "@/lib/data/mailbox";
 
 export async function GET() {
   try {
@@ -14,21 +15,9 @@ export async function GET() {
       return NextResponse.json({ error }, { status });
     }
 
-    const [mailbox] = await db
-      .select({
-        id: gtmConnectedMailbox.id,
-        email: gtmConnectedMailbox.email,
-        provider: gtmConnectedMailbox.provider,
-        status: gtmConnectedMailbox.status,
-        dailySendCount: gtmConnectedMailbox.dailySendCount,
-        lastSendResetDate: gtmConnectedMailbox.lastSendResetDate,
-        connectedAt: gtmConnectedMailbox.connectedAt,
-        metadata: gtmConnectedMailbox.metadata,
-      })
-      .from(gtmConnectedMailbox)
-      .where(eq(gtmConnectedMailbox.organizationId, auth.orgId));
+    const mailbox = await getConnectedMailbox(auth.orgId);
 
-    if (!mailbox || mailbox.status !== "connected") {
+    if (!mailbox) {
       return NextResponse.json({
         connected: false,
         mailbox: null,

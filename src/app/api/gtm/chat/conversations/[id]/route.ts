@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { db } from "@/utils/db";
-import {
-  gtmConversation,
-  gtmMessage,
-  gtmOutreachCampaign,
-  gtmIcpSegment,
-  gtmResearchRun,
-} from "@/db/schema";
-import { eq, and, asc } from "drizzle-orm";
+import { gtmConversation } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 import { resolveAuthAndOrg } from "@/lib/gtm-auth";
+import { getConversationWithMessages } from "@/lib/data/chat";
 
 export async function GET(
   req: NextRequest,
@@ -24,70 +19,15 @@ export async function GET(
       return NextResponse.json({ error }, { status });
     }
 
-    const [conv] = await db
-      .select()
-      .from(gtmConversation)
-      .where(
-        and(
-          eq(gtmConversation.id, id),
-          eq(gtmConversation.organizationId, auth.orgId)
-        )
-      )
-      .limit(1);
-
-    if (!conv) {
+    const result = await getConversationWithMessages(id, auth.orgId);
+    if (!result) {
       return NextResponse.json(
         { error: "Conversation not found" },
         { status: 404 }
       );
     }
 
-    // Load messages in chronological order
-    const messages = await db
-      .select()
-      .from(gtmMessage)
-      .where(eq(gtmMessage.conversationId, id))
-      .orderBy(asc(gtmMessage.createdAt))
-      .limit(100);
-
-    // If linked to a campaign, enrich with campaign status
-    let linkedCampaign = null;
-    if (conv.outreachCampaignId) {
-      const [camp] = await db
-        .select({
-          id: gtmOutreachCampaign.id,
-          status: gtmOutreachCampaign.status,
-          currentStage: gtmOutreachCampaign.currentStage,
-          segmentName: gtmIcpSegment.name,
-          companyName: gtmResearchRun.companyName,
-          websiteUrl: gtmResearchRun.websiteUrl,
-        })
-        .from(gtmOutreachCampaign)
-        .innerJoin(
-          gtmIcpSegment,
-          eq(gtmOutreachCampaign.icpSegmentId, gtmIcpSegment.id)
-        )
-        .innerJoin(
-          gtmResearchRun,
-          eq(gtmOutreachCampaign.researchRunId, gtmResearchRun.id)
-        )
-        .where(eq(gtmOutreachCampaign.id, conv.outreachCampaignId))
-        .limit(1);
-      linkedCampaign = camp || null;
-    }
-
-    return NextResponse.json({
-      conversation: conv,
-      linkedCampaign,
-      messages: messages.map((m) => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
-        toolCalls: m.toolCalls || [],
-        artifact: m.artifact || null,
-        createdAt: m.createdAt,
-      })),
-    });
+    return NextResponse.json(result);
   } catch (err: any) {
     console.error("[GET /api/gtm/chat/conversations/[id]] Error:", err);
     return NextResponse.json(
