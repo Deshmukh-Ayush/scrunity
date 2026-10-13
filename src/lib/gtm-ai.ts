@@ -104,6 +104,11 @@ export const synthesizedCompanyProfileSchema = z.object({
     ),
 });
 
+/** One prompt line naming where the user sells; empty when unknown. */
+function targetMarketLine(targetMarket?: string | null): string {
+  return targetMarket ? `Target Market (where the user sells): ${targetMarket}\n` : "";
+}
+
 export async function synthesizeCompanyProfile({
   companyName,
   websiteUrl,
@@ -111,6 +116,7 @@ export async function synthesizeCompanyProfile({
   companyDescription,
   contextDoc,
   scrapedContent,
+  targetMarket,
 }: {
   companyName: string;
   websiteUrl: string;
@@ -118,6 +124,7 @@ export async function synthesizeCompanyProfile({
   companyDescription?: string | null;
   contextDoc?: string | null;
   scrapedContent?: string | null;
+  targetMarket?: string | null;
 }): Promise<SynthesizedCompanyProfile> {
   const result = await generateStructuredWithFallback({
     schema: synthesizedCompanyProfileSchema,
@@ -137,6 +144,7 @@ export async function synthesizeCompanyProfile({
       `Website: ${websiteUrl}\n` +
       `Team Size / Company Size: ${companySize || "Unknown"}\n` +
       `User-Provided Description: ${companyDescription || "None provided"}\n` +
+      targetMarketLine(targetMarket) +
       (contextDoc ? `Context Document: ${contextDoc.slice(0, 1500)}\n` : "") +
       (scrapedContent
         ? `Scraped Website & About Page Content:\n${scrapedContent.slice(0, 6000)}`
@@ -163,12 +171,14 @@ export async function generateCompetitorSearchQueries({
   companySize,
   synthesizedProfile,
   contextDoc,
+  targetMarket,
 }: {
   companyName: string;
   companyDescription: string;
   companySize?: string | null;
   synthesizedProfile?: SynthesizedCompanyProfile | null;
   contextDoc?: string | null;
+  targetMarket?: string | null;
 }): Promise<string[]> {
   const result = await generateStructuredWithFallback({
     schema: competitorQueriesSchema,
@@ -178,11 +188,13 @@ export async function generateCompetitorSearchQueries({
       "CONCISENESS RULES:\n" +
       "- Each query must be a crisp 2 to 5 words search query (e.g. 'open source scheduling infrastructure', 'enterprise calendar scheduling api').\n" +
       "- DO NOT explain your reasoning, DO NOT include numbered lists or preambles, and DO NOT add boolean search operator tutorials.\n" +
-      "- Avoid mentioning the company name itself.",
+      "- Avoid mentioning the company name itself.\n" +
+      "- If a target market is given, prefer competitors selling into that market.",
     prompt:
       `Company Name: ${companyName}\n` +
       `Company Size: ${companySize || "Unknown"} employees\n` +
       `Description: ${companyDescription}\n` +
+      targetMarketLine(targetMarket) +
       (synthesizedProfile
         ? `Synthesized Summary: ${synthesizedProfile.summary}\nIndustry/Category: ${synthesizedProfile.industry}\nProduct Focus: ${synthesizedProfile.productFocus}\n`
         : "") +
@@ -259,6 +271,15 @@ const icpSegmentItemSchema = z.object({
     .describe(
       "Approximate market size label under 10 words (e.g. '~8,000 companies in US/EU')"
     ),
+  targetKeywords: z
+    .array(z.string())
+    .min(2)
+    .max(4)
+    .describe(
+      "2 to 4 company-database industry keyword tags for the TARGET companies, each 1 to 3 words (e.g. 'fintech', 'logistics software')"
+    ),
+  headcountMin: z.number().int().min(1).describe("Smallest target company headcount"),
+  headcountMax: z.number().int().min(1).describe("Largest target company headcount"),
 });
 
 const icpSegmentsResponseSchema = z.object({
@@ -272,6 +293,8 @@ export async function generateIcpSegments({
   synthesizedProfile,
   competitors,
   contextDoc,
+  targetMarket,
+  userProvidedTam,
 }: {
   companyName: string;
   companyDescription: string;
@@ -279,6 +302,9 @@ export async function generateIcpSegments({
   synthesizedProfile?: SynthesizedCompanyProfile | null;
   competitors: Array<{ name: string; domain: string; description: string }>;
   contextDoc?: string | null;
+  targetMarket?: string | null;
+  /** The user's own stated TAM, e.g. "USD 50M". */
+  userProvidedTam?: string | null;
 }) {
   const compSummary = competitors
     .map((c) => `- ${c.name} (${c.domain}): ${c.description}`)
@@ -287,7 +313,9 @@ export async function generateIcpSegments({
 
   const result = await generateStructuredWithFallback({
     schema: icpSegmentsResponseSchema,
-    maxTokens: 1500,
+    // gpt-oss reasoning tokens count against this cap; 1500 regularly truncated
+    // the JSON for 4-6 segments and failed Stage 3 on all models.
+    maxTokens: 4000,
     system:
       "You are an expert GTM strategist. Propose 4 to 6 distinct, actionable Ideal Customer Profile (ICP) segments for this business.\n\n" +
       "CONCISENESS RULES:\n" +
@@ -295,13 +323,16 @@ export async function generateIcpSegments({
       "- Pain point: 1 to 2 direct sentences, strictly under 30 words.\n" +
       "- Criteria: 2 to 4 short items, under 10 words each.\n" +
       "- candidateSearchTerms: 2 to 3 search phrases, 2 to 5 words each.\n" +
-      "- estimatedSizeLabel: strictly under 10 words.\n" +
+      "- estimatedSizeLabel: strictly under 10 words, scoped to the target market when one is given.\n" +
+      "- targetKeywords: 2 to 4 tags, 1 to 3 words each. headcountMin/headcountMax: the target company size band.\n" +
       "- NEVER restate the task, NEVER provide preamble or conversational filler, and NEVER explain your reasoning.\n" +
       "- DO NOT invent fictitious company names — candidate companies are sourced via live search.",
     prompt:
       `Company: ${companyName}\n` +
       `Company Size: ${companySize || "Unknown"} employees\n` +
       `Description: ${companyDescription}\n` +
+      targetMarketLine(targetMarket) +
+      (userProvidedTam ? `User-stated TAM (their own figure): ${userProvidedTam}\n` : "") +
       (synthesizedProfile
         ? `Synthesized Profile: ${synthesizedProfile.summary}\nCategory: ${synthesizedProfile.industry}\nProduct Focus: ${synthesizedProfile.productFocus}\n`
         : "") +

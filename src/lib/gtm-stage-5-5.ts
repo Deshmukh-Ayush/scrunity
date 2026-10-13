@@ -7,8 +7,9 @@ import {
   gtmResearchRun,
 } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
-import { scoreTitleMatch, TitleMatchResult, isValidPersonName } from "./gtm-contact-matcher";
+import { isValidPersonName } from "./gtm-contact-matcher";
 import { isAggregatorOrReviewDomain } from "./firecrawl";
+import { touchCampaignProgress } from "./pipeline/stage-state";
 import {
   checkSuppression,
   recordSuppressionEntry,
@@ -33,41 +34,6 @@ export {
   checkLinkedInProfileGate,
   checkLeadQualificationGates,
 };
-
-/**
- * Full Stage 5.5 Qualification Evaluation:
- * Evaluates the two hard gates FIRST. Only contacts passing both hard gates
- * proceed to the existing 0-100 title match qualification score.
- */
-export function evaluateContactQualification(
-  contact: ContactGateData,
-  targetRoles?: string[]
-): GateCheckResult {
-  // 1. Hard Gate 1 & 2 Check
-  const hardGatesResult = checkLeadQualificationGates(contact);
-  if (!hardGatesResult.qualified) {
-    return hardGatesResult;
-  }
-
-  // 2. Existing 0-100 title qualification scoring (if target roles provided)
-  if (targetRoles && targetRoles.length > 0 && contact.title) {
-    const match = scoreTitleMatch(contact.title, targetRoles);
-    if (match.score < 70) {
-      return {
-        qualified: false,
-        reason: match.reason || `Title match score (${match.score}) below qualification threshold (70)`,
-        failedGate: "title_score",
-        titleMatch: match,
-      };
-    }
-    return {
-      qualified: true,
-      titleMatch: match,
-    };
-  }
-
-  return { qualified: true };
-}
 
 /**
  * Marks a contact as disqualified in the database by creating/updating a rejected email draft.
@@ -159,6 +125,7 @@ export async function executeQualifyCampaignContacts(outreachCampaignId: string)
   const sourceOrgId = campaignRun?.organizationId || null;
 
   for (const { contact, company } of contactsWithCompany) {
+    await touchCampaignProgress(outreachCampaignId);
     // 0. Platform-Wide Suppression Check (negative cache)
     const suppression = await checkSuppression({
       email: contact.email,
