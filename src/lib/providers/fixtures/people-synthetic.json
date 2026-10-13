@@ -1,0 +1,11 @@
+{
+  "_note": "SYNTHETIC test data, not a vendor recording. No people-search vendor is connected yet (the Apollo Free plan returns 403 for people search). Names are invented and LinkedIn URLs use the reserved .example domain so they can never point at a real person. Domains match the Delhi company fixture; hoteljobvacancy.com and hackingarticles.in deliberately have nobody, to exercise the not-found path.",
+  "people": [
+    { "id": "fx-person-001", "domain": "inc42.com", "first_name": "Priya", "last_name": "Samplewala", "title": "Chief Executive Officer", "city": "New Delhi", "state": "Delhi", "country": "India" },
+    { "id": "fx-person-002", "domain": "inc42.com", "first_name": "Arjun", "last_name": "Testmehta", "title": "Head of Growth", "city": "New Delhi", "state": "Delhi", "country": "India" },
+    { "id": "fx-person-003", "domain": "startuppedia.in", "first_name": "Neha", "last_name": "Fixturekar", "title": "Founder", "city": "New Delhi", "state": "Delhi", "country": "India" },
+    { "id": "fx-person-004", "domain": "workafy.com", "first_name": "Rohan", "last_name": "Demoverma", "title": "Co-Founder & COO", "city": "New Delhi", "state": "Delhi", "country": "India" },
+    { "id": "fx-person-005", "domain": "canva.com", "first_name": "Olivia", "last_name": "Sampleton", "title": "Head of Partnerships", "city": "Sydney", "state": "New South Wales", "country": "Australia" },
+    { "id": "fx-person-006", "domain": "employmenthero.com", "first_name": "Jack", "last_name": "Fixturely", "title": "VP Sales", "city": "Sydney", "state": "New South Wales", "country": "Australia" }
+  ]
+}

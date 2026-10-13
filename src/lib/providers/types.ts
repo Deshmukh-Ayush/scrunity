@@ -54,6 +54,53 @@ export interface CompanyDiscoveryProvider {
   ): Promise<CompanyDiscoveryResult>
 }
 
+/** One decision maker as a provider describes them. No email here: that is a later lookup. */
+export interface NormalizedPerson {
+  providerPersonId: string
+  firstName: string
+  lastName: string
+  title: string | null
+  linkedinUrl: string | null
+  /** "City, State, Country" as far as the provider knows it, or null. */
+  location: string | null
+  /** Provider key, e.g. "fixture". */
+  source: string
+}
+
+export interface DecisionMakerQuery {
+  company: { name: string; domain: string; providerId: string | null }
+  /** Job titles to search for, most important first. */
+  titles: string[]
+  /** Person-location filter, from the campaign target market. */
+  country: string
+  state?: string | null
+  limit: number
+}
+
+export interface DecisionMakerResult {
+  people: NormalizedPerson[]
+  creditsUsed: number
+}
+
+export interface PeopleDiscoveryProvider {
+  readonly key: string
+  findDecisionMakers(
+    query: DecisionMakerQuery,
+    context: VendorSpendContext
+  ): Promise<DecisionMakerResult>
+}
+
+/** No live people vendor is configured; database-mode Stage 5 cannot run outside fixture mode. */
+export class PeopleProviderUnavailableError extends Error {
+  public readonly failureReason = "people_provider_unavailable"
+  constructor(key: string) {
+    super(
+      `No live decision-maker provider is available (GTM_PEOPLE_PROVIDER="${key}").`
+    )
+    this.name = "PeopleProviderUnavailableError"
+  }
+}
+
 /**
  * The call would push this month's vendor spend past its cap. Thrown before any
  * network request. `failureReason` is what the pipeline stores on the row.

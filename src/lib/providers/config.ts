@@ -24,7 +24,8 @@ const MAX_COMPANIES_CEILING = 25
 /** Companies per Stage 4 run: env value, default 15, never above 25. */
 export function getMaxCompaniesPerRun(): number {
   const parsed = parseInt(process.env.GTM_MAX_COMPANIES_PER_RUN ?? "", 10)
-  const value = Number.isFinite(parsed) && parsed > 0 ? parsed : MAX_COMPANIES_DEFAULT
+  const value =
+    Number.isFinite(parsed) && parsed > 0 ? parsed : MAX_COMPANIES_DEFAULT
   return Math.min(value, MAX_COMPANIES_CEILING)
 }
 
@@ -32,4 +33,19 @@ export function getMaxCompaniesPerRun(): number {
 export function getApolloMonthlyCreditCap(): number {
   const parsed = parseInt(process.env.APOLLO_MONTHLY_CREDIT_CAP ?? "", 10)
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 60
+}
+
+/**
+ * Which decision-maker vendor to use. Only the synthetic "fixture" provider
+ * exists today: the Apollo Free plan blocks people search (HTTP 403).
+ */
+export function getPeopleProviderKey(): string {
+  return process.env.GTM_PEOPLE_PROVIDER || "fixture"
+}
+
+/** Decision makers stored per selected company: default 1, maximum 2. */
+export function getDecisionMakersPerCompany(): number {
+  const parsed = parseInt(process.env.GTM_DECISION_MAKERS_PER_COMPANY ?? "", 10)
+  const value = Number.isFinite(parsed) && parsed > 0 ? parsed : 1
+  return Math.min(value, 2)
 }
