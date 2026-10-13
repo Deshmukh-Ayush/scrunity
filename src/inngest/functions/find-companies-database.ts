@@ -8,12 +8,19 @@ import {
   gtmProspectCompany,
   gtmResearchRun,
 } from "@/db/schema"
-import { advanceCampaign, touchCampaignProgress } from "@/lib/pipeline/stage-state"
+import {
+  advanceCampaign,
+  touchCampaignProgress,
+} from "@/lib/pipeline/stage-state"
 import { extractDomain } from "@/lib/firecrawl"
 import { checkSuppression } from "@/lib/gtm-suppression"
 import { countryNameFromCode, formatTargetMarket } from "@/lib/geo/countries"
 import { getMaxCompaniesPerRun } from "@/lib/providers/config"
 import { getCompanyDiscoveryProvider } from "@/lib/providers/registry"
+import {
+  generateCompanyFitLines,
+  type FitInputCompany,
+} from "@/lib/gtm-company-fit"
 import type { NormalizedCompany } from "@/lib/providers/types"
 import { safeRealtimePublish } from "./shared"
 import type { FindCompaniesResult, ProspectCompanyData } from "./find-companies"
@@ -28,7 +35,10 @@ class MissingTargetCountryError extends Error {
 }
 
 function locationLabel(company: NormalizedCompany): string {
-  return [company.city, company.state, company.country].filter(Boolean).join(", ") || "Unknown"
+  return (
+    [company.city, company.state, company.country].filter(Boolean).join(", ") ||
+    "Unknown"
+  )
 }
 
 /** Explains a short result in plain words; null when the full count came back. */
@@ -52,9 +62,12 @@ function buildDiscoveryNote({
       : `Only ${stored} ${stored === 1 ? "company" : "companies"} matched these filters in ${market}.`
   const skipped = [
     skippedNoDomain > 0 ? `${skippedNoDomain} had no website` : null,
-    skippedSuppressed > 0 ? `${skippedSuppressed} are on the suppression list` : null,
+    skippedSuppressed > 0
+      ? `${skippedSuppressed} are on the suppression list`
+      : null,
   ].filter(Boolean)
-  const skippedText = skipped.length > 0 ? ` Skipped: ${skipped.join(", ")}.` : ""
+  const skippedText =
+    skipped.length > 0 ? ` Skipped: ${skipped.join(", ")}.` : ""
   return `${head}${skippedText} Try widening the region or the segment's size band.`
 }
 
@@ -67,29 +80,48 @@ export async function executeFindCompaniesFromDatabase(
   outreachCampaignId: string
 ): Promise<FindCompaniesResult> {
   const [context] = await db
-    .select({ campaign: gtmOutreachCampaign, segment: gtmIcpSegment, researchRun: gtmResearchRun })
+    .select({
+      campaign: gtmOutreachCampaign,
+      segment: gtmIcpSegment,
+      researchRun: gtmResearchRun,
+    })
     .from(gtmOutreachCampaign)
-    .innerJoin(gtmIcpSegment, eq(gtmOutreachCampaign.icpSegmentId, gtmIcpSegment.id))
-    .innerJoin(gtmResearchRun, eq(gtmOutreachCampaign.researchRunId, gtmResearchRun.id))
+    .innerJoin(
+      gtmIcpSegment,
+      eq(gtmOutreachCampaign.icpSegmentId, gtmIcpSegment.id)
+    )
+    .innerJoin(
+      gtmResearchRun,
+      eq(gtmOutreachCampaign.researchRunId, gtmResearchRun.id)
+    )
     .where(eq(gtmOutreachCampaign.id, outreachCampaignId))
 
-  if (!context) throw new Error(`Outreach campaign ${outreachCampaignId} not found`)
+  if (!context)
+    throw new Error(`Outreach campaign ${outreachCampaignId} not found`)
   const { campaign, segment, researchRun } = context
 
-  const countryCode = campaign.targetCountryCode ?? researchRun.targetCountryCode
-  const region = campaign.targetCountryCode ? campaign.targetRegion : researchRun.targetRegion
+  const countryCode =
+    campaign.targetCountryCode ?? researchRun.targetCountryCode
+  const region = campaign.targetCountryCode
+    ? campaign.targetRegion
+    : researchRun.targetRegion
   const country = countryNameFromCode(countryCode)
   if (!country) throw new MissingTargetCountryError()
   const market = formatTargetMarket(countryCode, region) ?? country
 
-  await safeRealtimePublish(outreachCampaignChannel(outreachCampaignId).started, {
-    stage: "find_companies",
-    message: `Searching the company database for ${segment.name} in ${market}...`,
-  })
+  await safeRealtimePublish(
+    outreachCampaignChannel(outreachCampaignId).started,
+    {
+      stage: "find_companies",
+      message: `Searching the company database for ${segment.name} in ${market}...`,
+    }
+  )
   await touchCampaignProgress(outreachCampaignId)
 
   // Segments from before database mode have no keyword tags; the name is the best filter left.
-  const keywords = segment.targetKeywords?.length ? segment.targetKeywords : [segment.name]
+  const keywords = segment.targetKeywords?.length
+    ? segment.targetKeywords
+    : [segment.name]
   const headcountRange =
     segment.headcountMin != null && segment.headcountMax != null
       ? { min: segment.headcountMin, max: segment.headcountMax }
@@ -129,6 +161,7 @@ export async function executeFindCompaniesFromDatabase(
   }
 
   const insertedCompanies: ProspectCompanyData[] = []
+  const fitInputs: FitInputCompany[] = []
   for (const company of accepted) {
     const [inserted] = await db
       .insert(gtmProspectCompany)
@@ -154,7 +187,7 @@ export async function executeFindCompaniesFromDatabase(
     if (company.headcount != null) {
       await db.insert(gtmCompanyMetricSnapshot).values({
         prospectCompanyId: inserted.id,
-        employeeCountLabel: `${company.headcount.toLocaleString("en-US")} employees (${company.source})`,
+        employeeCountLabel: `${company.headcount.toLocaleString("en-US")} employees`,
       })
     }
     insertedCompanies.push({
@@ -163,6 +196,28 @@ export async function executeFindCompaniesFromDatabase(
       domain: inserted.domain,
       description: inserted.description,
     })
+    fitInputs.push({
+      id: inserted.id,
+      name: inserted.name,
+      industry: inserted.industry,
+      headcount: inserted.headcount,
+      revenueRange: inserted.revenueRange,
+      location: inserted.location,
+      description: inserted.description,
+    })
+  }
+
+  // One batched LLM call for the selection table's Fit column.
+  await touchCampaignProgress(outreachCampaignId)
+  const fitLines = await generateCompanyFitLines({
+    segment,
+    companies: fitInputs,
+  })
+  for (const [id, fitNote] of fitLines) {
+    await db
+      .update(gtmProspectCompany)
+      .set({ fitNote })
+      .where(eq(gtmProspectCompany.id, id))
   }
 
   const discoveryNote = buildDiscoveryNote({
@@ -173,15 +228,23 @@ export async function executeFindCompaniesFromDatabase(
     skippedSuppressed,
   })
 
+  // Database mode waits for the user to pick companies. The status leaves
+  // in_progress, so the runner stops here and staleness never flags the wait.
   await advanceCampaign(outreachCampaignId, "find_companies", {
-    currentStage: "find_contacts",
+    currentStage: "awaiting_company_selection",
+    status: "awaiting_company_selection",
     discoveryNote,
   })
 
-  await safeRealtimePublish(outreachCampaignChannel(outreachCampaignId).completed, {
-    stage: "find_companies",
-    summary: discoveryNote ?? `Found ${insertedCompanies.length} companies in ${market}.`,
-  })
+  await safeRealtimePublish(
+    outreachCampaignChannel(outreachCampaignId).completed,
+    {
+      stage: "find_companies",
+      summary:
+        discoveryNote ??
+        `Found ${insertedCompanies.length} companies in ${market}.`,
+    }
+  )
 
   return { companies: insertedCompanies }
 }

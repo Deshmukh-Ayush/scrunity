@@ -38,7 +38,7 @@ export function createGtmAgentTools(organizationId: string, userId: string) {
           .optional()
           .describe("Optional specific campaign ID to inspect"),
         statusFilter: z
-          .enum(["all", "in_progress", "done", "failed"])
+          .enum(["all", "in_progress", "awaiting_company_selection", "done", "failed"])
           .optional()
           .default("all")
           .describe("Filter campaigns by execution status"),
@@ -126,6 +126,8 @@ export function createGtmAgentTools(organizationId: string, userId: string) {
                 pendingDrafts,
                 approvedDrafts,
                 needsReview: pendingDrafts > 0,
+                // Database mode pauses after company discovery until the user picks companies in the campaign view.
+                needsCompanySelection: camp.currentStage === "awaiting_company_selection",
                 createdAt: camp.createdAt ? camp.createdAt.toISOString() : null,
               };
             })

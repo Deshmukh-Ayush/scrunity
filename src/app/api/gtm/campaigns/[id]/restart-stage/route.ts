@@ -181,6 +181,16 @@ export async function POST(
       });
     }
 
+    // A deliberate wait for the user, not a stuck stage: never reset it, so the
+    // discovered companies and any pending selection stay exactly as they are.
+    if (stage === "awaiting_company_selection") {
+      return NextResponse.json({
+        success: true,
+        message: "Campaign is waiting for you to choose which companies to continue with.",
+        stage,
+      });
+    }
+
     if (stage === "awaiting_approval") {
       return NextResponse.json({
         success: true,

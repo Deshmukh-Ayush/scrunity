@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
             eq(gtmResearchRun.organizationId, auth.orgId),
             inArray(gtmOutreachCampaign.status, [
               "in_progress",
+              "awaiting_company_selection",
               "awaiting_approval",
             ])
           )

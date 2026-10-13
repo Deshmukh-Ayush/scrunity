@@ -35,7 +35,7 @@ export async function PlanLimitsCard() {
       .where(
         and(
           eq(gtmResearchRun.organizationId, organizationId),
-          inArray(gtmOutreachCampaign.status, ["in_progress", "awaiting_approval"])
+          inArray(gtmOutreachCampaign.status, ["in_progress", "awaiting_company_selection", "awaiting_approval"])
         )
       ),
     db.select({ count: count() }).from(member).where(eq(member.organizationId, organizationId)),
