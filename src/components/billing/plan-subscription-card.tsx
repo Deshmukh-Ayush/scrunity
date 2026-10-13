@@ -6,7 +6,8 @@ import { eq } from "drizzle-orm";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BILLING_CONFIG, getPlanLimits, type PlanTier } from "@/config/billing";
-import { UpgradePlanModal, ManagePortalButton } from "./billing-modals";
+import { UpgradePlanModal } from "./upgrade-plan-modal";
+import { ManagePortalButton } from "./manage-portal-button";
 import { CreditCard, Calendar, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
 
 export async function PlanSubscriptionCard() {

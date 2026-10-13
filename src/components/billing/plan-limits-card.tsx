@@ -7,55 +7,47 @@ import {
   gtmOutreachCampaign,
   gtmResearchRun,
 } from "@/db/schema";
-import { eq, and, inArray } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getPlanLimits, getTotalAllowedSeats, getMaxActiveCampaigns, type PlanTier } from "@/config/billing";
-import { AddSeatsModal, UpgradePlanModal } from "./billing-modals";
+import { AddSeatsModal } from "./add-seats-modal";
+import { UpgradePlanModal } from "./upgrade-plan-modal";
 import { Target, Users, Search, CheckCircle2, ShieldCheck, Plus } from "lucide-react";
 
 export async function PlanLimitsCard() {
   const { organizationId } = await getTenantContext();
 
-  const [org] = await db
-    .select({
-      id: organization.id,
-      plan: organization.plan,
-      extraSeats: organization.extraSeats,
-    })
-    .from(organization)
-    .where(eq(organization.id, organizationId));
+  // Org plan, active-campaign count and member count are independent queries.
+  const [[org], [activeCampaigns], [members]] = await Promise.all([
+    db
+      .select({
+        id: organization.id,
+        plan: organization.plan,
+        extraSeats: organization.extraSeats,
+      })
+      .from(organization)
+      .where(eq(organization.id, organizationId)),
+    db
+      .select({ count: count() })
+      .from(gtmOutreachCampaign)
+      .innerJoin(gtmResearchRun, eq(gtmOutreachCampaign.researchRunId, gtmResearchRun.id))
+      .where(
+        and(
+          eq(gtmResearchRun.organizationId, organizationId),
+          inArray(gtmOutreachCampaign.status, ["in_progress", "awaiting_approval"])
+        )
+      ),
+    db.select({ count: count() }).from(member).where(eq(member.organizationId, organizationId)),
+  ]);
 
   const planKey = (org?.plan || "free") as PlanTier;
   const planConfig = getPlanLimits(planKey);
   const maxActiveCampaigns = getMaxActiveCampaigns(planKey);
   const extraSeats = org?.extraSeats || 0;
   const totalSeats = getTotalAllowedSeats(planKey, extraSeats);
-
-  // 1. Count currently active campaigns
-  const activeCampaigns = await db
-    .select({ id: gtmOutreachCampaign.id })
-    .from(gtmOutreachCampaign)
-    .innerJoin(
-      gtmResearchRun,
-      eq(gtmOutreachCampaign.researchRunId, gtmResearchRun.id)
-    )
-    .where(
-      and(
-        eq(gtmResearchRun.organizationId, organizationId),
-        inArray(gtmOutreachCampaign.status, ["in_progress", "awaiting_approval"])
-      )
-    );
-
-  const activeCampaignsCount = activeCampaigns.length;
-
-  // 2. Count active team members
-  const members = await db
-    .select({ id: member.id })
-    .from(member)
-    .where(eq(member.organizationId, organizationId));
-
-  const membersCount = members.length;
+  const activeCampaignsCount = activeCampaigns?.count ?? 0;
+  const membersCount = members?.count ?? 0;
 
   return (
     <Card className="border-border/70 p-6">

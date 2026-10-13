@@ -4,7 +4,7 @@ import { db } from "@/utils/db";
 import { organization } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { AlertTriangle, ArrowRight } from "lucide-react";
-import { ManagePortalButton } from "./billing-modals";
+import { ManagePortalButton } from "./manage-portal-button";
 
 export async function BillingHeader() {
   const { organizationId } = await getTenantContext();

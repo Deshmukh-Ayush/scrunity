@@ -3,7 +3,7 @@ import { getTenantContext } from "@/lib/tenant-context";
 import { getAiCreditBalance } from "@/lib/gtm-ai-credits";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Progress, ProgressTrack, ProgressIndicator } from "@/components/ui/progress";
-import { BuyCreditsModal } from "./billing-modals";
+import { BuyCreditsModal } from "./buy-credits-modal";
 import { Zap, Clock, ShieldCheck, AlertCircle } from "lucide-react";
 
 export async function AiCreditBalanceCard() {
