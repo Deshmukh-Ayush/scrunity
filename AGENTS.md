@@ -24,9 +24,32 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 # Render Architecture Rules
 
 - **`layout.tsx` files must contain zero business logic, zero `await` calls, and zero database queries.** Layouts serve purely as structural chrome, shell UI, and provider containers.
-- **`page.tsx` files must contain only structural markup.** Any data-dependent section must be encapsulated in its own distinct component wrapped in its own React `<Suspense>` boundary with a purpose-built loading skeleton.
+- **`page.tsx` files must contain only structural markup.** Any data-dependent section must be encapsulated in its own distinct child Server Component (see Architecture Rules 3 and 6 below — do not add `<Suspense>` boundaries without flagging first).
 - **`page.tsx` is NEVER a Client Component.** Page roots must remain React Server Components (RSC) to preserve streaming, metadata, and server-side cache boundaries.
 - **Authorization is resolved in `src/proxy.ts`, NOT in React layouts.** Route protection, role verification, and redirect policies execute at the proxy/middleware layer before any React rendering begins, eliminating layout-level DB waterfalls and client-side flash.
 <!-- END:render-architecture-rules -->
+
+<!-- BEGIN:architecture-rules -->
+# Architecture Rules (binding — do not violate without flagging it first)
+
+These take precedence over the Render Architecture Rules above wherever the two differ (notably Suspense — see rule 6).
+
+1. **Every route folder under `src/app/` contains ONLY `page.tsx`, plus `layout.tsx` if genuinely needed.** No route-level `error.tsx`, `loading.tsx`, or `not-found.tsx` — those are handled once, at the root. No stray components inside route folders. If a route genuinely seems to need its own error/loading state, flag it and ask rather than silently adding the file.
+2. **`page.tsx` is NEVER marked `"use client"`.** Pages are Server Components, always.
+3. **`page.tsx` may read session/auth state and render static/structural content inline** (copy, labels, layout shell). It must NOT fetch data itself — no direct DB queries, no direct API/`fetch` calls for dynamic data. Data fetching belongs in dedicated child Server Components, not in the page or the layout.
+4. **New components follow the Vercel components.build conventions.** Install the guide with `npx skills add https://github.com/vercel/components.build --skill building-components` and follow its composition pattern (compound components, `asChild`, data attributes, accessibility, design tokens, states, typed polymorphism) instead of inventing a different component shape. A component built this way (e.g. `Accordion.Root/Item/Trigger/Content`) may be a client component internally and still be rendered directly inside a server `page.tsx` — that does NOT make the page a client component.
+5. **No request waterfalls.** Don't nest components so that each one's fetch blocks on its parent's render when the data doesn't depend on it. Start independent fetches in parallel (`Promise.all`).
+6. **Avoid React `<Suspense>` boundaries for now.** Prior Suspense use here caused real problems (not yet root-caused). Don't use Suspense as the default loading-state tool; if a situation seems to architecturally require it, flag it explicitly and ask rather than adding it silently.
+7. **Keep files to roughly 300–400 lines.** A practical ceiling against bloat, not a hard wall — a genuinely complex, cohesive unit may run over, but routine files (most components, most route handlers) shouldn't.
+8. **Write for human readability over cleverness.** Someone unfamiliar with a file should be able to follow it without re-reading it twice.
+9. **Don't default every interactive element to the brand/primary color.** Most buttons/elements should be neutral; reserve brand color for genuine primary actions.
+<!-- END:architecture-rules -->
+
+<!-- BEGIN:workflow-rules -->
+# Workflow Rules
+
+- **Never commit or push automatically.** Leave all changes unstaged in the working tree unless explicitly told to commit (and only push when explicitly told to push).
+- **No claims without evidence.** Never report a fix or feature as working without real verification: actual command output (typecheck, lint, build), a real run of the relevant test/verification script, or an actual rendered check of the UI. If something could not be verified, say so explicitly rather than implying it works.
+<!-- END:workflow-rules -->
 
 

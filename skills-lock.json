@@ -7,6 +7,12 @@
       "skillPath": "skills/use-ai-sdk/SKILL.md",
       "computedHash": "12672e7c040c99b182ceb86517f36f6409e7e22e101178cf554767b0f5d9dd0a"
     },
+    "building-components": {
+      "source": "vercel/components.build",
+      "sourceType": "github",
+      "skillPath": "skills/building-components/SKILL.md",
+      "computedHash": "20889af7cb9b3abca1e38824f7fffaa873eb0cc4d45187967b97bd85462cf934"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",
