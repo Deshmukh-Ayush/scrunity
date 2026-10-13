@@ -57,15 +57,6 @@ export const ENFORCE_CREDIT_LIMITS =
   process.env.ENFORCE_CREDIT_LIMITS === "true"
 
 /**
- * Platform Technical Circuit Breaker for Web Search.
- *
- * Independent sliding-window limit protecting Firecrawl & licensed search APIs
- * from runaway execution loops or accidental client bugs.
- * Always enforced regardless of ENFORCE_CREDIT_LIMITS.
- */
-export const SEARCH_CIRCUIT_BREAKER_HOURLY_LIMIT = 60
-
-/**
  * Helper to get credit allotment for an organization's plan tier.
  */
 export function getPlanCreditAllotments(

@@ -19,9 +19,3 @@ export const siteConfig = {
     "agency revenue protection",
   ],
 };
-
-export function getAbsoluteUrl(path: string = ""): string {
-  const base = siteConfig.url.replace(/\/$/, "");
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  return `${base}${normalizedPath}`;
-}

@@ -43,19 +43,6 @@ export class EnrichRateLimitError extends Error {
   }
 }
 
-type EnrichTestInterceptor = (
-  url: string,
-  init: RequestInit
-) => Promise<Response | null>
-let testInterceptor: EnrichTestInterceptor | null = null
-
-/** Test-only hook for deterministic provider responses. */
-export function __setTestEnrichInterceptor(
-  interceptor: EnrichTestInterceptor | null
-) {
-  testInterceptor = interceptor
-}
-
 async function enrichFetchWithRetry(
   payload: { firstName: string; lastName: string; domain: string },
   options?: FirecrawlRetryOptions
@@ -77,9 +64,7 @@ async function enrichFetchWithRetry(
 
     let response: Response
     try {
-      response =
-        (await testInterceptor?.(ENRICH_EMAIL_FINDER_URL, init)) ??
-        (await fetch(ENRICH_EMAIL_FINDER_URL, init))
+      response = await fetch(ENRICH_EMAIL_FINDER_URL, init)
     } catch (error) {
       clearTimeout(timeoutId)
       if (attempt === maxRetries) throw error

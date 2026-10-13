@@ -165,6 +165,8 @@ export async function recordFirecrawlUsage({
       .update(gtmResearchRun)
       .set({
         firecrawlCallCount: sql`${gtmResearchRun.firecrawlCallCount} + ${units}`,
+        // Each call doubles as a pipeline heartbeat (see lib/pipeline/stage-state.ts)
+        lastProgressAt: now,
       })
       .where(eq(gtmResearchRun.id, researchRunId));
   }
@@ -175,6 +177,7 @@ export async function recordFirecrawlUsage({
       .update(gtmOutreachCampaign)
       .set({
         firecrawlCallCount: sql`${gtmOutreachCampaign.firecrawlCallCount} + ${units}`,
+        lastProgressAt: now,
       })
       .where(eq(gtmOutreachCampaign.id, campaignId));
   }

@@ -1,4 +1,4 @@
-import { get, put } from "@vercel/blob";
+import { put } from "@vercel/blob";
 
 export interface PutBlobOptions {
   contentType?: string;
@@ -46,60 +46,3 @@ export async function putBlob(
   }
 }
 
-/**
- * Retrieves a document stream from Vercel Blob across public/private stores,
- * with graceful HTTP fetch fallback.
- */
-export async function getBlobStream(
-  url: string
-): Promise<{ stream: ReadableStream; contentType: string } | null> {
-  // Tier 1: Try direct HTTP fetch (fastest and universal for public stores)
-  try {
-    const res = await fetch(url);
-    if (res.ok && res.body) {
-      return {
-        stream: res.body,
-        contentType: res.headers.get("content-type") || "application/octet-stream",
-      };
-    }
-  } catch {
-    // Ignore and fallback
-  }
-
-  // Tier 2: Try Vercel Blob get with public access
-  try {
-    const document = await get(url, { access: "public", useCache: false });
-    if (document?.stream) {
-      return {
-        stream: document.stream,
-        contentType: document.blob?.contentType || "application/octet-stream",
-      };
-    }
-  } catch {
-    // Ignore and fallback
-  }
-
-  // Tier 3: Try Vercel Blob get with private access
-  try {
-    const document = await get(url, { access: "private", useCache: false });
-    if (document?.stream) {
-      return {
-        stream: document.stream,
-        contentType: document.blob?.contentType || "application/octet-stream",
-      };
-    }
-  } catch {
-    // Ignore and return null
-  }
-
-  return null;
-}
-
-/**
- * Retrieves a document as an ArrayBuffer from Vercel Blob across public/private stores.
- */
-export async function getBlobBuffer(url: string): Promise<ArrayBuffer | null> {
-  const result = await getBlobStream(url);
-  if (!result) return null;
-  return await new Response(result.stream).arrayBuffer();
-}

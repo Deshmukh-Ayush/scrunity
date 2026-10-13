@@ -251,20 +251,6 @@ export class FirecrawlRateLimitError extends Error {
   }
 }
 
-// Test hook for simulating Firecrawl responses in test suites
-type FirecrawlTestInterceptor = (
-  url: string,
-  init: RequestInit
-) => Promise<Response | null>;
-
-let testInterceptor: FirecrawlTestInterceptor | null = null;
-
-export function __setTestFirecrawlInterceptor(
-  interceptor: FirecrawlTestInterceptor | null
-) {
-  testInterceptor = interceptor;
-}
-
 /**
  * Extracts wait duration from 429 response headers or body with exponential fallback.
  */
@@ -424,16 +410,7 @@ export async function firecrawlFetchWithRetry(
 
     let res: Response;
     try {
-      if (testInterceptor) {
-        const intercepted = await testInterceptor(url, init);
-        if (intercepted) {
-          res = intercepted;
-        } else {
-          res = await fetch(url, init);
-        }
-      } else {
-        res = await fetch(url, init);
-      }
+      res = await fetch(url, init);
     } catch (netErr: any) {
       clearTimeout(timeoutId);
       if (attempt < maxRetries) {
