@@ -9,7 +9,7 @@ import {
   Code,
   CodeBlock,
   Table,
-} from "./doc-components";
+} from "@/components/docs/doc-components";
 
 export const metadata: Metadata = {
   title: "Developer Docs",
