@@ -25,6 +25,8 @@ interface CampaignDetailContextValue {
   isDispatching: boolean
   isRestarting: boolean
   isUpdating: boolean
+  /** Re-fetches the campaign, drafts and mailbox now instead of at the next poll. */
+  refresh: () => Promise<void>
   reviewDraft: (
     draftId: string,
     action: "approve" | "reject",
@@ -244,6 +246,7 @@ export function CampaignDetailRoot({
     isDispatching,
     isRestarting,
     isUpdating,
+    refresh,
     reviewDraft,
     approveAllDrafts,
     restartStage,

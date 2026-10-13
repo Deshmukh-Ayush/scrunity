@@ -11,6 +11,7 @@ import {
 } from "@/db/schema"
 import { desc, eq, inArray, sql } from "drizzle-orm"
 import { verifyCampaignAccess } from "@/lib/gtm-auth"
+import { getDecisionMakersPerCompany } from "@/lib/providers/config"
 
 /**
  * Every outreach campaign in the organization, newest first, joined with the
@@ -32,6 +33,15 @@ export async function listOrgCampaigns(organizationId: string) {
     .orderBy(desc(gtmOutreachCampaign.createdAt))
 }
 
+/** Vendor identifiers never leave the server: customers must not see which data vendor was used. */
+const VENDOR_FIELDS: readonly string[] = ["source", "providerId", "providerPersonId"]
+
+function withoutVendorFields<T extends { source: unknown }>(row: T) {
+  return Object.fromEntries(
+    Object.entries(row).filter(([key]) => !VENDOR_FIELDS.includes(key))
+  ) as Omit<T, "source" | "providerId" | "providerPersonId">
+}
+
 /**
  * Campaign header data plus its prospect companies, their contacts and metric
  * snapshots, and raw draft rows. Returns null when the campaign does not belong
@@ -44,15 +54,30 @@ export async function getCampaignDetail(
   const verified = await verifyCampaignAccess(campaignId, organizationId)
   if (!verified) return null
 
-  const companies = await db
+  const rows = await db
     .select()
     .from(gtmProspectCompany)
     .where(eq(gtmProspectCompany.outreachCampaignId, campaignId))
+    .orderBy(gtmProspectCompany.createdAt)
+  const companies = rows.map(withoutVendorFields)
+  const discovery = {
+    usesCompanyDatabase:
+      verified.campaign.currentStage === "awaiting_company_selection" ||
+      rows.some((c) => c.source !== "web_search"),
+    decisionMakersPerCompany: getDecisionMakersPerCompany(),
+  }
 
   const companyIds = companies.map((c) => c.id)
 
   if (companyIds.length === 0) {
-    return { ...verified, companies, snapshots: [], contacts: [], drafts: [] }
+    return {
+      ...verified,
+      ...discovery,
+      companies,
+      snapshots: [],
+      contacts: [],
+      drafts: [],
+    }
   }
 
   const [snapshots, contacts, drafts] = await Promise.all([
@@ -63,14 +88,15 @@ export async function getCampaignDetail(
     db
       .select()
       .from(gtmContact)
-      .where(inArray(gtmContact.prospectCompanyId, companyIds)),
+      .where(inArray(gtmContact.prospectCompanyId, companyIds))
+      .then((rows) => rows.map(withoutVendorFields)),
     db
       .select()
       .from(gtmEmailDraft)
       .where(eq(gtmEmailDraft.outreachCampaignId, campaignId)),
   ])
 
-  return { ...verified, companies, snapshots, contacts, drafts }
+  return { ...verified, ...discovery, companies, snapshots, contacts, drafts }
 }
 
 /**

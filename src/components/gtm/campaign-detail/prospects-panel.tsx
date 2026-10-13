@@ -8,6 +8,8 @@ import { EmailSourceBadge } from "./status-badges"
 export function ProspectsPanel() {
   const { data } = useCampaignDetail()
   const { companies, contacts, snapshots } = data
+  // Company-database campaigns use the selection table instead.
+  if (data.usesCompanyDatabase) return null
   const discoveryNote = data.campaign.discoveryNote
 
   return (

@@ -11,6 +11,7 @@ import { MailboxStatusBar } from "./mailbox-status-bar"
 import { StageStepper } from "./stage-stepper"
 import { DraftReviewSection } from "./draft-review-section"
 import { ProspectsPanel } from "./prospects-panel"
+import { CompanySelection } from "./company-selection/company-selection"
 import { CampaignSegmentDigest } from "./campaign-segment-digest"
 import type { CampaignData, Draft, MailboxInfo } from "./types"
 
@@ -45,6 +46,7 @@ export async function CampaignDetail({ campaignId }: { campaignId: string }) {
       <MailboxStatusBar />
       <StageStepper />
       <DraftReviewSection />
+      <CompanySelection />
       <ProspectsPanel />
       <CampaignSegmentDigest />
     </CampaignDetailRoot>

@@ -32,6 +32,8 @@ const FAILURE_REASON_TEXT: Record<string, string> = {
     "Company search failed: the company database is rate-limiting requests. Retry in a few minutes.",
   provider_request_failed:
     "Company search failed: the company database returned an error. Retry the campaign.",
+  people_provider_unavailable:
+    "Decision-maker search is not available yet, so this campaign stopped after your company selection. Nothing was charged.",
   target_country_missing:
     "Company search needs a target country. Start a new research run with a target country selected.",
 }

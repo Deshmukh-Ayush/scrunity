@@ -118,6 +118,12 @@ export function CampaignsListClient({
             <Building2 className="size-3" /> Finding Companies
           </Badge>
         )
+      case "awaiting_company_selection":
+        return (
+          <Badge variant="outline" className="gap-1 border-amber-500/40 text-xs text-amber-700 dark:text-amber-300">
+            <AlertCircle className="size-3" /> Choose Companies
+          </Badge>
+        )
       case "find_contacts":
         return (
           <Badge variant="secondary" className="gap-1 text-xs">

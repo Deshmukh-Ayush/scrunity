@@ -13,9 +13,12 @@ import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { useCampaignDetail } from "./campaign-detail-root"
 
+// The two database-mode stops sit where they happen; neither has its own step.
 const STAGE_ORDER = [
   "find_companies",
+  "awaiting_company_selection",
   "find_contacts",
+  "done_for_now",
   "write_emails",
   "awaiting_approval",
   "send_emails",

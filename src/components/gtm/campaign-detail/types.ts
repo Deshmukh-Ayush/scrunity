@@ -9,6 +9,11 @@ export interface Contact {
   email: string | null
   emailSource: string
   linkedinUrl: string | null
+  /** Present on campaign-detail contacts (not on draft contacts). */
+  prospectCompanyId?: string
+  geo?: string | null
+  /** "not_looked_up" for database-mode decision makers; null for legacy contacts. */
+  emailStatus?: string | null
 }
 
 export interface Company {
@@ -17,6 +22,17 @@ export interface Company {
   domain: string
   location: string
   description: string
+  // Company-database fields (database mode); absent or null on legacy rows.
+  website?: string | null
+  city?: string | null
+  state?: string | null
+  country?: string | null
+  industry?: string | null
+  headcount?: number | null
+  revenueRange?: string | null
+  selectionStatus?: "selected" | "excluded"
+  fitNote?: string | null
+  decisionMakerStatus?: "found" | "no_decision_maker_found" | null
 }
 
 export type DraftStatus = "draft" | "approved" | "rejected" | "sent" | "failed"
@@ -60,6 +76,9 @@ export interface CampaignData {
     companyName: string
     websiteUrl: string
   }
+  /** True when this campaign's companies came from the company database (selection gate). */
+  usesCompanyDatabase?: boolean
+  decisionMakersPerCompany?: number
   companies: Company[]
   contacts: Contact[]
   snapshots: Array<{
