@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { db } from "@/utils/db"
-import {
-  gtmCompetitor,
-  gtmIcpSegment,
-  gtmOutreachCampaign,
-  gtmResearchRun,
-} from "@/db/schema"
-import { eq, and, ne } from "drizzle-orm"
+import { gtmResearchRun } from "@/db/schema"
+import { eq, and } from "drizzle-orm"
 import { resolveAuthAndOrg, verifyResearchRunAccess } from "@/lib/gtm-auth"
-import { checkInngestConnectivity } from "@/lib/inngest-connectivity"
-import { inngest } from "@/inngest/client"
-import { runFullResearchPipeline } from "@/lib/gtm-pipeline-runner"
+import { getCachedInngestConnectivity } from "@/lib/inngest-connectivity"
+import { getResearchRunDetail } from "@/lib/data/research-runs"
+import { dispatchResearchRun } from "@/lib/pipeline/dispatch"
+import { researchRunIsIdle } from "@/lib/pipeline/stage-state"
 import { z } from "zod"
 
 const updateResearchRunSchema = z.object({
@@ -32,39 +28,22 @@ export async function GET(
       return NextResponse.json({ error }, { status })
     }
 
-    // IDOR protection: Verify caller's org owns this research run
-    const run = await verifyResearchRunAccess(id, auth.orgId)
-    if (!run) {
+    // The connectivity check is independent of the DB work, so run both at once.
+    const [detail, inngestConnectivity] = await Promise.all([
+      getResearchRunDetail(id, auth.orgId),
+      getCachedInngestConnectivity(),
+    ])
+
+    if (!detail) {
       return NextResponse.json(
         { error: "Forbidden: Research run not found or unauthorized" },
         { status: 403 }
       )
     }
 
-    // Fetch competitors, segments, and in-flight campaigns
-    const [competitors, segments, campaigns] = await Promise.all([
-      db
-        .select()
-        .from(gtmCompetitor)
-        .where(eq(gtmCompetitor.researchRunId, id)),
-      db
-        .select()
-        .from(gtmIcpSegment)
-        .where(eq(gtmIcpSegment.researchRunId, id)),
-      db
-        .select()
-        .from(gtmOutreachCampaign)
-        .where(eq(gtmOutreachCampaign.researchRunId, id)),
-    ])
-
-    const inngestConnectivity = await checkInngestConnectivity()
-
     return NextResponse.json({
       success: true,
-      researchRun: run,
-      competitors,
-      segments,
-      campaigns,
+      ...detail,
       inngestConnectivity,
     })
   } catch (err: any) {
@@ -93,12 +72,9 @@ export async function PATCH(
       { status: 400 }
     )
 
-  const whereCondition = parsed.data.force
-    ? eq(gtmResearchRun.id, id)
-    : and(
-        eq(gtmResearchRun.id, id),
-        ne(gtmResearchRun.status, "in_progress")
-      )
+  // Allowed unless a live executor is still working on the run (in_progress
+  // with a fresh heartbeat), so a stalled run can be retried but never doubled.
+  const whereCondition = and(eq(gtmResearchRun.id, id), researchRunIsIdle())
 
   // Atomic conditional check-and-set
   const [researchRun] = await db
@@ -119,7 +95,7 @@ export async function PATCH(
     const currentRun = await verifyResearchRunAccess(id, auth.orgId)
     return NextResponse.json(
       {
-        error: "Research run is currently in progress",
+        error: "Research run is still actively running. Try again once it finishes or stalls.",
         researchRun: currentRun,
         duplicatePrevented: true,
       },
@@ -127,20 +103,7 @@ export async function PATCH(
     )
   }
 
-  try {
-    await inngest.send({
-      name: "gtm/research.requested",
-      data: { researchRunId: id },
-    })
-  } catch (e) {
-    console.warn("[PATCH /api/gtm/research-runs/[id]] inngest.send notice:", e)
-  }
-
-  setImmediate(() => {
-    runFullResearchPipeline(id).catch((err) => {
-      console.error("[PATCH /api/gtm/research-runs/[id]] Background pipeline error:", err)
-    })
-  })
+  await dispatchResearchRun(id)
 
   return NextResponse.json({ success: true, researchRun })
 }

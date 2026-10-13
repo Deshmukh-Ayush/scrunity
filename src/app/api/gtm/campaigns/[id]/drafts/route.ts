@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { db } from "@/utils/db";
-import { gtmEmailDraft, gtmContact, gtmProspectCompany } from "@/db/schema";
-import { eq, desc, sql } from "drizzle-orm";
+import { gtmEmailDraft } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 import { resolveAuthAndOrg, verifyCampaignAccess } from "@/lib/gtm-auth";
+import { listCampaignDrafts } from "@/lib/data/campaigns";
 
 export async function GET(
   req: NextRequest,
@@ -27,43 +28,7 @@ export async function GET(
       );
     }
 
-    // Fetch drafts with contact and company info
-    const drafts = await db
-      .select({
-        id: gtmEmailDraft.id,
-        subject: gtmEmailDraft.subject,
-        body: gtmEmailDraft.body,
-        status: gtmEmailDraft.status,
-        providerMessageId: gtmEmailDraft.providerMessageId,
-        sentAt: gtmEmailDraft.sentAt,
-        errorMessage: gtmEmailDraft.errorMessage,
-        hasBounced: sql<boolean>`EXISTS (SELECT 1 FROM gtm_email_event e WHERE e.email_draft_id = ${gtmEmailDraft.id} AND e.type = 'bounced')`,
-        createdAt: gtmEmailDraft.createdAt,
-        reviewedBy: gtmEmailDraft.reviewedBy,
-        reviewedAt: gtmEmailDraft.reviewedAt,
-        contact: {
-          id: gtmContact.id,
-          name: gtmContact.name,
-          title: gtmContact.title,
-          email: gtmContact.email,
-          emailSource: gtmContact.emailSource,
-          linkedinUrl: gtmContact.linkedinUrl,
-        },
-        company: {
-          id: gtmProspectCompany.id,
-          name: gtmProspectCompany.name,
-          domain: gtmProspectCompany.domain,
-          location: gtmProspectCompany.location,
-        },
-      })
-      .from(gtmEmailDraft)
-      .innerJoin(gtmContact, eq(gtmEmailDraft.contactId, gtmContact.id))
-      .innerJoin(
-        gtmProspectCompany,
-        eq(gtmContact.prospectCompanyId, gtmProspectCompany.id)
-      )
-      .where(eq(gtmEmailDraft.outreachCampaignId, id))
-      .orderBy(desc(gtmEmailDraft.createdAt));
+    const drafts = await listCampaignDrafts(id);
 
     return NextResponse.json({ success: true, drafts });
   } catch (err: any) {
@@ -98,7 +63,6 @@ export async function POST(
 
     const body = await req.json().catch(() => ({}));
     if (body.action === "approve_all") {
-      const { and } = await import("drizzle-orm");
       await db
         .update(gtmEmailDraft)
         .set({

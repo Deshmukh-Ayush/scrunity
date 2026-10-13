@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { db } from "@/utils/db";
 import { gtmOutreachCampaign, gtmResearchRun, organization } from "@/db/schema";
-import { eq, desc, and, inArray } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { resolveAuthAndOrg, verifyIcpSegmentAccess } from "@/lib/gtm-auth";
-import { inngest } from "@/inngest/client";
-import { runFullCampaignPipeline } from "@/lib/gtm-pipeline-runner";
+import { dispatchCampaign } from "@/lib/pipeline/dispatch";
 import { getPlanLimits, getMaxActiveCampaigns } from "@/config/billing";
+import { listOrgCampaigns } from "@/lib/data/campaigns";
+import { seedCampaignConversation } from "@/lib/gtm-campaign-conversation";
 import { z } from "zod";
 
 const createCampaignSchema = z.object({
@@ -118,6 +119,9 @@ export async function POST(req: NextRequest) {
       .values({
         icpSegmentId,
         researchRunId: verified.researchRun.id,
+        // Snapshot the run's target market so it can differ per campaign later.
+        targetCountryCode: verified.researchRun.targetCountryCode,
+        targetRegion: verified.researchRun.targetRegion,
         status: "in_progress",
         currentStage: "find_companies",
         stageStartedAt: new Date(),
@@ -125,24 +129,22 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
-    // Fire Inngest event
+    // Give the campaign its agent-chat thread. A failure here must not block the campaign.
     try {
-      await inngest.send({
-        name: "gtm/campaign.find_companies",
-        data: {
-          outreachCampaignId: campaign.id,
-        },
+      await seedCampaignConversation({
+        organizationId: auth.orgId,
+        userId: auth.userId,
+        campaign,
+        researchRunId: verified.researchRun.id,
+        companyName: verified.researchRun.companyName,
+        segmentName: verified.segment.name,
       });
-    } catch (e) {
-      console.warn("[POST /api/gtm/campaigns] inngest.send notice:", e);
+    } catch (seedErr) {
+      console.error("[POST /api/gtm/campaigns] Failed to seed campaign conversation:", seedErr);
     }
 
-    // Direct background execution guarantees completion in all environments
-    setImmediate(() => {
-      runFullCampaignPipeline(campaign.id).catch((err) => {
-        console.error("[POST /api/gtm/campaigns] Background pipeline error:", err);
-      });
-    });
+    // Exactly one executor (Inngest or in-process) picks the campaign up.
+    await dispatchCampaign(campaign.id);
 
     return NextResponse.json(
       { success: true, campaign },
@@ -166,18 +168,7 @@ export async function GET() {
       return NextResponse.json({ error }, { status });
     }
 
-    const campaigns = await db
-      .select({
-        campaign: gtmOutreachCampaign,
-        researchRun: gtmResearchRun,
-      })
-      .from(gtmOutreachCampaign)
-      .innerJoin(
-        gtmResearchRun,
-        eq(gtmOutreachCampaign.researchRunId, gtmResearchRun.id)
-      )
-      .where(eq(gtmResearchRun.organizationId, auth.orgId))
-      .orderBy(desc(gtmOutreachCampaign.createdAt));
+    const campaigns = await listOrgCampaigns(auth.orgId);
 
     return NextResponse.json({ success: true, campaigns });
   } catch (err: any) {

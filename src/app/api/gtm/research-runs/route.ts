@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { db } from "@/utils/db";
 import { gtmResearchRun } from "@/db/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { resolveAuthAndOrg } from "@/lib/gtm-auth";
-import { inngest } from "@/inngest/client";
-import { runFullResearchPipeline } from "@/lib/gtm-pipeline-runner";
+import { dispatchResearchRun } from "@/lib/pipeline/dispatch";
 import { getFallbackLogoUrl, normalizeWebsiteUrl } from "@/lib/firecrawl";
+import { listOrgResearchRuns } from "@/lib/data/research-runs";
 import { z } from "zod";
+import { targetMarketInputSchema } from "@/lib/gtm-target-market";
 
 const createResearchRunSchema = z.object({
   websiteUrl: z.string().min(1, "Website URL is required"),
@@ -15,7 +16,7 @@ const createResearchRunSchema = z.object({
   companyDescription: z.string().min(1, "Company description is required"),
   companySize: z.enum(["1-10", "11-50", "51-200", "200+"]),
   contextDoc: z.string().optional().nullable(),
-});
+}).extend(targetMarketInputSchema.shape);
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,6 +43,10 @@ export async function POST(req: NextRequest) {
       companyDescription,
       companySize,
       contextDoc,
+      targetCountryCode,
+      targetRegion,
+      ownArr,
+      ownTam,
     } = parsed.data;
 
     const websiteUrl = normalizeWebsiteUrl(rawWebsiteUrl);
@@ -88,6 +93,12 @@ export async function POST(req: NextRequest) {
         companyDescription,
         companySize,
         contextDoc: contextDoc || null,
+        targetCountryCode,
+        targetRegion,
+        ownArrAmount: ownArr?.amount ?? null,
+        ownArrCurrency: ownArr?.currency ?? null,
+        ownTamAmount: ownTam?.amount ?? null,
+        ownTamCurrency: ownTam?.currency ?? null,
         logoUrl,
         status: "in_progress",
         currentStage: "research_company",
@@ -96,24 +107,8 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
-    // Fire Inngest event (non-blocking)
-    try {
-      await inngest.send({
-        name: "gtm/research.requested",
-        data: {
-          researchRunId: run.id,
-        },
-      });
-    } catch (inngestErr) {
-      console.warn("[POST /api/gtm/research-runs] inngest.send notice:", inngestErr);
-    }
-
-    // Direct background execution guarantees completion in all environments
-    setImmediate(() => {
-      runFullResearchPipeline(run.id).catch((err) => {
-        console.error("[POST /api/gtm/research-runs] Background pipeline error:", err);
-      });
-    });
+    // Exactly one executor (Inngest or in-process) picks the run up.
+    await dispatchResearchRun(run.id);
 
     return NextResponse.json({ success: true, researchRun: run }, { status: 201 });
   } catch (err: any) {
@@ -134,11 +129,7 @@ export async function GET() {
       return NextResponse.json({ error }, { status });
     }
 
-    const runs = await db
-      .select()
-      .from(gtmResearchRun)
-      .where(eq(gtmResearchRun.organizationId, auth.orgId))
-      .orderBy(desc(gtmResearchRun.createdAt));
+    const runs = await listOrgResearchRuns(auth.orgId);
 
     return NextResponse.json({ success: true, runs });
   } catch (err: any) {

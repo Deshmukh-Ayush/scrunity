@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/utils/db";
 import { gtmResearchRun } from "@/db/schema";
-import { eq } from "drizzle-orm";
 import { resolveAuthAndOrg, verifyResearchRunAccess } from "@/lib/gtm-auth";
-import { inngest, isDev } from "@/inngest/client";
-import { checkInngestConnectivity } from "@/lib/inngest-connectivity";
+import { dispatchResearchRun } from "@/lib/pipeline/dispatch";
+import { researchRunIsIdle } from "@/lib/pipeline/stage-state";
 
+const STAGE_LABELS: Record<string, string> = {
+  research_company: "Research Company",
+  research_competitors: "Explore Competitors",
+  define_segments: "Define Segments",
+};
+
+/**
+ * Re-runs the research run's current stage. Works whichever executor is in use
+ * (Inngest or in-process); refused only while a live executor is still
+ * heartbeating, so a restart can never run a stage twice.
+ */
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -28,136 +39,59 @@ export async function POST(
       );
     }
 
-    // Check Inngest connectivity upfront in development
-    const inngestStatus = await checkInngestConnectivity();
-    if (isDev && !inngestStatus.connected) {
-      return NextResponse.json(
-        {
-          error:
-            "Inngest dev server is not running. Please start it using 'npm run inngest:dev' in your terminal before restarting stages.",
-          inngestOffline: true,
-        },
-        { status: 503 }
-      );
-    }
-
     const stage = run.currentStage;
-    const now = new Date();
-
-    if (stage === "research_company") {
-      await db
-        .update(gtmResearchRun)
-        .set({
-          status: "in_progress",
-          failureReason: null,
-          stageStartedAt: now,
-          lastProgressAt: null,
-        })
-        .where(eq(gtmResearchRun.id, researchRunId));
-
-      try {
-        await inngest.send({
-          name: "gtm/research.requested",
-          data: { researchRunId },
-        });
-      } catch (inngestErr) {
-        console.error(
-          "[POST /api/gtm/research-runs/[id]/restart-stage] inngest.send failed:",
-          inngestErr
-        );
-        return NextResponse.json(
-          { error: "Failed to dispatch stage event to Inngest runner." },
-          { status: 502 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: 'Restarted "Research Company" stage. Inngest event dispatched.',
-        stage: "research_company",
-      });
-    }
-
-    if (stage === "research_competitors") {
-      await db
-        .update(gtmResearchRun)
-        .set({
-          status: "in_progress",
-          failureReason: null,
-          stageStartedAt: now,
-          lastProgressAt: null,
-        })
-        .where(eq(gtmResearchRun.id, researchRunId));
-
-      try {
-        await inngest.send({
-          name: "gtm/research.explore_competitors",
-          data: { researchRunId },
-        });
-      } catch (inngestErr) {
-        console.error(
-          "[POST /api/gtm/research-runs/[id]/restart-stage] inngest.send failed:",
-          inngestErr
-        );
-        return NextResponse.json(
-          { error: "Failed to dispatch stage event to Inngest runner." },
-          { status: 502 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: 'Restarted "Explore Competitors" stage. Inngest event dispatched.',
-        stage: "research_competitors",
-      });
-    }
-
-    if (stage === "define_segments") {
-      await db
-        .update(gtmResearchRun)
-        .set({
-          status: "in_progress",
-          failureReason: null,
-          stageStartedAt: now,
-          lastProgressAt: null,
-        })
-        .where(eq(gtmResearchRun.id, researchRunId));
-
-      try {
-        await inngest.send({
-          name: "gtm/research.define_segments",
-          data: { researchRunId },
-        });
-      } catch (inngestErr) {
-        console.error(
-          "[POST /api/gtm/research-runs/[id]/restart-stage] inngest.send failed:",
-          inngestErr
-        );
-        return NextResponse.json(
-          { error: "Failed to dispatch stage event to Inngest runner." },
-          { status: 502 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        message: 'Restarted "Define Segments" stage. Inngest event dispatched.',
-        stage: "define_segments",
-      });
-    }
 
     if (stage === "done") {
       return NextResponse.json({
         success: true,
         message: "Research run has already completed all stages.",
-        stage: "done",
+        stage,
       });
     }
 
-    return NextResponse.json(
-      { error: `Cannot restart unrecognized stage "${stage}"` },
-      { status: 400 }
-    );
+    const label = STAGE_LABELS[stage];
+    if (!label) {
+      return NextResponse.json(
+        { error: `Cannot restart unrecognized stage "${stage}"` },
+        { status: 400 }
+      );
+    }
+
+    const [reset] = await db
+      .update(gtmResearchRun)
+      .set({
+        status: "in_progress",
+        failureReason: null,
+        stageStartedAt: new Date(),
+        lastProgressAt: null,
+      })
+      .where(
+        and(
+          eq(gtmResearchRun.id, researchRunId),
+          eq(gtmResearchRun.currentStage, stage),
+          researchRunIsIdle()
+        )
+      )
+      .returning({ id: gtmResearchRun.id });
+
+    if (!reset) {
+      return NextResponse.json(
+        {
+          error: `The "${label}" stage is still actively running (recent progress recorded). Restart is available once it stalls or fails.`,
+          stillRunning: true,
+        },
+        { status: 409 }
+      );
+    }
+
+    const executor = await dispatchResearchRun(researchRunId);
+
+    return NextResponse.json({
+      success: true,
+      message: `Restarted "${label}" stage.`,
+      stage,
+      executor,
+    });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Internal server error";
     console.error("[POST /api/gtm/research-runs/[id]/restart-stage] Error:", err);

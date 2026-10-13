@@ -8,7 +8,7 @@ import {
 } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { resolveAuthAndOrg, verifyCampaignAccess } from "@/lib/gtm-auth";
-import { inngest } from "@/inngest/client";
+import { dispatchCampaignSend } from "@/lib/pipeline/dispatch";
 
 export async function POST(
   _req: NextRequest,
@@ -88,7 +88,7 @@ export async function POST(
       );
     }
 
-    // 3. Update campaign stage & fire Inngest event
+    // 3. Update campaign stage & start the sender
     await db
       .update(gtmOutreachCampaign)
       .set({
@@ -100,18 +100,7 @@ export async function POST(
       })
       .where(eq(gtmOutreachCampaign.id, campaignId));
 
-    try {
-      await inngest.send({
-        name: "gtm/campaign.send_emails",
-        data: {
-          outreachCampaignId: campaignId,
-        },
-      });
-    } catch (inngestErr) {
-      console.warn(
-        `[POST /api/gtm/campaigns/[id]/send] inngest.send warning: ${inngestErr}`
-      );
-    }
+    await dispatchCampaignSend(campaignId);
 
     return NextResponse.json({
       success: true,

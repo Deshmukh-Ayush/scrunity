@@ -6,10 +6,10 @@ import {
   gtmProspectCompany,
   gtmEmailDraft,
 } from "@/db/schema";
-import { eq, and, ne } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { resolveAuthAndOrg, verifyCampaignAccess } from "@/lib/gtm-auth";
-import { inngest } from "@/inngest/client";
-import { runFullCampaignPipeline } from "@/lib/gtm-pipeline-runner";
+import { dispatchCampaign } from "@/lib/pipeline/dispatch";
+import { campaignIsIdle } from "@/lib/pipeline/stage-state";
 
 export async function POST(
   _req: NextRequest,
@@ -33,21 +33,10 @@ export async function POST(
       );
     }
 
-    let force = false;
-    try {
-      const body = await _req.json();
-      if (body?.force) force = true;
-    } catch {
-      // Body is optional
-    }
-
-    // Step 1: Atomic conditional check-and-set - only set in_progress if NOT already in_progress, unless force=true
-    const whereCondition = force
-      ? eq(gtmOutreachCampaign.id, campaignId)
-      : and(
-          eq(gtmOutreachCampaign.id, campaignId),
-          ne(gtmOutreachCampaign.status, "in_progress")
-        );
+    // Step 1: Atomic check-and-set. Allowed unless a live executor is still
+    // working on the campaign (in_progress with a fresh heartbeat), which is
+    // what lets a stalled campaign be retried without ever running it twice.
+    const whereCondition = and(eq(gtmOutreachCampaign.id, campaignId), campaignIsIdle());
 
     const [updatedCampaign] = await db
       .update(gtmOutreachCampaign)
@@ -55,6 +44,7 @@ export async function POST(
         currentStage: "find_companies",
         status: "in_progress",
         failureReason: null,
+        discoveryNote: null,
         stageStartedAt: new Date(),
         lastProgressAt: null,
       })
@@ -67,7 +57,7 @@ export async function POST(
       );
       return NextResponse.json(
         {
-          error: "Campaign is currently in progress",
+          error: "Campaign is still actively running. Try again once it finishes or stalls.",
           duplicatePrevented: true,
         },
         { status: 409 }
@@ -84,24 +74,7 @@ export async function POST(
         .where(eq(gtmProspectCompany.outreachCampaignId, campaignId)),
     ]);
 
-    // Fire Inngest stage 4 event
-    try {
-      await inngest.send({
-        name: "gtm/campaign.find_companies",
-        data: {
-          outreachCampaignId: campaignId,
-        },
-      });
-    } catch (e) {
-      console.warn("[POST /api/gtm/campaigns/[id]/rerun] inngest.send notice:", e);
-    }
-
-    // Direct background execution guarantees completion in all environments
-    setImmediate(() => {
-      runFullCampaignPipeline(campaignId).catch((err) => {
-        console.error("[POST /api/gtm/campaigns/[id]/rerun] Background pipeline error:", err);
-      });
-    });
+    await dispatchCampaign(campaignId);
 
     return NextResponse.json({
       success: true,
