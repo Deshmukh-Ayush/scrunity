@@ -34,6 +34,8 @@ import {
   isValidPersonName,
 } from "@/lib/gtm-contact-matcher"
 import { safeRealtimePublish, type InngestStep } from "./shared"
+import { getDiscoveryMode } from "@/lib/providers/config"
+import { executeFindContactsFromDatabase } from "./find-contacts-database"
 
 export interface ContactData {
   id: string
@@ -138,6 +140,10 @@ export async function executeFindContacts(
   outreachCampaignId: string,
   step?: InngestStep
 ): Promise<FindContactsResult> {
+  if (getDiscoveryMode() === "database") {
+    return executeFindContactsFromDatabase(outreachCampaignId)
+  }
+
   const [context] = await db
     .select({
       campaign: gtmOutreachCampaign,
