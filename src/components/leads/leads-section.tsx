@@ -29,7 +29,7 @@ export async function LeadsSection({
   const pageSize = 20;
 
   // Campaigns for filter dropdown
-  const campaigns = await db
+  const campaignsQuery = db
     .select({
       id: gtmOutreachCampaign.id,
       name: gtmIcpSegment.name,
@@ -112,8 +112,9 @@ export async function LeadsSection({
     );
   }
 
-  // Total count
-  const [countResult] = await db
+  // The filter-dropdown campaigns, total count and current page are independent,
+  // so build all three queries and run them together below.
+  const countQuery = db
     .select({ count: sql<number>`count(*)::int` })
     .from(gtmContact)
     .innerJoin(
@@ -130,11 +131,9 @@ export async function LeadsSection({
     )
     .where(and(...conditions));
 
-  const total = Number(countResult?.count || 0);
   const offset = (pageParam - 1) * pageSize;
 
-  // Initial page leads
-  const leadsRaw = await db
+  const leadsQuery = db
     .select({
       id: gtmContact.id,
       name: gtmContact.name,
@@ -178,6 +177,13 @@ export async function LeadsSection({
     .orderBy(desc(gtmContact.createdAt))
     .limit(pageSize)
     .offset(offset);
+
+  const [campaigns, [countResult], leadsRaw] = await Promise.all([
+    campaignsQuery,
+    countQuery,
+    leadsQuery,
+  ]);
+  const total = Number(countResult?.count || 0);
 
   const leads: Lead[] = leadsRaw.map((l) => ({
     ...l,
