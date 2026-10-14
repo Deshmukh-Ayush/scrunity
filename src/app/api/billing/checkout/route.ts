@@ -12,6 +12,7 @@ import { db } from "@/utils/db";
 import { organization } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { addTopupCredits } from "@/lib/gtm-ai-credits";
+import { supportEmail } from "@/lib/pilot/access";
 
 const environment =
   process.env.DODO_PAYMENTS_ENVIRONMENT === "live_mode"
@@ -22,6 +23,24 @@ const dodo = new DodoPayments({
   bearerToken: process.env.DODO_PAYMENTS_API_KEY || "",
   environment,
 });
+
+/**
+ * Simulated checkouts (no Dodo key or no price ID: the plan, credits or seats
+ * are applied immediately, free) exist only for local development. They need
+ * both NODE_ENV=development and ALLOW_MOCK_BILLING=true; anywhere else such a
+ * request is refused and nothing is granted.
+ */
+function mockBillingAllowed() {
+  return process.env.NODE_ENV === "development" && process.env.ALLOW_MOCK_BILLING === "true";
+}
+
+function paymentsNotEnabled(action: string) {
+  console.warn(`[checkout] Refused ${action}: online payments are not configured and mock billing is off.`);
+  return NextResponse.json(
+    { error: `Online payments aren't enabled yet; contact ${supportEmail()}.`, paymentsDisabled: true },
+    { status: 503 }
+  );
+}
 
 export async function POST(req: Request) {
   try {
@@ -50,7 +69,7 @@ export async function POST(req: Request) {
         : "http://localhost:3000");
 
     // ==========================================
-    // Dev Mode Fallback (when Dodo keys are omitted)
+    // Dev Mode Fallback (when Dodo keys are omitted). Only with mockBillingAllowed().
     // ==========================================
     const isMock = !process.env.DODO_PAYMENTS_API_KEY;
 
@@ -59,6 +78,7 @@ export async function POST(req: Request) {
       const creditsToAdd = quantity * TOPUP_CONFIG.credits;
 
       if (isMock || !TOPUP_CONFIG.priceId) {
+        if (!mockBillingAllowed()) return paymentsNotEnabled("topup");
         // In local development, credit immediately for seamless developer experience
         await addTopupCredits(
           organizationId,
@@ -100,6 +120,7 @@ export async function POST(req: Request) {
       const quantity = Math.max(1, Number(body.quantity) || 1);
 
       if (isMock || !EXTRA_SEAT_CONFIG.priceId) {
+        if (!mockBillingAllowed()) return paymentsNotEnabled("extra_seat");
         // In local development, increment extraSeats immediately
         await db
           .update(organization)
@@ -151,6 +172,7 @@ export async function POST(req: Request) {
       }
 
       if (isMock || !planConfig.priceId) {
+        if (!mockBillingAllowed()) return paymentsNotEnabled("subscribe");
         // In local development without configured price IDs, simulate upgrade
         await db
           .update(organization)
