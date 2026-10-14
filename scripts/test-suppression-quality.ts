@@ -1,11 +1,11 @@
 /**
  * Verifies that weak-data quality failures no longer write platform-wide
  * suppression entries (bad contact name, email-confidence gate, LinkedIn gate
- * in Stage 5.5; failed MX check in Stage 5) while the contact is still
- * disqualified, and that a real bounce still writes one. Runs the real code
+ * in Stage 5.5, including an MX-only pattern guess, which the verified-only
+ * policy now refuses) while the contact is still disqualified, and that a real
+ * bounce still writes one. Stage 5 no longer guesses addresses at all. Runs the real code
  * against the real DB on a throwaway org. No vendor calls: fetch is stubbed to
- * refuse every host except the database, and attempts are counted (the MX
- * check is a DNS lookup of a .invalid domain).
+ * refuse every host except the database, and attempts are counted.
  *
  *   npx tsx scripts/test-suppression-quality.ts
  *
@@ -28,7 +28,6 @@ import {
 } from "../src/db/schema"
 import { executeQualifyCampaignContacts } from "../src/lib/gtm-stage-5-5"
 import { recordBounceForDraft } from "../src/lib/reply-polling/record-bounce"
-import { resolveContactEmail } from "../src/inngest/functions/find-contacts-email"
 
 const blockedHosts: string[] = []
 const realFetch = globalThis.fetch
@@ -73,29 +72,24 @@ async function main() {
     prospectCompanyId: company.id, name: "Rahul Verma", title: "CEO", email: `rahul@listicle-${tag}.example`,
     emailSource: "pattern_guessed_unverified", linkedinUrl: "https://www.linkedin.com/in/rahul-verma-test",
   }).returning()
+  const [mxGuess] = await db.insert(gtmContact).values({
+    prospectCompanyId: company.id, name: "Kiran Rao", title: "CEO", email: `kiran.rao@listicle-${tag}.example`,
+    emailSource: "pattern_guessed_mx_valid", verificationStatus: "pattern_guessed_mx_valid",
+    linkedinUrl: "https://www.linkedin.com/in/kiran-rao-test",
+  }).returning()
   const [noLinkedin] = await db.insert(gtmContact).values({
     prospectCompanyId: company.id, name: "Anita Desai", title: "COO", email: `anita@listicle-${tag}.example`,
-    verificationStatus: "enrich_verified", linkedinUrl: null,
+    verificationStatus: "mailbox_verified", linkedinUrl: null,
   }).returning()
 
   console.log("Stage 5.5 quality disqualifications")
   await executeQualifyCampaignContacts(campaign.id)
-  for (const [label, contact] of [["bad name", badName], ["email confidence (was mx_invalid)", lowConfidence], ["no LinkedIn (was no_linkedin_found)", noLinkedin]] as const) {
+  for (const [label, contact] of [["bad name", badName], ["email confidence (was mx_invalid)", lowConfidence], ["MX-only pattern guess (now unverified)", mxGuess], ["no LinkedIn (was no_linkedin_found)", noLinkedin]] as const) {
     const [draft] = await db.select().from(gtmEmailDraft).where(eq(gtmEmailDraft.contactId, contact.id))
     const rows = await db.select().from(gtmSuppressionEntry).where(eq(gtmSuppressionEntry.sourceContactId, contact.id))
     check(`${label}: contact is disqualified`, draft?.status === "rejected", draft?.errorMessage ?? "no draft")
     check(`${label}: no suppression row`, rows.length === 0, rows.map((r) => r.reason).join(",") || "0 rows")
   }
-
-  console.log("Stage 5 MX check failure")
-  const noMxDomain = `no-mx-${tag}.invalid`
-  const resolved = await resolveContactEmail({
-    person: { personName: "Kiran Rao", personTitle: "CEO", linkedinUrl: null },
-    domain: noMxDomain, siteMarkdown: "", organizationId: orgId,
-  })
-  const mxRows = await db.select().from(gtmSuppressionEntry).where(eq(gtmSuppressionEntry.domain, noMxDomain))
-  check("failed MX check still marks the email unverified", resolved.emailSource === "pattern_guessed_unverified", resolved.emailSource)
-  check("failed MX check writes no suppression row", mxRows.length === 0, mxRows.map((r) => r.reason).join(",") || "0 rows")
 
   console.log("Real bounce")
   const [person] = await db.insert(gtmContact).values({
@@ -111,8 +105,7 @@ async function main() {
 
   check("no vendor call was attempted", blockedHosts.length === 0, blockedHosts.join(", ") || "none")
   const removed = await db.delete(gtmSuppressionEntry)
-    .where(inArray(gtmSuppressionEntry.sourceContactId, [badName.id, lowConfidence.id, noLinkedin.id, person.id])).returning({ id: gtmSuppressionEntry.id })
-  removed.push(...(await db.delete(gtmSuppressionEntry).where(eq(gtmSuppressionEntry.domain, noMxDomain)).returning({ id: gtmSuppressionEntry.id })))
+    .where(inArray(gtmSuppressionEntry.sourceContactId, [badName.id, lowConfidence.id, mxGuess.id, noLinkedin.id, person.id])).returning({ id: gtmSuppressionEntry.id })
   await db.delete(organization).where(eq(organization.id, orgId))
   await db.delete(user).where(eq(user.id, userId))
   console.log(`Cleanup: removed org ${orgId}, user, ${removed.length} suppression row(s)`)

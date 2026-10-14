@@ -93,7 +93,7 @@ async function setup() {
   ]
   for (const [k, name, local] of contacts) {
     await q`insert into gtm_contact (id, prospect_company_id, name, title, email, email_source, verification_status, linkedin_url)
-            values (${id(k)}, ${id("co")}, ${name}, 'CEO', ${`${local}@sec-${tag}.example`}, 'enrich_verified', 'enrich_verified', ${`https://www.linkedin.com/in/sec-${local}`})`
+            values (${id(k)}, ${id("co")}, ${name}, 'CEO', ${`${local}@sec-${tag}.example`}, 'vendor_lookup', 'mailbox_verified', ${`https://www.linkedin.com/in/sec-${local}`})`
   }
   await q`insert into gtm_email_draft (id, contact_id, outreach_campaign_id, subject, body, status, error_message)
           values (${id("d1")}, ${id("ct1")}, ${id("camp")}, 's', 'b', 'rejected', 'aggregator job-board domain — pending re-discovery')`

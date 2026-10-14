@@ -1,8 +1,10 @@
 /**
- * Verifies the shared Firecrawl limiter and legacy Stage 5's handling of
- * rate-limited lookups, against the real DB with a stubbed network: Firecrawl
- * answers from a local stub that returns 429s on a schedule, Groq and DNS-over-
- * HTTPS are stubbed, and any other host is refused. No vendor credits are spent.
+ * Verifies the shared Firecrawl limiter and Stage 5's handling of rate-limited
+ * lookups (legacy/web discovery mode, verified-lead search), against the real
+ * DB with a stubbed network: Firecrawl answers from a local stub that returns
+ * 429s on a schedule, FullEnrich answers from a local stub (through the real
+ * adapter, with one IN_PROGRESS poll per job), Groq is stubbed, and any other
+ * host is refused. No vendor credits are spent.
  *
  *   npx tsx scripts/test-firecrawl-rate-limit.ts      (takes ~2 minutes: one 60s retry cooldown)
  *
@@ -15,6 +17,9 @@ import "dotenv/config"
 process.env.FIRECRAWL_API_KEY = "stub-key-not-real"
 process.env.GROQ_API_KEY = "stub-key-not-real"
 process.env.GTM_DISCOVERY_MODE = "legacy"
+process.env.FULLENRICH_API_KEY = "stub-key-not-real"
+process.env.GTM_EMAIL_POLL_INTERVAL_MS = "50"
+delete process.env.GTM_PROVIDER_MODE
 delete process.env.ENRICH_API_KEY
 delete process.env.RESEND_API_KEY
 delete process.env.FIRECRAWL_CAMPAIGN_RUN_CAP
@@ -31,6 +36,7 @@ import {
   gtmProspectCompany,
   gtmResearchRun,
   gtmSuppressionEntry,
+  gtmVendorUsage,
   member,
   organization,
   user,
@@ -126,8 +132,13 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       stats.inFlight--
     }
   }
+  if (url.host === "app.fullenrich.com") return fullEnrichAnswer(url.pathname, init)
   if (url.host === "api.groq.com") {
-    const content = JSON.stringify({ jobFunctions: ["Head of Sales"], searchKeyword: "Head of Sales" })
+    // One answer that satisfies both the role-derivation and the draft schema.
+    const content = JSON.stringify({
+      jobFunctions: ["Head of Sales"], searchKeyword: "Head of Sales",
+      subject: "Quick question", body: "Hi Jane. We help sales teams prospect faster. Would a short call next week work?",
+    })
     return Response.json({
       id: "stub", object: "chat.completion", created: Math.floor(Date.now() / 1000), model: "stub",
       choices: [{ index: 0, message: { role: "assistant", content }, finish_reason: "stop" }],
@@ -139,6 +150,28 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   blockedHosts.push(url.host)
   throw new Error(`[stub] blocked network call to ${url.host}`)
 }) as typeof fetch
+
+/** FullEnrich stub: one job per POST; the first GET says IN_PROGRESS, then a DELIVERABLE address. */
+const fullEnrich = { posts: [] as string[], polls: new Map<string, number>() }
+function fullEnrichAnswer(path: string, init?: RequestInit): Response {
+  if (init?.method === "POST") {
+    const body = JSON.parse(String(init.body)) as { data: Array<{ first_name: string; last_name: string; domain: string }> }
+    const p = body.data[0]
+    const jobId = `job-${fullEnrich.posts.length}`
+    fullEnrich.posts.push(`${p.first_name} ${p.last_name}@${p.domain}`)
+    fullEnrich.polls.set(jobId, 0)
+    return Response.json({ enrichment_id: jobId })
+  }
+  const jobId = path.split("/").pop()!
+  const seen = (fullEnrich.polls.get(jobId) ?? 0) + 1
+  fullEnrich.polls.set(jobId, seen)
+  if (seen === 1) return Response.json({ id: jobId, status: "IN_PROGRESS", data: [] })
+  const person = fullEnrich.posts[Number(jobId.split("-")[1])]
+  const [name, domain] = person.split("@")
+  const email = `${name.toLowerCase().replace(" ", ".")}@${domain}`
+  return Response.json({ id: jobId, status: "FINISHED", cost: { credits: 1 },
+    data: [{ contact_info: { most_probable_work_email: { email, status: "DELIVERABLE" } } }] })
+}
 
 // ---------------------------------------------------------------------------
 // Part 1: the limiter on its own
@@ -234,12 +267,18 @@ async function createFixture() {
 
 async function contactsByKind(campaignId: string) {
   const rows = await db
-    .select({ id: gtmContact.id, name: gtmContact.name, linkedinUrl: gtmContact.linkedinUrl, lookupStatus: gtmContact.lookupStatus, domain: gtmProspectCompany.domain })
+    .select({ id: gtmContact.id, name: gtmContact.name, linkedinUrl: gtmContact.linkedinUrl, lookupStatus: gtmContact.lookupStatus,
+      emailStatus: gtmContact.emailStatus, email: gtmContact.email, domain: gtmProspectCompany.domain, companyStatus: gtmProspectCompany.decisionMakerStatus })
     .from(gtmContact)
     .innerJoin(gtmProspectCompany, eq(gtmContact.prospectCompanyId, gtmProspectCompany.id))
     .where(eq(gtmProspectCompany.outreachCampaignId, campaignId))
   const byKind = Object.fromEntries(KINDS.map((k) => [k, rows.find((r) => r.domain.startsWith(`${k}-`))]))
   return byKind as Record<(typeof KINDS)[number], (typeof rows)[number] | undefined>
+}
+
+async function companyStatus(campaignId: string, kind: string) {
+  const companies = await db.select().from(gtmProspectCompany).where(eq(gtmProspectCompany.outreachCampaignId, campaignId))
+  return companies.find((c) => c.domain.startsWith(`${kind}-`))?.decisionMakerStatus ?? null
 }
 
 async function main() {
@@ -269,10 +308,11 @@ async function main() {
       const c = await contactsByKind(id)
       const [camp] = await db.select({ attempt: gtmOutreachCampaign.firecrawlAttemptCallCount, stage: gtmOutreachCampaign.currentStage }).from(gtmOutreachCampaign).where(eq(gtmOutreachCampaign.id, id))
       console.log(`   campaign ${i + 1}: ${KINDS.map((k) => `${k}=${c[k]?.lookupStatus}/${c[k]?.name}`).join(" | ")} | firecrawl calls this attempt ${camp.attempt}`)
-      check(`c${i + 1}: normal company complete with the decision maker`, c.ok?.lookupStatus === "complete" && c.ok?.name === "Jane Doe")
-      check(`c${i + 1}: (b) rate-limited company recovered in the retry pass`, c["rl-recover"]?.lookupStatus === "complete" && c["rl-recover"]?.name === "Jane Doe" && Boolean(c["rl-recover"]?.linkedinUrl))
-      check(`c${i + 1}: still rate-limited after retries -> lookup_incomplete (placeholder name kept)`, c["rl-forever"]?.lookupStatus === "lookup_incomplete" && Boolean(c["rl-forever"]?.name.endsWith(" Team")))
-      check(`c${i + 1}: genuinely nothing found -> complete (not incomplete)`, c.none?.lookupStatus === "complete" && Boolean(c.none?.name.endsWith(" Team")))
+      check(`c${i + 1}: normal company: decision maker found and email verified`, c.ok?.name === "Jane Doe" && c.ok?.emailStatus === "verified")
+      check(`c${i + 1}: (b) rate-limited company recovered in the retry pass`, c["rl-recover"]?.name === "Jane Doe" && c["rl-recover"]?.emailStatus === "verified" && Boolean(c["rl-recover"]?.linkedinUrl))
+      check(`c${i + 1}: still rate-limited after retries -> left open (no person, no outcome stored)`,
+        !c["rl-forever"] && (await companyStatus(id, "rl-forever")) === null)
+      check(`c${i + 1}: genuinely nothing found -> settled as no decision maker`, !c.none && (await companyStatus(id, "none")) === "no_decision_maker_found")
       check(`c${i + 1}: call cap unchanged and respected (<= 35 this attempt)`, camp.attempt <= 35, `${camp.attempt}`)
     }
 
@@ -284,9 +324,11 @@ async function main() {
     const draftOf = (id?: string) => drafts.find((d) => d.contactId === id)
     console.log(`   write_emails outcome: ${outcome}`)
     console.log("   drafts:", drafts.map((d) => `${d.status}: ${d.reason}`).join(" | "))
-    check("(b) lookup_incomplete contact was NOT disqualified (no draft at all)", !draftOf(c1["rl-forever"]?.id))
-    check("(b) and NOT added to platform-wide suppression", !suppressions.some((s) => s.contactId === c1["rl-forever"]?.id))
-    check("control: a completed lookup that found nobody IS disqualified", draftOf(c1.none?.id)?.status === "rejected", draftOf(c1.none?.id)?.reason ?? "no draft")
+    check("verified leads were drafted", draftOf(c1.ok?.id)?.status === "draft" && draftOf(c1["rl-recover"]?.id)?.status === "draft")
+    check("(b) the still-rate-limited company produced no draft and no suppression", drafts.length === 2 && suppressions.length === 0,
+      `${drafts.length} drafts, ${suppressions.length} suppression rows`)
+    check("each person was submitted to the email vendor exactly once", new Set(fullEnrich.posts).size === fullEnrich.posts.length && fullEnrich.posts.length === 8,
+      `${fullEnrich.posts.length} submissions`)
     check("no other vendor host was contacted", blockedHosts.length === 0, blockedHosts.join(", "))
     console.log(`\nStub totals: ${stats.requests} Firecrawl requests, ${stats.transient429 + stats.scheduled429} answered with 429.`)
   } finally {
@@ -295,6 +337,7 @@ async function main() {
       .from(gtmContact)
       .innerJoin(gtmProspectCompany, eq(gtmContact.prospectCompanyId, gtmProspectCompany.id))
       .where(inArray(gtmProspectCompany.outreachCampaignId, campaignIds))
+    await db.delete(gtmVendorUsage).where(inArray(gtmVendorUsage.campaignId, campaignIds))
     await db.delete(gtmSuppressionEntry).where(eq(gtmSuppressionEntry.sourceOrgId, orgId))
     if (campaignContacts.length) {
       await db.delete(gtmSuppressionEntry).where(inArray(gtmSuppressionEntry.sourceContactId, campaignContacts.map((c) => c.id)))

@@ -42,7 +42,7 @@ setMailboxSenderForTests(async ({ to }) => {
 
 async function contact(key: string, name: string, local: string, extra: { lookup?: string } = {}) {
   await q`insert into gtm_contact (id, prospect_company_id, name, title, email, email_source, verification_status, linkedin_url, lookup_status)
-          values (${id(key)}, ${id("co")}, ${name}, 'CEO', ${mail(local)}, 'enrich_verified', 'enrich_verified', ${`https://www.linkedin.com/in/ss-${local}`}, ${extra.lookup ?? "complete"})`
+          values (${id(key)}, ${id("co")}, ${name}, 'CEO', ${mail(local)}, 'vendor_lookup', 'mailbox_verified', ${`https://www.linkedin.com/in/ss-${local}`}, ${extra.lookup ?? "complete"})`
 }
 
 async function setup() {
@@ -107,17 +107,17 @@ async function run() {
   await q`delete from gtm_prospect_company where id = ${id("co")}`
   await q`insert into gtm_prospect_company (id, outreach_campaign_id, name, domain, description, location) values (${id("co2")}, ${id("camp")}, 'SS Co', ${domain}, 'x', 'IN')`
   await q`insert into gtm_contact (id, prospect_company_id, name, title, email, email_source, verification_status, linkedin_url)
-          values (${id("again")}, ${id("co2")}, 'Priya Sharma', 'CEO', ${mail("priya")}, 'enrich_verified', 'enrich_verified', 'https://www.linkedin.com/in/ss-priya')`
+          values (${id("again")}, ${id("co2")}, 'Priya Sharma', 'CEO', ${mail("priya")}, 'vendor_lookup', 'mailbox_verified', 'https://www.linkedin.com/in/ss-priya')`
   const dncAfterRerun = await rows`select count(*)::int n from gtm_do_not_contact where organization_id = ${id("orgS")} and email = ${mail("priya")}`
   check("the re-run's deletes leave the do-not-contact entry in place", dncAfterRerun[0].n === 1)
   await executeQualifyCampaignContacts(id("camp"))
   const requal = await rows`select status, error_message from gtm_email_draft where contact_id = ${id("again")}`
   check("rediscovered person is disqualified by Stage 5.5 (not drafted)", requal[0]?.status === "rejected", requal[0]?.error_message)
-  const blockS = await getSendBlock(id("orgS"), { email: mail("priya"), name: "Priya Sharma", verificationStatus: "enrich_verified", linkedinUrl: "https://www.linkedin.com/in/x" })
+  const blockS = await getSendBlock(id("orgS"), { email: mail("priya"), name: "Priya Sharma", verificationStatus: "mailbox_verified", linkedinUrl: "https://www.linkedin.com/in/x" })
   check("send check in org S: opted_out", blockS?.code === "opted_out", blockS?.code)
-  const blockT = await getSendBlock(id("orgT"), { email: mail("priya"), name: "Priya Sharma", verificationStatus: "enrich_verified", linkedinUrl: "https://www.linkedin.com/in/x" })
+  const blockT = await getSendBlock(id("orgT"), { email: mail("priya"), name: "Priya Sharma", verificationStatus: "mailbox_verified", linkedinUrl: "https://www.linkedin.com/in/x" })
   check("org T is not affected by org S's opt-out", blockT === null, blockT?.code ?? "not blocked")
-  const hbT = await getSendBlock(id("orgT"), { email: mail("anita"), name: "Anita Desai", verificationStatus: "enrich_verified", linkedinUrl: "https://www.linkedin.com/in/x" })
+  const hbT = await getSendBlock(id("orgT"), { email: mail("anita"), name: "Anita Desai", verificationStatus: "mailbox_verified", linkedinUrl: "https://www.linkedin.com/in/x" })
   check("a hard bounce still blocks across organizations", hbT?.code === "hard_bounce", hbT?.code)
 
   console.log("\nA6 per-organization daily Firecrawl cap (FIRECRAWL_ORG_DAILY_CAP=3) and atomic quotas")

@@ -149,7 +149,7 @@ async function runStage8MultiTurnTests() {
       title: "VP of Growth",
       email: prospect1Email,
       emailSource: "pattern_guessed_mx_valid",
-      verificationStatus: "enrich_verified",
+      verificationStatus: "mailbox_verified",
     });
 
     const draft1Id = nanoid();
@@ -466,7 +466,7 @@ async function runStage8MultiTurnTests() {
       title: "CTO",
       email: prospect2Email,
       emailSource: "pattern_guessed_mx_valid",
-      verificationStatus: "enrich_verified",
+      verificationStatus: "mailbox_verified",
     });
 
     const draft2Id = nanoid();
@@ -596,7 +596,7 @@ async function runStage8MultiTurnTests() {
       title: "VP Sales",
       email: prospect3Email,
       emailSource: "pattern_guessed_mx_valid",
-      verificationStatus: "enrich_verified",
+      verificationStatus: "mailbox_verified",
     });
 
     const draft3Id = nanoid();

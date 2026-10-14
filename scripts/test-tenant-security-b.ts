@@ -61,7 +61,7 @@ async function orgWithCampaign(o: string, owner: string, sentEmails: string[], u
     n++
     const ct = id(`ct${o}${n}`)
     await q`insert into gtm_contact (id, prospect_company_id, name, title, email, email_source, verification_status, linkedin_url, enrich_metadata)
-            values (${ct}, ${id("co" + o)}, 'Priya Sharma', 'CEO', ${email}, 'enrich_verified', 'enrich_verified', 'https://www.linkedin.com/in/secb',
+            values (${ct}, ${id("co" + o)}, 'Priya Sharma', 'CEO', ${email}, 'vendor_lookup', 'mailbox_verified', 'https://www.linkedin.com/in/secb',
                     ${JSON.stringify({ provider: "GOOGLE", creditsRemaining: 40, requestId: "req-123" })}::jsonb)`
     await q`insert into gtm_email_draft (id, contact_id, outreach_campaign_id, subject, body, status, sent_at)
             values (${id(`d${o}${n}`)}, ${ct}, ${id("camp" + o)}, 's', 'b', ${sent ? "sent" : "draft"}, ${sent ? new Date().toISOString() : null})`

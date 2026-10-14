@@ -328,7 +328,7 @@ async function runTests() {
     email: "alexander.reed@prospectcorp.com",
     title: "VP of Product",
     linkedinUrl: "https://linkedin.com/in/alexander-reed",
-    verificationStatus: "enrich_verified",
+    verificationStatus: "mailbox_verified",
   }).returning();
 
   const [msDraft] = await db.insert(gtmEmailDraft).values({

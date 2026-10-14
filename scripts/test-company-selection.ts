@@ -14,7 +14,7 @@ import "dotenv/config"
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
-import { and, eq, inArray, ne } from "drizzle-orm"
+import { and, eq, inArray, isNull } from "drizzle-orm"
 import { db } from "../src/utils/db"
 import {
   gtmContact,
@@ -298,9 +298,12 @@ async function inspect(campaignId: string) {
     "every selected company has an outcome",
     selected.every((c) => c.decisionMakerStatus !== null)
   )
+  // Stage 5 is now the verified-lead search: only mailbox-verified people carry an email.
   check(
-    "every stored person is not_looked_up with no email",
-    contacts.every((p) => p.emailStatus === "not_looked_up" && p.email === null)
+    "only mailbox-verified people carry an email",
+    contacts.every((p) =>
+      p.email ? p.emailStatus === "verified" && p.verificationStatus === "mailbox_verified" : true
+    )
   )
   const others = await db
     .select({ id: gtmContact.id })
@@ -311,7 +314,7 @@ async function inspect(campaignId: string) {
           gtmContact.prospectCompanyId,
           companies.map((c) => c.id)
         ),
-        ne(gtmContact.emailStatus, "not_looked_up")
+        isNull(gtmContact.emailStatus)
       )
     )
   check("no legacy-style contacts were created", others.length === 0)
