@@ -93,10 +93,14 @@ export async function getMailboxThreads(
   }
 
   if (filters.intent && filters.intent !== "all") {
+    // "unread" and "bounced" are thread states, not reply intents (a bounced
+    // thread never has a classified intent).
     threads =
       filters.intent === "unread"
         ? threads.filter((t) => t.isUnread)
-        : threads.filter((t) => t.classifiedIntent === filters.intent)
+        : filters.intent === "bounced"
+          ? threads.filter((t) => t.isBounced)
+          : threads.filter((t) => t.classifiedIntent === filters.intent)
   }
 
   return { mailbox, threads, total: threads.length }
