@@ -3,7 +3,8 @@ import { eq, sql } from "drizzle-orm"
 import DodoPayments from "dodopayments"
 import { db } from "@/utils/db"
 import { billingWebhookEvent, organization } from "@/db/schema"
-import { addTopupCredits, resetCreditPeriod } from "@/lib/gtm-ai-credits"
+import { addTopupCredits } from "@/lib/gtm-ai-credits"
+import { activateOrganizationPlan } from "@/lib/billing-plan"
 
 /**
  * Dodo Payments webhooks follow Standard Webhooks: HMAC-SHA256 over
@@ -159,19 +160,11 @@ export async function applyDodoEvent(event: DodoEvent, webhookId: string): Promi
     const nextBillingDate = data.next_billing_date
       ? new Date(data.next_billing_date)
       : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-    await db
-      .update(organization)
-      .set({
-        plan: effectivePlan,
-        subscriptionStatus: "active",
-        dodoCustomerId: customerIdOf(data) ?? org.dodoCustomerId,
-        dodoSubscriptionId: data.subscription_id ?? org.dodoSubscriptionId,
-        currentPeriodEnd: nextBillingDate,
-        updatedAt: new Date(),
-      })
-      .where(eq(organization.id, org.id))
-    // On activation or renewal: reset the balance to the plan allotment, no rollover.
-    await resetCreditPeriod(org.id, effectivePlan, nextBillingDate)
+    await activateOrganizationPlan(org.id, effectivePlan, {
+      periodEnd: nextBillingDate,
+      dodoCustomerId: customerIdOf(data),
+      dodoSubscriptionId: data.subscription_id,
+    })
     return { outcome: "processed", organizationId: org.id, effect: `plan:${effectivePlan}` }
   }
 

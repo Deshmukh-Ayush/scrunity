@@ -5,7 +5,7 @@ import {
   organization,
   gtmOutreachCampaign,
 } from "@/db/schema";
-import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
+import { eq, and, desc, gte, inArray, lte, sql } from "drizzle-orm";
 import {
   BILLING_CONFIG,
   getPlanLimits,
@@ -58,7 +58,16 @@ export async function getCurrentCreditPeriod(organizationId: string) {
       activePeriod.planAllotment > 5000 ||
       (planKey === "free" && activePeriod.planAllotment > 0)
     ) {
-      const correctedAllotment = planLimits.aiCredits;
+      // Top-ups and manual grants raise the allotment legitimately, so they are
+      // part of the correct value; only an allotment above plan + grants is phantom.
+      const correctedAllotment =
+        planLimits.aiCredits + (await sumGrantedCredits(activePeriod.id));
+      if (
+        activePeriod.plan !== "enterprise" &&
+        activePeriod.planAllotment <= correctedAllotment
+      ) {
+        return activePeriod;
+      }
       const correctedRemaining = Math.max(0, correctedAllotment - activePeriod.creditsUsed);
 
       const [updatedPeriod] = await db
@@ -239,41 +248,68 @@ export async function debitProspectCredit(
   };
 }
 
+/** Total top-ups and manual grants recorded against one credit period. */
+async function sumGrantedCredits(periodId: string): Promise<number> {
+  const [row] = await db
+    .select({ total: sql<number>`coalesce(sum(${gtmAiCreditTransaction.amount}), 0)::int` })
+    .from(gtmAiCreditTransaction)
+    .where(
+      and(
+        eq(gtmAiCreditTransaction.periodId, periodId),
+        inArray(gtmAiCreditTransaction.type, ["topup", "manual_grant"])
+      )
+    );
+  return Number(row?.total ?? 0);
+}
+
+export interface CreditGrantOptions {
+  /** "topup" for purchases (default), "manual_grant" for admin and pilot grants. */
+  type?: "topup" | "manual_grant";
+  /** The platform admin making a manual grant. */
+  createdByUserId?: string | null;
+  /** A grant with a key is applied at most once, however often it is retried. */
+  idempotencyKey?: string | null;
+}
+
 /**
- * Adds top-up credits immediately to the current period without shifting the renewal date.
+ * Adds credits immediately to the current period without shifting the renewal
+ * date. The ledger row and the balance change are one SQL statement: the
+ * balance only moves if the ledger row was inserted, so a repeated grant with
+ * the same `idempotencyKey` changes nothing and returns `applied: false`.
  */
 export async function addTopupCredits(
   organizationId: string,
   amount: number,
-  description = `Purchased ${amount} AI credits top-up pack`
+  description = `Purchased ${amount} AI credits top-up pack`,
+  options: CreditGrantOptions = {}
 ) {
   const period = await getCurrentCreditPeriod(organizationId);
+  const transactionId = nanoid();
 
-  const [updatedPeriod] = await db
-    .update(gtmAiCreditPeriod)
-    .set({
-      creditsRemaining: sql`${gtmAiCreditPeriod.creditsRemaining} + ${amount}`,
-      planAllotment: sql`${gtmAiCreditPeriod.planAllotment} + ${amount}`,
-      updatedAt: new Date(),
-    })
-    .where(eq(gtmAiCreditPeriod.id, period.id))
-    .returning();
+  const result = await db.execute(sql`
+    WITH ledger AS (
+      INSERT INTO ${gtmAiCreditTransaction}
+        (id, organization_id, period_id, type, amount, description, created_by_user_id, idempotency_key)
+      VALUES (${transactionId}, ${organizationId}, ${period.id}, ${options.type ?? "topup"}, ${amount},
+              ${description}, ${options.createdByUserId ?? null}, ${options.idempotencyKey ?? null})
+      ON CONFLICT (idempotency_key) DO NOTHING
+      RETURNING amount
+    )
+    UPDATE ${gtmAiCreditPeriod}
+    SET credits_remaining = ${gtmAiCreditPeriod.creditsRemaining} + ledger.amount,
+        plan_allotment = ${gtmAiCreditPeriod.planAllotment} + ledger.amount,
+        updated_at = now()
+    FROM ledger
+    WHERE ${gtmAiCreditPeriod.id} = ${period.id}
+    RETURNING credits_remaining
+  `);
 
-  const [transaction] = await db
-    .insert(gtmAiCreditTransaction)
-    .values({
-      id: nanoid(),
-      organizationId,
-      periodId: period.id,
-      type: "topup",
-      amount,
-      description,
-    })
-    .returning();
-
+  const row = result.rows[0] as { credits_remaining: number } | undefined;
   return {
-    updatedPeriod,
-    transaction,
+    applied: Boolean(row),
+    periodId: period.id,
+    transactionId: row ? transactionId : null,
+    creditsRemaining: row ? Number(row.credits_remaining) : period.creditsRemaining,
   };
 }
 
