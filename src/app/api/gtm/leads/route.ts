@@ -10,6 +10,7 @@ import {
 import { eq, and, sql, desc } from "drizzle-orm";
 import { resolveAuthAndOrg } from "@/lib/gtm-auth";
 import { toPublicEmailStatus } from "@/lib/data/public-fields";
+import { leadSummarySql, usableLeadSql } from "@/lib/data/lead-visibility";
 
 export async function GET(req: NextRequest) {
   try {
@@ -26,6 +27,8 @@ export async function GET(req: NextRequest) {
     const campaignId = searchParams.get("campaignId");
     const statusFilter = searchParams.get("status");
     const search = searchParams.get("search");
+    // Default view: usable (mailbox-verified, not rejected, not bounced) leads only.
+    const view = searchParams.get("view") === "skipped" ? "skipped" : "usable";
 
     // Campaigns for the dropdown filter. Independent of the leads queries, so
     // started now and awaited together with them below.
@@ -96,6 +99,9 @@ export async function GET(req: NextRequest) {
     if (campaignId && campaignId !== "all") {
       conditions.push(eq(gtmOutreachCampaign.id, campaignId));
     }
+    // Counts for the summary line cover the org/campaign scope, before filters.
+    const scope = [...conditions];
+    conditions.push(view === "usable" ? usableLeadSql : sql`NOT ${usableLeadSql}`);
 
     if (statusFilter && statusFilter !== "all") {
       conditions.push(sql`(${statusSql}) = ${statusFilter}`);
@@ -142,6 +148,7 @@ export async function GET(req: NextRequest) {
         verificationStatus: gtmContact.verificationStatus,
         emailSource: gtmContact.emailSource,
         linkedinUrl: gtmContact.linkedinUrl,
+        skipReason: gtmContact.skipReason,
         createdAt: gtmContact.createdAt,
         companyId: gtmProspectCompany.id,
         companyName: gtmProspectCompany.name,
@@ -178,10 +185,19 @@ export async function GET(req: NextRequest) {
       .limit(pageSize)
       .offset(offset);
 
-    const [campaigns, [countResult], leads] = await Promise.all([
+    const summaryQuery = db
+      .select(leadSummarySql)
+      .from(gtmContact)
+      .innerJoin(gtmProspectCompany, eq(gtmContact.prospectCompanyId, gtmProspectCompany.id))
+      .innerJoin(gtmOutreachCampaign, eq(gtmProspectCompany.outreachCampaignId, gtmOutreachCampaign.id))
+      .innerJoin(gtmResearchRun, eq(gtmOutreachCampaign.researchRunId, gtmResearchRun.id))
+      .where(and(...scope));
+
+    const [campaigns, [countResult], leads, [summary]] = await Promise.all([
       campaignsQuery,
       countQuery,
       leadsQuery,
+      summaryQuery,
     ]);
     const total = Number(countResult?.count || 0);
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -199,6 +215,8 @@ export async function GET(req: NextRequest) {
       pageSize,
       totalPages,
       campaigns,
+      view,
+      summary: { reviewed: Number(summary?.reviewed ?? 0), verified: Number(summary?.verified ?? 0) },
     });
   } catch (err: any) {
     console.error("[GET /api/gtm/leads] Error:", err);

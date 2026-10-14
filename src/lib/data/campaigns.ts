@@ -9,10 +9,11 @@ import {
   gtmProspectCompany,
   gtmResearchRun,
 } from "@/db/schema"
-import { desc, eq, inArray, sql } from "drizzle-orm"
+import { and, desc, eq, getTableColumns, inArray, sql } from "drizzle-orm"
 import { verifyCampaignAccess } from "@/lib/gtm-auth"
 import { getDecisionMakersPerCompany } from "@/lib/providers/config"
-import { publicContactRow, publicPipelineRow, toPublicEmailStatus } from "./public-fields"
+import { publicContactRow, publicPipelineRow } from "./public-fields"
+import { skippedReason, usableLeadSql } from "./lead-visibility"
 
 /**
  * Every outreach campaign in the organization, newest first, joined with the
@@ -48,9 +49,10 @@ function withoutVendorFields<T extends { source: unknown }>(row: T) {
 }
 
 /**
- * Campaign header data plus its prospect companies, their contacts and metric
- * snapshots, and raw draft rows. Returns null when the campaign does not belong
- * to the organization (IDOR guard).
+ * Campaign header data plus its prospect companies, their usable contacts
+ * (mailbox-verified, not rejected, not bounced), a neutral list of the people
+ * that were skipped, the lead counts, metric snapshots and raw draft rows.
+ * Returns null when the campaign does not belong to the organization (IDOR guard).
  */
 export async function getCampaignDetail(
   campaignId: string,
@@ -86,11 +88,13 @@ export async function getCampaignDetail(
       companies,
       snapshots: [],
       contacts: [],
+      skippedContacts: [],
+      leadSummary: { reviewed: 0, verified: 0 },
       drafts: [],
     }
   }
 
-  const [snapshots, contacts, drafts] = await Promise.all([
+  const [snapshots, allContacts, drafts] = await Promise.all([
     db
       .select()
       .from(gtmCompanyMetricSnapshot)
@@ -98,20 +102,51 @@ export async function getCampaignDetail(
     db
       .select()
       .from(gtmContact)
-      .where(inArray(gtmContact.prospectCompanyId, companyIds))
-      .then((rows) => rows.map(publicContactRow)),
+      .where(inArray(gtmContact.prospectCompanyId, companyIds)),
     db
-      .select()
+      .select({
+        ...getTableColumns(gtmEmailDraft),
+        hasBounced: sql<boolean>`EXISTS (SELECT 1 FROM gtm_email_event e WHERE e.email_draft_id = ${gtmEmailDraft.id} AND e.type = 'bounced')`,
+      })
       .from(gtmEmailDraft)
       .where(eq(gtmEmailDraft.outreachCampaignId, campaignId)),
   ])
 
-  return { ...verified, ...discovery, companies, snapshots, contacts, drafts }
+  const contacts = []
+  const skippedContacts = []
+  for (const contact of allContacts) {
+    const reason = skippedReason(contact, drafts)
+    if (!reason) {
+      contacts.push(publicContactRow(contact))
+      continue
+    }
+    skippedContacts.push({
+      id: contact.id,
+      name: contact.name,
+      title: contact.title,
+      companyName: rows.find((c) => c.id === contact.prospectCompanyId)?.name ?? "",
+      reason,
+    })
+  }
+  const leadSummary = { reviewed: allContacts.length, verified: contacts.length }
+
+  return {
+    ...verified,
+    ...discovery,
+    companies,
+    snapshots,
+    contacts,
+    skippedContacts,
+    leadSummary,
+    drafts,
+  }
 }
 
 /**
  * Drafts for a campaign with the contact and company each one targets, newest
- * first. Callers must verify campaign access before calling.
+ * first: only drafts of usable leads (mailbox-verified, not rejected, never
+ * bounced); the rest are counted in the campaign's Skipped section. Callers must
+ * verify campaign access before calling.
  */
 export async function listCampaignDrafts(campaignId: string) {
   const rows = await db
@@ -133,6 +168,7 @@ export async function listCampaignDrafts(campaignId: string) {
         title: gtmContact.title,
         email: gtmContact.email,
         emailSource: gtmContact.emailSource,
+        verificationStatus: gtmContact.verificationStatus,
         linkedinUrl: gtmContact.linkedinUrl,
       },
       company: {
@@ -148,10 +184,10 @@ export async function listCampaignDrafts(campaignId: string) {
       gtmProspectCompany,
       eq(gtmContact.prospectCompanyId, gtmProspectCompany.id)
     )
-    .where(eq(gtmEmailDraft.outreachCampaignId, campaignId))
+    .where(and(eq(gtmEmailDraft.outreachCampaignId, campaignId), usableLeadSql))
     .orderBy(desc(gtmEmailDraft.createdAt))
   return rows.map((row) => ({
     ...row,
-    contact: { ...row.contact, emailSource: toPublicEmailStatus(row.contact.emailSource) },
+    contact: publicContactRow(row.contact),
   }))
 }

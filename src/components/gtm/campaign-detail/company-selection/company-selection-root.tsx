@@ -7,7 +7,7 @@ import type { Company, Contact } from "../types"
 
 interface CompanySelectionContextValue {
   companies: Company[]
-  /** Decision makers per company id (database-mode contacts only). */
+  /** Verified decision makers per company id (database-mode contacts only). */
   peopleByCompany: Map<string, Contact[]>
   /** True while the campaign waits at the gate; the table is read-only otherwise. */
   isEditable: boolean
@@ -70,7 +70,7 @@ export function CompanySelectionRoot({
   const peopleByCompany = React.useMemo(() => {
     const map = new Map<string, Contact[]>()
     for (const contact of contacts) {
-      if (!contact.prospectCompanyId || contact.emailStatus !== "not_looked_up")
+      if (!contact.prospectCompanyId || contact.emailStatus !== "verified")
         continue
       map.set(contact.prospectCompanyId, [
         ...(map.get(contact.prospectCompanyId) ?? []),

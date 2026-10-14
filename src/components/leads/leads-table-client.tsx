@@ -20,7 +20,8 @@ import { LeadReviewDialog } from "./lead-review-dialog"
 import { LeadRow } from "./lead-row"
 import { LeadsFilters } from "./leads-filters"
 import { LeadsPagination } from "./leads-pagination"
-import { LEADS_PAGE_SIZE, type CampaignOption, type Lead } from "./types"
+import { LeadSummaryLine, SkippedLeads, type SkippedLead } from "./skipped-leads"
+import { LEADS_PAGE_SIZE, type CampaignOption, type Lead, type LeadSummary } from "./types"
 
 export type { Lead, CampaignOption }
 
@@ -32,6 +33,13 @@ export type LeadsTableClientProps = {
   initialStatus?: string
   initialSearch?: string
   initialPage?: number
+  initialSummary?: LeadSummary
+}
+
+/** Neutral reason for a lead in the Skipped section (never red, never a vendor name). */
+function skippedReasonOf(lead: Lead): string {
+  if (lead.verificationStatus !== "verified") return lead.skipReason || "Email not verified"
+  return lead.status === "bounced" ? "Email bounced" : "Not selected for outreach"
 }
 
 /** Toast and refuse when a lead's name or qualification gates block outreach. */
@@ -55,7 +63,9 @@ export function LeadsTableClient({
   initialStatus = "all",
   initialSearch = "",
   initialPage = 1,
+  initialSummary = { reviewed: 0, verified: 0 },
 }: LeadsTableClientProps) {
+  const [summary, setSummary] = React.useState(initialSummary)
   const [leads, setLeads] = React.useState(initialLeads)
   const [campaigns, setCampaigns] = React.useState(initialCampaigns)
   const [total, setTotal] = React.useState(initialTotal)
@@ -105,6 +115,7 @@ export function LeadsTableClient({
         setTotal(data.total || 0)
         setTotalPages(data.totalPages || 1)
         if (data.campaigns) setCampaigns(data.campaigns)
+        if (data.summary) setSummary(data.summary)
       }
     } catch (err) {
       console.error("[LeadsTableClient] Error fetching leads:", err)
@@ -167,6 +178,22 @@ export function LeadsTableClient({
     setPage(1)
   }
 
+  const loadSkipped = async (): Promise<SkippedLead[]> => {
+    const params = new URLSearchParams({ view: "skipped", pageSize: "100" })
+    if (campaignId !== "all") params.set("campaignId", campaignId)
+    const testOrg = new URLSearchParams(window.location.search).get("test_org")
+    if (testOrg) params.set("test_org", testOrg)
+    const res = await fetch(`/api/gtm/leads?${params.toString()}`)
+    const data = await res.json()
+    return ((data.leads || []) as Lead[]).map((lead) => ({
+      id: lead.id,
+      name: lead.name,
+      title: lead.title,
+      companyName: lead.companyName,
+      reason: skippedReasonOf(lead),
+    }))
+  }
+
   const hasActiveFilters =
     search !== "" || campaignId !== "all" || status !== "all"
 
@@ -186,8 +213,13 @@ export function LeadsTableClient({
             </Badge>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            All contacts and prospect companies across your active campaigns.
+            Leads with a verified email across your campaigns.
           </p>
+          <LeadSummaryLine
+            reviewed={summary.reviewed}
+            verified={summary.verified}
+            className="mt-0.5 text-xs text-muted-foreground"
+          />
         </div>
         <Button
           variant="outline"
@@ -310,6 +342,12 @@ export function LeadsTableClient({
           onPageChange={setPage}
         />
       )}
+
+      <SkippedLeads
+        key={campaignId}
+        count={Math.max(0, summary.reviewed - summary.verified)}
+        load={loadSkipped}
+      />
 
       <LeadReviewDialog
         lead={reviewLead}

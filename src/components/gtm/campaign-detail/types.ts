@@ -32,7 +32,7 @@ export interface Company {
   revenueRange?: string | null
   selectionStatus?: "selected" | "excluded"
   fitNote?: string | null
-  decisionMakerStatus?: "found" | "no_decision_maker_found" | null
+  decisionMakerStatus?: "found" | "no_decision_maker_found" | "no_verified_email" | null
 }
 
 export type DraftStatus = "draft" | "approved" | "rejected" | "sent" | "failed"
@@ -60,6 +60,15 @@ export interface CampaignData {
     currentStage: string
     failureReason?: string | null
     discoveryNote?: string | null
+    /** How the verified-lead search ended (vendor credits and stop codes removed). */
+    leadSearchOutcome?: {
+      result: "reached_target" | "budget_reached" | "out_of_companies"
+      target: number
+      verified: number
+      peopleReviewed: number
+      companiesExamined: number
+      stopReason?: string | null
+    } | null
     firecrawlCallCount?: number
     createdAt: string
     stageStartedAt?: string | null
@@ -80,7 +89,11 @@ export interface CampaignData {
   usesCompanyDatabase?: boolean
   decisionMakersPerCompany?: number
   companies: Company[]
+  /** Usable leads only: mailbox-verified, not rejected, never bounced. */
   contacts: Contact[]
+  /** Everyone else the campaign reviewed, with a neutral reason. */
+  skippedContacts?: Array<{ id: string; name: string; title: string; companyName: string; reason: string }>
+  leadSummary?: { reviewed: number; verified: number }
   snapshots: Array<{
     prospectCompanyId: string
     employeeCountLabel: string | null

@@ -128,6 +128,9 @@ export function DecisionMakerCell({
   if (company.decisionMakerStatus === "no_decision_maker_found") {
     return <StatusPill tone="missing">Not found</StatusPill>
   }
+  if (company.decisionMakerStatus === "no_verified_email") {
+    return <StatusPill tone="neutral">No verified email</StatusPill>
+  }
   if (people.length === 0) {
     return (
       <StatusPill tone="neutral">

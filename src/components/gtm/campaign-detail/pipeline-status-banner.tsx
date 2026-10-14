@@ -10,7 +10,7 @@ const RUNNING_STAGE_DESCRIPTIONS: Record<string, string> = {
   find_companies:
     "Searching for ICP-fit companies, extracting company metadata, and verifying domain details...",
   find_contacts:
-    "Discovering key decision-makers and verifying deliverable MX records & mail patterns...",
+    "Finding decision makers and verifying their email addresses. Only verified addresses are kept...",
   write_emails:
     "Generating highly personalized cold emails tailored to each contact and company...",
   send_emails:
@@ -38,6 +38,10 @@ const FAILURE_REASON_TEXT: Record<string, string> = {
     "Company search failed: the company database returned an error. Retry the campaign.",
   people_search_unavailable:
     "Decision-maker search is not available yet, so this campaign stopped after your company selection. Nothing was charged.",
+  email_lookup_unavailable:
+    "Email verification is not available right now, so no contacts were looked up and no addresses were guessed. Contact support.",
+  email_lookup_monthly_limit:
+    "Email verification paused: this month's verification budget is used up. No addresses were guessed.",
   target_country_missing:
     "Company search needs a target country. Start a new research run with a target country selected.",
 }

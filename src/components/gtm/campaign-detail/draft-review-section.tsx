@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useCampaignDetail } from "./campaign-detail-root"
 import { DraftCard } from "./draft-card"
+import { LeadSearchSummary } from "./lead-search-summary"
 
 /**
  * What to show before any draft exists. Recovery actions (restart, re-run) are
@@ -75,8 +76,7 @@ export function DraftReviewSection() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="mr-1 text-xs text-muted-foreground">
-            {counts.approved} Approved / {counts.sent} Sent / {counts.rejected}{" "}
-            Rejected
+            {counts.approved} Approved / {counts.sent} Sent
           </span>
           {counts.pending > 0 && (
             <Button
@@ -96,6 +96,8 @@ export function DraftReviewSection() {
           )}
         </div>
       </div>
+
+      <LeadSearchSummary />
 
       {drafts.length === 0 ? (
         <EmptyDrafts />

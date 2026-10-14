@@ -1,5 +1,6 @@
 import * as React from "react";
 import { toPublicEmailStatus } from "@/lib/data/public-fields";
+import { leadSummarySql, usableLeadSql } from "@/lib/data/lead-visibility";
 import { getTenantContext } from "@/lib/tenant-context";
 import { db } from "@/utils/db";
 import {
@@ -96,6 +97,9 @@ export async function LeadsSection({
   if (campaignIdParam && campaignIdParam !== "all") {
     conditions.push(eq(gtmOutreachCampaign.id, campaignIdParam));
   }
+  // The summary line counts the org/campaign scope; the table shows usable leads only.
+  const scope = [...conditions];
+  conditions.push(usableLeadSql);
 
   if (statusParam && statusParam !== "all") {
     conditions.push(sql`(${statusSql}) = ${statusParam}`);
@@ -179,10 +183,19 @@ export async function LeadsSection({
     .limit(pageSize)
     .offset(offset);
 
-  const [campaigns, [countResult], leadsRaw] = await Promise.all([
+  const summaryQuery = db
+    .select(leadSummarySql)
+    .from(gtmContact)
+    .innerJoin(gtmProspectCompany, eq(gtmContact.prospectCompanyId, gtmProspectCompany.id))
+    .innerJoin(gtmOutreachCampaign, eq(gtmProspectCompany.outreachCampaignId, gtmOutreachCampaign.id))
+    .innerJoin(gtmResearchRun, eq(gtmOutreachCampaign.researchRunId, gtmResearchRun.id))
+    .where(and(...scope));
+
+  const [campaigns, [countResult], leadsRaw, [summary]] = await Promise.all([
     campaignsQuery,
     countQuery,
     leadsQuery,
+    summaryQuery,
   ]);
   const total = Number(countResult?.count || 0);
 
@@ -202,6 +215,7 @@ export async function LeadsSection({
       initialStatus={statusParam}
       initialSearch={searchParam}
       initialPage={pageParam}
+      initialSummary={{ reviewed: Number(summary?.reviewed ?? 0), verified: Number(summary?.verified ?? 0) }}
     />
   );
 }

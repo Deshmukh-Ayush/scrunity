@@ -7,6 +7,8 @@ export type Lead = {
   verificationStatus: string
   emailSource: string
   linkedinUrl: string | null
+  /** Neutral reason the verified-lead search skipped this person (skipped view). */
+  skipReason?: string | null
   createdAt: string
   companyId: string
   companyName: string
@@ -20,6 +22,11 @@ export type Lead = {
   draftStatus?: string | null
   threadId?: string | null
   rejectionReason?: string | null
+}
+
+export type LeadSummary = {
+  reviewed: number
+  verified: number
 }
 
 export type CampaignOption = {
