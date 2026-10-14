@@ -692,6 +692,54 @@ export const gtmSuppressionEntry = pgTable(
   ]
 )
 
+/**
+ * Per-organization do-not-contact list (opt-outs). Unlike gtm_suppression_entry
+ * it never affects another organization. Keyed by email so it survives campaign
+ * re-runs and Stage 4 cleanup, which delete the contact rows themselves.
+ */
+export const gtmDoNotContact = pgTable(
+  "gtm_do_not_contact",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    // Always stored trimmed and lowercased.
+    email: text("email").notNull(),
+    reason: text("reason", { enum: ["opt_out", "manual"] }).notNull(),
+    contactId: text("contact_id").references(() => gtmContact.id, { onDelete: "set null" }),
+    sourceDraftId: text("source_draft_id"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("gtm_do_not_contact_org_email_unique").on(table.organizationId, table.email)]
+)
+
+/**
+ * Database-backed usage counters for per-organization quotas (research runs,
+ * chat messages, logo lookups, ...), so limits hold across serverless instances.
+ * One row per organization, quota key and window start.
+ */
+export const orgUsageCounter = pgTable(
+  "org_usage_counter",
+  {
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    windowStart: timestamp("window_start").notNull(),
+    count: integer("count").default(0).notNull(),
+  },
+  (table) => [
+    uniqueIndex("org_usage_counter_org_key_window_unique").on(
+      table.organizationId,
+      table.key,
+      table.windowStart
+    ),
+  ]
+)
+
 export const gtmEmailDraft = pgTable(
   "gtm_email_draft",
   {
