@@ -83,6 +83,17 @@ export const getTenantContext = cache(async function getTenantContext(
     .from(member)
     .where(and(eq(member.organizationId, organizationId), eq(member.userId, session.user.id)));
 
+  // The session can name an org the user was removed from: no membership, no org.
+  if (!orgMember) {
+    return {
+      session,
+      user: session.user,
+      organizationId: "",
+      error: "Not a member of this organization",
+      status: 403,
+    };
+  }
+
   return {
     session,
     user: session.user,

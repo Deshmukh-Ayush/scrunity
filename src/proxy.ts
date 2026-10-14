@@ -134,42 +134,42 @@ export async function proxy(request: NextRequest) {
     requestHeaders.set("x-user-email", session.user.email || "");
     requestHeaders.set("x-user-image", session.user.image || "");
 
-    // Set org id from the session's active organization
+    // The organization is resolved on every protected request from a membership
+    // row, never from the session alone: a removed member's session may still
+    // name the org as active. x-org-id / x-org-role are only set from that row.
     const activeOrgId = session.session?.activeOrganizationId || "";
-    if (activeOrgId) {
-      requestHeaders.set("x-org-id", activeOrgId);
-    }
+    const orgMemberships = await db
+      .select({ role: member.role, organizationId: member.organizationId })
+      .from(member)
+      .where(eq(member.userId, session.user.id));
+    const activeMembership = activeOrgId
+      ? orgMemberships.find((m) => m.organizationId === activeOrgId)
+      : orgMemberships[0];
 
     // Dashboard needs an organization (none -> onboarding); onboarding is only
     // for users without one (has one -> dashboard).
-    if (pathname.startsWith("/dashboard") || isOnboarding) {
-      const userId = session.user.id;
-      const orgMemberships = await db
-        .select({ role: member.role, organizationId: member.organizationId })
-        .from(member)
-        .where(eq(member.userId, userId));
-
-      if (isOnboarding) {
-        if (orgMemberships.length > 0) {
-          return NextResponse.redirect(new URL("/dashboard", request.url));
-        }
-        return NextResponse.next({ request: { headers: requestHeaders } });
+    if (isOnboarding) {
+      if (orgMemberships.length > 0) {
+        return NextResponse.redirect(new URL("/dashboard", request.url));
       }
+      return NextResponse.next({ request: { headers: requestHeaders } });
+    }
+    if (pathname.startsWith("/dashboard") && orgMemberships.length === 0) {
+      return NextResponse.redirect(new URL("/onboarding", request.url));
+    }
 
-      if (orgMemberships.length === 0) {
-        return NextResponse.redirect(new URL("/onboarding", request.url));
-      }
-
-      const activeMembership = activeOrgId
-        ? orgMemberships.find((m) => m.organizationId === activeOrgId)
-        : orgMemberships[0];
-
-      if (activeMembership) {
-        if (!activeOrgId) {
-          requestHeaders.set("x-org-id", activeMembership.organizationId);
-        }
-        requestHeaders.set("x-org-role", activeMembership.role);
-      }
+    // Active org that is no longer one of the user's memberships: API calls are
+    // refused outright; pages fall back to the user's first remaining org.
+    if (activeOrgId && !activeMembership && pathname.startsWith("/api/") && pathname !== "/api/onboarding") {
+      return NextResponse.json(
+        { error: "You are no longer a member of this organization." },
+        { status: 403 }
+      );
+    }
+    const resolved = activeMembership ?? orgMemberships[0];
+    if (resolved) {
+      requestHeaders.set("x-org-id", resolved.organizationId);
+      requestHeaders.set("x-org-role", resolved.role);
     }
 
     return NextResponse.next({

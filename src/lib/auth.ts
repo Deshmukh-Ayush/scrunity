@@ -1,6 +1,8 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { db } from "@/utils/db";
+import { session } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
 import { magicLink, organization } from "better-auth/plugins"
 import { ONBOARDING_ORG_SOURCE, onboardingOrganizationId } from "@/lib/onboarding-id";
 import { MAGIC_LINK_EXPIRES_IN_SECONDS, magicLinkBaseUrl, sendMagicLink } from "@/lib/magic-link";
@@ -24,6 +26,14 @@ export const auth = betterAuth({
         beforeCreateOrganization: async ({ organization, user }) => {
           if (organization.metadata?.source !== ONBOARDING_ORG_SOURCE) return
           return { data: { id: onboardingOrganizationId(user.id) } }
+        },
+        // A removed member's sessions must not keep the org active (the proxy
+        // also refuses it on every request, this just clears the stale value).
+        afterRemoveMember: async ({ member: removed, organization }) => {
+          await db
+            .update(session)
+            .set({ activeOrganizationId: null })
+            .where(and(eq(session.userId, removed.userId), eq(session.activeOrganizationId, organization.id)))
         },
       },
     }),
