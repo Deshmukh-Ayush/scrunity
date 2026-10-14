@@ -5,6 +5,7 @@ import { gtmEmailDraft } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { resolveAuthAndOrg, verifyDraftAccess } from "@/lib/gtm-auth";
 import { z } from "zod";
+import { clientCanApprove, getApprovalBlock } from "@/lib/send-eligibility";
 
 const updateDraftSchema = z.object({
   action: z.enum(["approve", "reject"]),
@@ -50,6 +51,21 @@ export async function POST(
 
     const { action, edits } = parsed.data;
     const newStatus = action === "approve" ? "approved" : "rejected";
+
+    // State machine: only a pending draft can be approved, rejected or edited,
+    // and approval re-checks that the contact may be emailed at all.
+    if (!clientCanApprove(verified.draft.status)) {
+      return NextResponse.json(
+        { error: `This draft is ${verified.draft.status} and can no longer be changed.` },
+        { status: 409 }
+      );
+    }
+    if (action === "approve") {
+      const block = await getApprovalBlock(auth.orgId, draftId);
+      if (block) {
+        return NextResponse.json({ error: block, code: "SEND_BLOCKED" }, { status: 409 });
+      }
+    }
 
     const updateFields: any = {
       status: newStatus,

@@ -19,6 +19,17 @@ export interface SendMailboxMessageParams {
   references?: string;
 }
 
+type MailboxSender = (params: SendMailboxMessageParams) => Promise<SendMailboxResult>;
+let senderOverride: MailboxSender | null = null;
+
+/**
+ * Test hook for in-process verification scripts: replaces the real provider
+ * send. Module state only (no env var), so a deployed server can't enable it.
+ */
+export function setMailboxSenderForTests(sender: MailboxSender | null) {
+  senderOverride = sender;
+}
+
 /**
  * Dispatches an outbound email through the configured provider (Gmail, Microsoft 365, or SMTP).
  */
@@ -31,6 +42,9 @@ export async function sendEmailThroughMailbox({
   inReplyTo,
   references,
 }: SendMailboxMessageParams): Promise<SendMailboxResult> {
+  if (senderOverride) {
+    return senderOverride({ mailbox, to, subject, body, threadId, inReplyTo, references });
+  }
   const provider = mailbox.provider || "gmail";
 
   switch (provider) {

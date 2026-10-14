@@ -5,6 +5,7 @@ import {
   gtmConnectedMailbox,
   gtmEmailDraft,
   gtmContact,
+  gtmProspectCompany,
   gtmResearchRun,
 } from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
@@ -16,11 +17,14 @@ import {
 } from "@/lib/gtm-ai-credits";
 import { isValidPersonName } from "@/lib/gtm-contact-matcher";
 import { checkLeadQualificationGates } from "@/lib/gtm-stage-5-5";
+import { getSendBlock } from "@/lib/send-eligibility";
 
 export interface SendEmailsResult {
   sentCount: number;
   stoppedAtCap: boolean;
   stoppedAtCredits?: boolean;
+  /** Approved drafts rejected at send time because the contact may not be emailed. */
+  blockedCount?: number;
   messageIds: string[];
 }
 
@@ -79,6 +83,12 @@ export async function executeSendEmails({
     .from(gtmConnectedMailbox)
     .where(eq(gtmConnectedMailbox.organizationId, organizationId));
 
+  // The mailbox must belong to the campaign's own organization (it is looked
+  // up by that id; asserted so a future change cannot send from another org's).
+  if (mailbox && mailbox.organizationId !== organizationId) {
+    throw new Error(`HARD SAFETY ABORT: mailbox ${mailbox.id} does not belong to organization ${organizationId}`);
+  }
+
   if (!mailbox || mailbox.status !== "connected") {
     const errorMsg = `No active connected mailbox found for organization. Please connect a mailbox (Google, Microsoft 365, or IMAP/SMTP) before sending.`;
     await safeRealtimePublish(
@@ -128,9 +138,13 @@ export async function executeSendEmails({
       contactEmail: gtmContact.email,
       contactVerificationStatus: gtmContact.verificationStatus,
       contactLinkedinUrl: gtmContact.linkedinUrl,
+      contactEmailSource: gtmContact.emailSource,
+      contactLookupStatus: gtmContact.lookupStatus,
+      companyDomain: gtmProspectCompany.domain,
     })
     .from(gtmEmailDraft)
     .innerJoin(gtmContact, eq(gtmEmailDraft.contactId, gtmContact.id))
+    .innerJoin(gtmProspectCompany, eq(gtmContact.prospectCompanyId, gtmProspectCompany.id))
     .where(and(...draftConditions));
 
   if (approvedDrafts.length === 0) {
@@ -156,8 +170,31 @@ export async function executeSendEmails({
   let stoppedAtCap = false;
   let stoppedAtCredits = false;
 
+  let blockedCount = 0;
   for (let i = 0; i < approvedDrafts.length; i++) {
     const draft = approvedDrafts[i];
+
+    // Send-time eligibility: holds even if an approval was forced (direct API
+    // call or database edit). Opted out (this org), hard bounce or suppression
+    // (platform), unqualified or incomplete contacts are rejected, not sent.
+    const block = await getSendBlock(organizationId, {
+      email: draft.contactEmail,
+      name: draft.contactName,
+      verificationStatus: draft.contactVerificationStatus,
+      emailSource: draft.contactEmailSource,
+      linkedinUrl: draft.contactLinkedinUrl,
+      lookupStatus: draft.contactLookupStatus,
+      domain: draft.companyDomain,
+    });
+    if (block) {
+      blockedCount += 1;
+      console.warn(`[Stage 7 Send] Not sending draft ${draft.draftId}: ${block.code}`);
+      await db
+        .update(gtmEmailDraft)
+        .set({ status: "rejected", errorMessage: `Not sent: ${block.message}` })
+        .where(and(eq(gtmEmailDraft.id, draft.draftId), eq(gtmEmailDraft.status, "approved")));
+      continue;
+    }
 
     // Check AI credits availability (Step 1.3 & Step 5)
     const hasCredits = await hasAvailableCredits(organizationId);
@@ -380,6 +417,7 @@ export async function executeSendEmails({
     sentCount: sentMessageIds.length,
     stoppedAtCap,
     stoppedAtCredits,
+    blockedCount,
     messageIds: sentMessageIds,
   };
 }

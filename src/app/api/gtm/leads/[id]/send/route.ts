@@ -13,6 +13,7 @@ import { resolveAuthAndOrg } from "@/lib/gtm-auth";
 import { executeSendEmails } from "@/inngest/functions/send-emails";
 import { isValidPersonName } from "@/lib/gtm-contact-matcher";
 import { checkLeadQualificationGates } from "@/lib/gtm-stage-5-5";
+import { clientCanApprove, getApprovalBlock } from "@/lib/send-eligibility";
 
 export async function POST(
   req: NextRequest,
@@ -101,6 +102,19 @@ export async function POST(
       );
     }
 
+    // State machine: rejected, failed, sent or paused drafts are never
+    // re-approved by a client call; only a pending draft can be sent.
+    if (!clientCanApprove(draft.status)) {
+      return NextResponse.json(
+        { error: `This draft is ${draft.status} and cannot be sent.` },
+        { status: 409 }
+      );
+    }
+    const block = await getApprovalBlock(auth.orgId, draft.id);
+    if (block) {
+      return NextResponse.json({ error: block, code: "SEND_BLOCKED" }, { status: 409 });
+    }
+
     // 3. If approveFirst requested or edits provided, approve draft before sending
     if (body.approveFirst || body.edits || draft.status !== "approved") {
       const updateFields: Record<string, unknown> = {
@@ -157,6 +171,12 @@ export async function POST(
     });
 
     if (sendResult.sentCount === 0) {
+      if (sendResult.blockedCount) {
+        return NextResponse.json(
+          { error: "This contact can't be emailed (opted out, bounced or no longer qualified).", code: "SEND_BLOCKED" },
+          { status: 409 }
+        );
+      }
       if (sendResult.stoppedAtCap) {
         return NextResponse.json(
           { error: "Daily send cap reached for your mailbox." },

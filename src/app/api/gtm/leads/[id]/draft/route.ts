@@ -13,6 +13,7 @@ import { resolveAuthAndOrg } from "@/lib/gtm-auth";
 import { generateOutreachEmailDraft } from "@/lib/gtm-ai";
 import { isValidPersonName } from "@/lib/gtm-contact-matcher";
 import { checkLeadQualificationGates } from "@/lib/gtm-stage-5-5";
+import { getSendBlock } from "@/lib/send-eligibility";
 
 export async function POST(
   req: NextRequest,
@@ -91,6 +92,16 @@ export async function POST(
         { status: 422 }
       );
     }
+
+    // Opted out, hard-bounced, suppressed or lookup still incomplete: never draft.
+    const block = await getSendBlock(auth.orgId, { ...contact, domain: company.domain });
+    if (block) {
+      return NextResponse.json(
+        { error: `Cannot draft email: ${block.message}`, code: "SEND_BLOCKED" },
+        { status: 422 }
+      );
+    }
+
     const [existingDraft] = await db
       .select()
       .from(gtmEmailDraft)

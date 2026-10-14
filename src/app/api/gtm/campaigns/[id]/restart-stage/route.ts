@@ -6,7 +6,8 @@ import {
   gtmEmailDraft,
   gtmOutreachCampaign,
 } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray, sql } from "drizzle-orm";
+import { getSendBlock, loadDraftForSending } from "@/lib/send-eligibility";
 import { resolveAuthAndOrg, verifyCampaignAccess } from "@/lib/gtm-auth";
 import { dispatchCampaign, dispatchCampaignSend } from "@/lib/pipeline/dispatch";
 import { campaignIsIdle, type CampaignStageValue } from "@/lib/pipeline/stage-state";
@@ -95,17 +96,30 @@ async function prepareSendRestart(campaignId: string, organizationId: string) {
     .where(and(eq(gtmEmailDraft.outreachCampaignId, campaignId), eq(gtmEmailDraft.status, "approved")));
   if (approvedDrafts.length > 0) return approvedDrafts.length;
 
-  // No approved drafts: retry failed ones, or finish if everything was sent.
+  // No approved drafts: retry failed sends, or finish if everything was sent.
+  // A bounced draft is never retried, nor one whose contact can no longer be
+  // emailed (opted out, suppressed, ...); those stay failed.
   const failedDrafts = await db
     .select({ id: gtmEmailDraft.id })
     .from(gtmEmailDraft)
-    .where(and(eq(gtmEmailDraft.outreachCampaignId, campaignId), eq(gtmEmailDraft.status, "failed")));
-  if (failedDrafts.length > 0) {
+    .where(
+      and(
+        eq(gtmEmailDraft.outreachCampaignId, campaignId),
+        eq(gtmEmailDraft.status, "failed"),
+        sql`NOT EXISTS (SELECT 1 FROM gtm_email_event e WHERE e.email_draft_id = ${gtmEmailDraft.id} AND e.type = 'bounced')`
+      )
+    );
+  const retryable: string[] = [];
+  for (const failed of failedDrafts) {
+    const draft = await loadDraftForSending(failed.id);
+    if (draft && !(await getSendBlock(organizationId, draft))) retryable.push(failed.id);
+  }
+  if (retryable.length > 0) {
     await db
       .update(gtmEmailDraft)
       .set({ status: "approved", errorMessage: null })
-      .where(and(eq(gtmEmailDraft.outreachCampaignId, campaignId), eq(gtmEmailDraft.status, "failed")));
-    return failedDrafts.length;
+      .where(and(inArray(gtmEmailDraft.id, retryable), eq(gtmEmailDraft.status, "failed")));
+    return retryable.length;
   }
 
   const allDrafts = await db

@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { db } from "@/utils/db";
 import { gtmEmailDraft } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { resolveAuthAndOrg, verifyCampaignAccess } from "@/lib/gtm-auth";
 import { listCampaignDrafts } from "@/lib/data/campaigns";
+import { getApprovalBlock } from "@/lib/send-eligibility";
 
 export async function GET(
   req: NextRequest,
@@ -63,21 +64,33 @@ export async function POST(
 
     const body = await req.json().catch(() => ({}));
     if (body.action === "approve_all") {
-      await db
-        .update(gtmEmailDraft)
-        .set({
-          status: "approved",
-          reviewedBy: auth.userId,
-          reviewedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(gtmEmailDraft.outreachCampaignId, id),
-            eq(gtmEmailDraft.status, "draft")
-          )
-        );
+      // Only pending drafts whose contact may still be emailed are approved;
+      // opted-out, bounced, suppressed or unqualified contacts are skipped.
+      const pending = await db
+        .select({ id: gtmEmailDraft.id })
+        .from(gtmEmailDraft)
+        .where(and(eq(gtmEmailDraft.outreachCampaignId, id), eq(gtmEmailDraft.status, "draft")));
+      const approvable: string[] = [];
+      for (const draft of pending) {
+        if (!(await getApprovalBlock(auth.orgId, draft.id))) approvable.push(draft.id);
+      }
+      if (approvable.length > 0) {
+        await db
+          .update(gtmEmailDraft)
+          .set({ status: "approved", reviewedBy: auth.userId, reviewedAt: new Date() })
+          .where(and(inArray(gtmEmailDraft.id, approvable), eq(gtmEmailDraft.status, "draft")));
+      }
+      const skipped = pending.length - approvable.length;
 
-      return NextResponse.json({ success: true, message: "All drafts approved" });
+      return NextResponse.json({
+        success: true,
+        approvedCount: approvable.length,
+        skippedCount: skipped,
+        message:
+          skipped > 0
+            ? `Approved ${approvable.length} draft(s); ${skipped} skipped because those contacts can't be emailed.`
+            : "All drafts approved",
+      });
     }
 
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
