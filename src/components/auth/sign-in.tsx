@@ -15,7 +15,7 @@ function signInErrorMessage(error: string | undefined): string | null {
   return "That sign-in link is invalid, expired or already used. Request a new one."
 }
 
-export const SignInComp = ({ error }: { error?: string }) => {
+export const SignInComp = ({ error, next }: { error?: string; next?: string }) => {
   const [isLoading, setIsLoading] = useState(false)
   const errorMessage = signInErrorMessage(error)
 
@@ -24,9 +24,9 @@ export const SignInComp = ({ error }: { error?: string }) => {
     try {
       await signIn.social({
         provider: "google",
-        callbackURL: "/dashboard",
+        callbackURL: next ?? "/dashboard",
         errorCallbackURL: "/error",
-        newUserCallbackURL: "/onboarding",
+        newUserCallbackURL: next ?? "/onboarding",
       })
     } catch (error) {
       console.error("Sign in failed:", error)
@@ -92,7 +92,7 @@ export const SignInComp = ({ error }: { error?: string }) => {
           <span className="h-px flex-1 bg-border" />
         </div>
 
-        <MagicLinkForm />
+        <MagicLinkForm next={next} />
 
         {errorMessage && (
           <p role="alert" className="text-center text-xs text-muted-foreground">

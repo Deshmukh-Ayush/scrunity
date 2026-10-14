@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { SignInComp } from "@/components/auth/sign-in"
+import { safeSignInNext } from "@/lib/sign-in-next"
 import React from "react"
 
 export const metadata: Metadata = {
@@ -23,12 +24,15 @@ export const metadata: Metadata = {
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string | string[] }>
+  searchParams: Promise<{ error?: string | string[]; next?: string | string[] }>
 }) {
-  const { error } = await searchParams
+  const { error, next } = await searchParams
   return (
     <div>
-      <SignInComp error={typeof error === "string" ? error : undefined} />
+      <SignInComp
+        error={typeof error === "string" ? error : undefined}
+        next={safeSignInNext(typeof next === "string" ? next : null) ?? undefined}
+      />
     </div>
   )
 }

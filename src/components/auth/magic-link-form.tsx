@@ -10,7 +10,7 @@ import { signIn } from "@/lib/auth-client"
  * Email sign-in link. The confirmation is the same whether or not the email
  * has access, so the form never reveals who has an account.
  */
-export function MagicLinkForm() {
+export function MagicLinkForm({ next }: { next?: string }) {
   const [email, setEmail] = useState("")
   const [state, setState] = useState<"idle" | "sending" | "sent" | "limited" | "error">("idle")
 
@@ -19,8 +19,8 @@ export function MagicLinkForm() {
     setState("sending")
     const { error } = await signIn.magicLink({
       email: email.trim().toLowerCase(),
-      callbackURL: "/dashboard",
-      newUserCallbackURL: "/onboarding",
+      callbackURL: next ?? "/dashboard",
+      newUserCallbackURL: next ?? "/onboarding",
       errorCallbackURL: "/sign-in",
     })
     if (!error) setState("sent")

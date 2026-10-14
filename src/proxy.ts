@@ -4,6 +4,7 @@ import { db } from "@/utils/db";
 import { member, organization } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { isPlatformAdminUser } from "@/lib/platform-admin-emails";
+import { safeSignInNext } from "@/lib/sign-in-next";
 
 const protectedPaths = ["/dashboard", "/api/billing", "/api/gtm", "/api/onboarding", "/api/admin"];
 
@@ -100,7 +101,8 @@ export async function proxy(request: NextRequest) {
     }
 
     if (isSignIn) {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
+      const next = safeSignInNext(request.nextUrl.searchParams.get("next"));
+      return NextResponse.redirect(new URL(next ?? "/dashboard", request.url));
     }
 
     // --- Pass resolved identity to render via request headers ---
