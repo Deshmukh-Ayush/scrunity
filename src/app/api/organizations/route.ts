@@ -80,22 +80,35 @@ export async function PATCH(req: NextRequest) {
 
       return NextResponse.json({ error: "Invalid form action." }, { status: 400 });
     } 
-    // Handle plan / currency updates (application/json)
+    // Profile updates (application/json). Explicit allowlist: only the name is
+    // customer-editable here. Plan, credits, status, seats, currency and every
+    // other billing field change only through the Dodo webhook, the platform
+    // admin grant functions or a pilot invite claim; any other key is a 400.
     else {
-      const payload = await req.json();
+      const patchSchema = z
+        .object({
+          orgId: z.string().min(1, "Organization ID is required"),
+          name: z.string().trim().min(1, "Name is required").max(80),
+        })
+        .strict();
 
-      const patchSchema = z.object({
-        orgId: z.string().min(1, "Organization ID is required"),
-        plan: z.enum(["free", "pilot", "starter", "growth", "scale", "freelancer", "agency"]).optional(),
-        globalCurrency: z.enum(["USD", "INR"]).optional(),
-      });
+      const payload = await req.json().catch(() => null);
+      const extraKeys = payload && typeof payload === "object"
+        ? Object.keys(payload).filter((key) => key !== "orgId" && key !== "name")
+        : [];
+      if (extraKeys.length > 0) {
+        return NextResponse.json(
+          { error: `Only the organization name can be changed here (not: ${extraKeys.join(", ")}).` },
+          { status: 400 }
+        );
+      }
 
       const validationResult = patchSchema.safeParse(payload);
       if (!validationResult.success) {
         return NextResponse.json({ error: validationResult.error.issues[0].message }, { status: 400 });
       }
 
-      const { orgId, plan, globalCurrency } = validationResult.data;
+      const { orgId, name } = validationResult.data;
 
       const [orgMember] = await db
         .select()
@@ -106,14 +119,8 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: "Only organization owners can change settings." }, { status: 403 });
       }
 
-      const updates: { plan?: "free" | "pilot" | "starter" | "growth" | "scale" | "freelancer" | "agency"; globalCurrency?: "USD" | "INR"; updatedAt: Date } = {
-        updatedAt: new Date(),
-      };
-      if (plan) updates.plan = plan;
-      if (globalCurrency) updates.globalCurrency = globalCurrency;
-
       await db.update(organization)
-        .set(updates)
+        .set({ name, updatedAt: new Date() })
         .where(eq(organization.id, orgId));
 
       revalidatePath("/dashboard/settings");
