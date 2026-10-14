@@ -9,7 +9,7 @@ import {
   gtmIcpSegment,
 } from "@/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
-import { resolveAuthAndOrg } from "@/lib/gtm-auth";
+import { resolveAuthAndOrg, verifyCampaignAccess, verifyResearchRunAccess } from "@/lib/gtm-auth";
 import { nanoid } from "nanoid";
 
 export async function GET(req: NextRequest) {
@@ -101,6 +101,14 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const { title, outreachCampaignId, researchRunId } = body;
+
+    // A conversation may only link this organization's campaign or run.
+    if (outreachCampaignId && !(await verifyCampaignAccess(String(outreachCampaignId), auth.orgId))) {
+      return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
+    }
+    if (researchRunId && !(await verifyResearchRunAccess(String(researchRunId), auth.orgId))) {
+      return NextResponse.json({ error: "Research run not found." }, { status: 404 });
+    }
 
     const [conversation] = await db
       .insert(gtmConversation)

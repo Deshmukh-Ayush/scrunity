@@ -62,7 +62,13 @@ export async function getConversationWithMessages(
         gtmResearchRun,
         eq(gtmOutreachCampaign.researchRunId, gtmResearchRun.id)
       )
-      .where(eq(gtmOutreachCampaign.id, conversation.outreachCampaignId))
+      // Org filter too: a stored link must never expose another org's campaign.
+      .where(
+        and(
+          eq(gtmOutreachCampaign.id, conversation.outreachCampaignId),
+          eq(gtmResearchRun.organizationId, organizationId)
+        )
+      )
       .limit(1)
     linkedCampaign = campaign || null
   }
