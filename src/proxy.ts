@@ -142,7 +142,19 @@ export async function proxy(request: NextRequest) {
       },
     });
   } catch (err) {
+    // Fail closed: if the session or membership lookup fails we cannot know
+    // who this is, so protected paths are refused; public paths stay public.
     console.error("proxy middleware error:", err);
+    const { pathname } = request.nextUrl;
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "We couldn't verify your session. Please try again in a moment." },
+        { status: 503 }
+      );
+    }
+    if (pathname === "/onboarding" || protectedPaths.some((path) => pathname.startsWith(path))) {
+      return NextResponse.redirect(new URL("/sign-in?error=session_unavailable", request.url));
+    }
     return NextResponse.next();
   }
 }
