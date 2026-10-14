@@ -49,12 +49,14 @@ export function campaignIsIdle() {
  * Atomically takes ownership of a research-run stage. Succeeds only if the run
  * is still in_progress at `stage` and no executor has heartbeated recently, so
  * two executors (or a retry racing the original) can never run it at once.
+ * Every claim is a new stage attempt, so it also starts a fresh Firecrawl
+ * attempt budget (the lifetime count is kept; see lib/firecrawl-spend.ts).
  */
 export async function claimResearchStage(researchRunId: string, stage: ResearchRunStage) {
   const now = new Date()
   const claimed = await db
     .update(gtmResearchRun)
-    .set({ lastProgressAt: now })
+    .set({ lastProgressAt: now, firecrawlAttemptCallCount: 0 })
     .where(
       and(
         eq(gtmResearchRun.id, researchRunId),
@@ -106,7 +108,7 @@ export async function claimCampaignStage(campaignId: string, stage: CampaignStag
   const now = new Date()
   const claimed = await db
     .update(gtmOutreachCampaign)
-    .set({ lastProgressAt: now })
+    .set({ lastProgressAt: now, firecrawlAttemptCallCount: 0 })
     .where(
       and(
         eq(gtmOutreachCampaign.id, campaignId),

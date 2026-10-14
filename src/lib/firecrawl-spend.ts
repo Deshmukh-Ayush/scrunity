@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import { db } from "@/utils/db";
 import {
   gtmResearchRun,
@@ -10,16 +10,28 @@ import { getOrCreateActiveCreditPeriod } from "@/lib/ai/credits";
 import { Resend } from "resend";
 import crypto from "crypto";
 
+/**
+ * "attempt": this stage attempt used its call budget (Restart Stage gets a fresh one).
+ * "lifetime": the run/campaign used its lifetime backstop across all attempts.
+ */
+export type FirecrawlCapScope = "attempt" | "lifetime";
+
 export class FirecrawlCallCapExceededError extends Error {
-  public readonly failureReason = "firecrawl_call_cap_exceeded";
+  public readonly failureReason: string;
+  public readonly scope: FirecrawlCapScope;
   public readonly count: number;
   public readonly cap: number;
 
-  constructor(count: number, cap: number) {
+  constructor(count: number, cap: number, scope: FirecrawlCapScope = "attempt") {
     super(
-      `Firecrawl per-run call cap exceeded: ${count} calls made (cap is ${cap}).`
+      scope === "attempt"
+        ? `Firecrawl per-attempt call cap exceeded: ${count} calls made in this stage attempt (cap is ${cap}).`
+        : `Firecrawl lifetime call cap exceeded: ${count} calls made across all attempts (cap is ${cap}).`
     );
     this.name = "FirecrawlCallCapExceededError";
+    this.failureReason =
+      scope === "attempt" ? "firecrawl_call_cap_exceeded" : "firecrawl_lifetime_cap_exceeded";
+    this.scope = scope;
     this.count = count;
     this.cap = cap;
   }
@@ -40,22 +52,38 @@ export class FirecrawlSpendPausedError extends Error {
   }
 }
 
+const intEnv = (name: string, fallback: number) => {
+  const parsed = parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
 /**
- * Hard per-run caps on Firecrawl calls.
- * Sized with ~3x headroom above expected count:
- * - Research Run (Stage 1-3): expected ~8 calls -> default cap = 25
- * - Campaign Pass (Stage 4-5): expected ~10-12 calls -> default cap = 35
+ * Per-stage-attempt caps on Firecrawl calls. The attempt counter is reset each
+ * time a stage is claimed (first run, Restart Stage, re-run), so earlier
+ * attempts never eat into a fresh one. Worst case by design at defaults:
+ * - Research stages 1-3: well under 25 calls per stage -> cap 25
+ * - Legacy Stage 4: up to 5 searches + 2 LinkedIn lookups = 7; legacy Stage 5:
+ *   up to 4 calls x 8 companies = 32 -> cap 35
  */
 export function getResearchRunCap(): number {
-  return process.env.FIRECRAWL_RESEARCH_RUN_CAP
-    ? parseInt(process.env.FIRECRAWL_RESEARCH_RUN_CAP, 10)
-    : 25;
+  return intEnv("FIRECRAWL_RESEARCH_RUN_CAP", 25);
 }
 
 export function getCampaignRunCap(): number {
-  return process.env.FIRECRAWL_CAMPAIGN_RUN_CAP
-    ? parseInt(process.env.FIRECRAWL_CAMPAIGN_RUN_CAP, 10)
-    : 35;
+  return intEnv("FIRECRAWL_CAMPAIGN_RUN_CAP", 35);
+}
+
+/**
+ * Lifetime backstops across every attempt of one research run / campaign, so
+ * repeated restarts can never burn unbounded credits. A full legacy campaign
+ * pass (stages 4+5) is at most 39 calls, so 120 allows about three passes.
+ */
+export function getResearchRunLifetimeCap(): number {
+  return intEnv("FIRECRAWL_RESEARCH_RUN_LIFETIME_CAP", 75);
+}
+
+export function getCampaignLifetimeCap(): number {
+  return intEnv("FIRECRAWL_CAMPAIGN_LIFETIME_CAP", 120);
 }
 
 /**
@@ -78,9 +106,9 @@ export interface FirecrawlRunContext {
 }
 
 /**
- * Checks whether the requested Firecrawl call is allowed under both:
+ * Checks whether the requested Firecrawl call is allowed, and reserves it:
  * 1) Organization monthly billing cycle allotment (hard pause at 95%)
- * 2) Run-level call safety cap (3x expected headroom)
+ * 2) Per-stage-attempt call cap plus the lifetime backstop for the run/campaign
  */
 export async function checkFirecrawlCallAllowed(
   context: FirecrawlRunContext
@@ -103,46 +131,104 @@ export async function checkFirecrawlCallAllowed(
     }
   }
 
-  // 2. Check per-run cap for research run (Stages 1-3)
+  // 2. Reserve one call from the stage-attempt budget and the lifetime
+  //    backstop in a single conditional UPDATE, so the count and the check
+  //    can never race. A reservation is spent whatever the call's outcome.
   if (researchRunId) {
-    const cap = getResearchRunCap();
-    const [run] = await db
-      .select({ firecrawlCallCount: gtmResearchRun.firecrawlCallCount })
-      .from(gtmResearchRun)
-      .where(eq(gtmResearchRun.id, researchRunId));
-
-    const currentCount = run?.firecrawlCallCount ?? 0;
-    if (currentCount >= cap) {
-      console.warn(
-        `[Firecrawl Cap Exceeded] Research run ${researchRunId} reached hard cap of ${cap} calls ` +
-          `(${currentCount} already executed). Stopping execution.`
-      );
-      throw new FirecrawlCallCapExceededError(currentCount, cap);
-    }
+    await reserveResearchRunCall(researchRunId);
   }
-
-  // 3. Check per-run cap for campaign pass (Stages 4-5)
   if (campaignId) {
-    const cap = getCampaignRunCap();
-    const [campaign] = await db
-      .select({ firecrawlCallCount: gtmOutreachCampaign.firecrawlCallCount })
-      .from(gtmOutreachCampaign)
-      .where(eq(gtmOutreachCampaign.id, campaignId));
-
-    const currentCount = campaign?.firecrawlCallCount ?? 0;
-    if (currentCount >= cap) {
-      console.warn(
-        `[Firecrawl Cap Exceeded] Campaign ${campaignId} reached hard cap of ${cap} calls ` +
-          `(${currentCount} already executed). Stopping execution.`
-      );
-      throw new FirecrawlCallCapExceededError(currentCount, cap);
-    }
+    await reserveCampaignCall(campaignId);
   }
 }
 
+function capError(
+  label: string,
+  attempt: { count: number; cap: number },
+  lifetime: { count: number; cap: number }
+): FirecrawlCallCapExceededError {
+  const scope: FirecrawlCapScope = lifetime.count >= lifetime.cap ? "lifetime" : "attempt";
+  const { count, cap } = scope === "lifetime" ? lifetime : attempt;
+  console.warn(
+    `[Firecrawl Cap Exceeded] ${label} reached its ${scope} cap of ${cap} calls ` +
+      `(${count} already used). Stopping execution.`
+  );
+  return new FirecrawlCallCapExceededError(count, cap, scope);
+}
+
+async function reserveResearchRunCall(researchRunId: string) {
+  const attemptCap = getResearchRunCap();
+  const lifetimeCap = getResearchRunLifetimeCap();
+  const reserved = await db
+    .update(gtmResearchRun)
+    .set({
+      firecrawlAttemptCallCount: sql`${gtmResearchRun.firecrawlAttemptCallCount} + 1`,
+      firecrawlCallCount: sql`${gtmResearchRun.firecrawlCallCount} + 1`,
+      // Each call doubles as a pipeline heartbeat (see lib/pipeline/stage-state.ts)
+      lastProgressAt: new Date(),
+    })
+    .where(
+      and(
+        eq(gtmResearchRun.id, researchRunId),
+        lt(gtmResearchRun.firecrawlAttemptCallCount, attemptCap),
+        lt(gtmResearchRun.firecrawlCallCount, lifetimeCap)
+      )
+    )
+    .returning({ id: gtmResearchRun.id });
+  if (reserved.length > 0) return;
+
+  const [run] = await db
+    .select({
+      attempt: gtmResearchRun.firecrawlAttemptCallCount,
+      lifetime: gtmResearchRun.firecrawlCallCount,
+    })
+    .from(gtmResearchRun)
+    .where(eq(gtmResearchRun.id, researchRunId));
+  throw capError(
+    `Research run ${researchRunId}`,
+    { count: run?.attempt ?? 0, cap: attemptCap },
+    { count: run?.lifetime ?? 0, cap: lifetimeCap }
+  );
+}
+
+async function reserveCampaignCall(campaignId: string) {
+  const attemptCap = getCampaignRunCap();
+  const lifetimeCap = getCampaignLifetimeCap();
+  const reserved = await db
+    .update(gtmOutreachCampaign)
+    .set({
+      firecrawlAttemptCallCount: sql`${gtmOutreachCampaign.firecrawlAttemptCallCount} + 1`,
+      firecrawlCallCount: sql`${gtmOutreachCampaign.firecrawlCallCount} + 1`,
+      lastProgressAt: new Date(),
+    })
+    .where(
+      and(
+        eq(gtmOutreachCampaign.id, campaignId),
+        lt(gtmOutreachCampaign.firecrawlAttemptCallCount, attemptCap),
+        lt(gtmOutreachCampaign.firecrawlCallCount, lifetimeCap)
+      )
+    )
+    .returning({ id: gtmOutreachCampaign.id });
+  if (reserved.length > 0) return;
+
+  const [campaign] = await db
+    .select({
+      attempt: gtmOutreachCampaign.firecrawlAttemptCallCount,
+      lifetime: gtmOutreachCampaign.firecrawlCallCount,
+    })
+    .from(gtmOutreachCampaign)
+    .where(eq(gtmOutreachCampaign.id, campaignId));
+  throw capError(
+    `Campaign ${campaignId}`,
+    { count: campaign?.attempt ?? 0, cap: attemptCap },
+    { count: campaign?.lifetime ?? 0, cap: lifetimeCap }
+  );
+}
+
 /**
- * Records Firecrawl consumption:
- * 1) Increments per-run call counter
+ * Records Firecrawl consumption once a call got a response:
+ * 1) Heartbeats the run/campaign (the call was already counted against its
+ *    caps by checkFirecrawlCallAllowed)
  * 2) Increments organization credit period consumption
  * 3) Logs usageEvent
  * 4) Triggers internal alerting at 50%, 75%, 90%
@@ -159,26 +245,17 @@ export async function recordFirecrawlUsage({
 }): Promise<void> {
   const now = new Date();
 
-  // Increment research run counter
+  // Heartbeat after a (possibly long) call; see lib/pipeline/stage-state.ts
   if (researchRunId) {
     await db
       .update(gtmResearchRun)
-      .set({
-        firecrawlCallCount: sql`${gtmResearchRun.firecrawlCallCount} + ${units}`,
-        // Each call doubles as a pipeline heartbeat (see lib/pipeline/stage-state.ts)
-        lastProgressAt: now,
-      })
+      .set({ lastProgressAt: now })
       .where(eq(gtmResearchRun.id, researchRunId));
   }
-
-  // Increment campaign counter
   if (campaignId) {
     await db
       .update(gtmOutreachCampaign)
-      .set({
-        firecrawlCallCount: sql`${gtmOutreachCampaign.firecrawlCallCount} + ${units}`,
-        lastProgressAt: now,
-      })
+      .set({ lastProgressAt: now })
       .where(eq(gtmOutreachCampaign.id, campaignId));
   }
 

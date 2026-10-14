@@ -42,7 +42,9 @@ function moneyPayload(amount: string, currency: string) {
 
 function failureMessage(reason?: string | null) {
   if (reason === "firecrawl_call_cap_exceeded")
-    return "Research stopped: Firecrawl call safety cap exceeded for this run to protect your credit balance."
+    return "Research stopped: this step reached its web-search safety limit for one attempt, which protects your credits. Restart the stage to try again with a fresh limit."
+  if (reason === "firecrawl_lifetime_cap_exceeded")
+    return "Research stopped: this run has used its total web-search allowance across all retries. Start a new research run to continue."
   if (reason === "paused_firecrawl_allotment_exhausted")
     return "Research paused: Firecrawl credit allotment nearly exhausted for this billing cycle."
   return reason
