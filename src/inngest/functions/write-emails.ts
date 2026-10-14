@@ -81,6 +81,9 @@ export async function executeWriteEmails(
   for (const item of contactsWithCompany) {
     const { contact } = item;
 
+    // Rate-limited lookup: not known to be unqualified, but not drafted either.
+    if (contact.lookupStatus === "lookup_incomplete") continue;
+
     // Check existing rejected drafts
     const [existingRejected] = await db
       .select({ id: gtmEmailDraft.id })

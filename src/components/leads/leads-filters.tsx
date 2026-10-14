@@ -15,6 +15,7 @@ import type { CampaignOption } from "./types"
 export const STATUS_OPTIONS = [
   { value: "all", label: "All Statuses" },
   { value: "discovered", label: "Discovered" },
+  { value: "lookup_incomplete", label: "Lookup Incomplete" },
   { value: "drafted", label: "Drafted" },
   { value: "approved", label: "Approved" },
   { value: "sent", label: "Sent" },

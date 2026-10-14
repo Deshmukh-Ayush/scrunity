@@ -81,6 +81,7 @@ export async function GET(req: NextRequest) {
           SELECT 1 FROM gtm_email_draft d 
           WHERE d.contact_id = ${gtmContact.id} AND d.status = 'draft'
         ) THEN 'drafted'
+        WHEN ${gtmContact.lookupStatus} = 'lookup_incomplete' THEN 'lookup_incomplete'
         ELSE 'discovered'
       END
     `;

@@ -9,33 +9,24 @@ import {
 } from "@/db/schema"
 import { eq } from "drizzle-orm"
 import { advanceCampaign, touchCampaignProgress } from "@/lib/pipeline/stage-state"
-import {
-  scrapeUrl,
-  searchFirecrawl,
-  FirecrawlRateLimitError,
-  FirecrawlCallCapExceededError,
-  FirecrawlSpendPausedError,
-  isAggregatorOrReviewDomain,
-} from "@/lib/firecrawl"
+import { isAggregatorOrReviewDomain } from "@/lib/firecrawl"
 import { checkSuppression, recordSuppressionEntry } from "@/lib/gtm-suppression"
 import { deriveTargetJobFunction } from "@/lib/gtm-ai"
+import { enrichStage5Email, resolveContactEmail } from "./find-contacts-email"
 import {
-  checkDomainMxRecords,
-  generateEmailGuesses,
-  extractEmailsFromText,
-} from "@/lib/dns-lookup"
-import { findProfessionalEmail } from "@/lib/enrich"
-import { checkCreditAllowance, recordCreditUsage } from "@/lib/ai/credits"
-import {
-  TeamCandidate,
-  parseTeamFromMarkdown,
-  parseCandidatesFromSnippets,
-  selectMatchingDecisionMaker,
-  isValidPersonName,
-} from "@/lib/gtm-contact-matcher"
+  type CompanyLookup,
+  type LookupOptions,
+  cleanCompanyNameOf,
+  newCompanyLookup,
+  pickDecisionMaker,
+  retryIncompleteLookups,
+  runLookupParts,
+} from "./find-contacts-lookup"
 import { safeRealtimePublish, type InngestStep } from "./shared"
 import { getDiscoveryMode } from "@/lib/providers/config"
 import { executeFindContactsFromDatabase } from "./find-contacts-database"
+
+export { enrichStage5Email }
 
 export interface ContactData {
   id: string
@@ -51,86 +42,6 @@ export interface ContactData {
 export interface FindContactsResult {
   contacts: ContactData[]
   rateLimitSummary?: string
-}
-
-type EmailSource =
-  | "found_on_site"
-  | "enrich_verified"
-  | "pattern_guessed_mx_valid"
-  | "pattern_guessed_unverified"
-  | "company_fallback"
-  | "none"
-type EnrichMetadata = NonNullable<typeof gtmContact.$inferInsert.enrichMetadata>
-
-/** Isolated Stage-5 enrichment decision, with injectable dependencies for fallback tests. */
-export async function enrichStage5Email({
-  email,
-  emailSource,
-  personName,
-  domain,
-  organizationId,
-  step,
-  checkCredits = checkCreditAllowance,
-  recordUsage = recordCreditUsage,
-  finder = findProfessionalEmail,
-}: {
-  email: string | null
-  emailSource: EmailSource
-  personName: string
-  domain: string
-  organizationId: string
-  step?: InngestStep
-  checkCredits?: typeof checkCreditAllowance
-  recordUsage?: typeof recordCreditUsage
-  finder?: typeof findProfessionalEmail
-}): Promise<{
-  email: string | null
-  emailSource: EmailSource
-  enrichMetadata: EnrichMetadata | null
-}> {
-  if (!personName.includes(" ") || !process.env.ENRICH_API_KEY)
-    return { email, emailSource, enrichMetadata: null }
-  try {
-    const creditCheck = await checkCredits(organizationId, "search", 10)
-    if (!creditCheck.allowed)
-      return { email, emailSource, enrichMetadata: null }
-    await recordUsage({
-      organizationId,
-      toolName: "enrich.email-finder",
-      metadata: { domain, contactName: personName },
-      units: 10,
-    })
-    const enrich = await finder(personName, domain, {
-      step,
-      stepPrefix: `stage5-enrich-${domain}`,
-    })
-    if (
-      !enrich ||
-      enrich.confidence.toLowerCase() === "low" ||
-      enrich.isCatchAll
-    )
-      return { email, emailSource, enrichMetadata: null }
-    return {
-      email: enrich.email,
-      emailSource: "enrich_verified",
-      enrichMetadata: {
-        confidence: enrich.confidence,
-        isCatchAll: enrich.isCatchAll,
-        provider: enrich.provider,
-        message: enrich.message,
-        requestId: enrich.requestId,
-        creditsUsed: enrich.creditsUsed,
-        creditsRemaining: enrich.creditsRemaining,
-        processingTimeMs: enrich.processingTimeMs,
-      },
-    }
-  } catch (error) {
-    console.warn(
-      `[Stage 5] enrich.so lookup skipped for ${domain}:`,
-      (error as Error).message
-    )
-    return { email, emailSource, enrichMetadata: null }
-  }
 }
 
 /**
@@ -192,19 +103,19 @@ export async function executeFindContacts(
     .where(eq(gtmProspectCompany.outreachCampaignId, outreachCampaignId))
 
   const insertedContacts: ContactData[] = []
-  let rateLimitedCalls = 0
-
-  const runContext = {
-    campaignId: outreachCampaignId,
-    organizationId: researchRun.organizationId,
+  const organizationId = researchRun.organizationId
+  const lookupOptions: LookupOptions = {
+    runContext: { campaignId: outreachCampaignId, organizationId },
+    targetRole,
+    maxRetries: 1,
   }
+  // Lookups that were still rate-limited, with the contact row written for them.
+  const incompleteLookups: Array<{ lookup: CompanyLookup; contactId: string; personName: string }> = []
+  let rateLimitedCalls = 0
 
   for (const comp of companies) {
     await touchCampaignProgress(outreachCampaignId)
-    const cleanCompanyName = comp.name
-      .replace(/\s*[-–|:].*$/, "")
-      .replace(/\s+(Inc|LLC|PLLC|Services|Platform|Practice)$/i, "")
-      .trim()
+    const cleanCompanyName = cleanCompanyNameOf(comp.name)
 
     // 0. Platform-Wide Domain Suppression & Aggregator Check
     const domainSuppressed = await checkSuppression({ domain: comp.domain })
@@ -216,7 +127,7 @@ export async function executeFindContacts(
           email: null,
           domain: comp.domain,
           reason: "aggregator_domain",
-          sourceOrgId: researchRun.organizationId,
+          sourceOrgId: organizationId,
           rawSnippet: `Aggregator domain ${comp.domain}`,
         })
       }
@@ -237,303 +148,69 @@ export async function executeFindContacts(
           geo: "United States",
         })
         .returning()
-
-      insertedContacts.push({
-        id: contact.id,
-        name: contact.name,
-        title: contact.title,
-        email: contact.email,
-        emailSource: contact.emailSource,
-        companyId: comp.id,
-        companyName: comp.name,
-        companyDescription: comp.description,
-      })
+      insertedContacts.push(toContactData(contact, comp))
       continue
     }
 
-    let personName = ""
-    let personTitle = targetRole.jobFunctions[0] || "Leader"
-    let linkedinUrl: string | null = null
+    // 1-2. Firecrawl lookups: team page, LinkedIn snippets, homepage (for emails).
+    const lookup = newCompanyLookup(comp)
+    await runLookupParts(lookup, lookupOptions)
+    rateLimitedCalls += lookup.rateLimitedCalls
+    const person = pickDecisionMaker(lookup, targetRole.jobFunctions)
 
-    const candidates: TeamCandidate[] = []
+    // 3. Email chain (on-site match, pattern + MX, enrich.so, company fallback).
+    const email = await resolveContactEmail({
+      person,
+      domain: comp.domain,
+      siteMarkdown: lookup.siteMarkdown,
+      organizationId,
+      step,
+    })
 
-    // 1. Search site's own team/about page
-    try {
-      const teamQ = `site:${comp.domain} "team" OR "leadership" OR "founder" OR "clinical" OR "director"`
-      const teamResults = await searchFirecrawl(teamQ, 2, {
-        step,
-        stepPrefix: `stage5-team-q-${comp.id}`,
-        maxRetries: 1,
-        runContext,
-      })
-
-      const teamResult = teamResults.find((r) =>
-        /(team|about|leadership|providers|staff|people)/i.test(r.url)
-      )
-      if (teamResult) {
-        try {
-          let targetUrl = teamResult.url
-          try {
-            const parsed = new URL(teamResult.url)
-            const segments = parsed.pathname.split("/").filter(Boolean)
-            if (
-              segments.length >= 2 &&
-              /(our-team|team|about|leadership|staff|providers)/i.test(
-                segments[0]
-              )
-            ) {
-              targetUrl = `${parsed.origin}/${segments[0]}/`
-            }
-          } catch {
-            // keep targetUrl
-          }
-          const scraped = await scrapeUrl(targetUrl, {
-            step,
-            stepPrefix: `stage5-team-scrape-${comp.id}`,
-            runContext,
-          })
-          if (scraped.markdown) {
-            const parsedMembers = parseTeamFromMarkdown(scraped.markdown)
-            candidates.push(...parsedMembers)
-          }
-        } catch (scrapeErr) {
-          if (
-            scrapeErr instanceof FirecrawlCallCapExceededError ||
-            scrapeErr instanceof FirecrawlSpendPausedError
-          ) {
-            throw scrapeErr
-          }
-          if (scrapeErr instanceof FirecrawlRateLimitError) {
-            rateLimitedCalls++
-          }
-        }
-      }
-
-      candidates.push(
-        ...parseCandidatesFromSnippets(teamResults, "site_search_snippet")
-      )
-    } catch (err) {
-      if (
-        err instanceof FirecrawlCallCapExceededError ||
-        err instanceof FirecrawlSpendPausedError
-      ) {
-        throw err
-      }
-      if (err instanceof FirecrawlRateLimitError) {
-        rateLimitedCalls++
-        console.warn(
-          `[Stage 5] Team search for ${comp.domain} hit rate limit after retries.`
-        )
-      }
-    }
-
-    // 2. Search LinkedIn snippet
-    try {
-      const searchQ = `"${cleanCompanyName || comp.domain}" ${targetRole.searchKeyword} site:linkedin.com/in`
-      const liPeople = await searchFirecrawl(searchQ, 2, {
-        step,
-        stepPrefix: `stage5-li-${comp.id}`,
-        maxRetries: 1,
-        runContext,
-      })
-      candidates.push(
-        ...parseCandidatesFromSnippets(liPeople, "linkedin_snippet")
-      )
-    } catch (err) {
-      if (
-        err instanceof FirecrawlCallCapExceededError ||
-        err instanceof FirecrawlSpendPausedError
-      ) {
-        throw err
-      }
-      if (err instanceof FirecrawlRateLimitError) {
-        rateLimitedCalls++
-        console.warn(
-          `[Stage 5] LinkedIn snippet search for ${comp.name} hit rate limit after retries.`
-        )
-      }
-    }
-
-    const bestMatch = selectMatchingDecisionMaker(
-      candidates,
-      targetRole.jobFunctions
-    )
-
-    if (bestMatch && isValidPersonName(bestMatch.candidate.name)) {
-      personName = bestMatch.candidate.name
-      personTitle = bestMatch.candidate.title
-      linkedinUrl = bestMatch.candidate.url || null
-    } else {
-      personName = `${cleanCompanyName} Team`
-      personTitle = targetRole.jobFunctions[0] || "Leadership"
-    }
-
-    // Email-finding chain:
-    let resolvedEmail: string | null = null
-    let emailSource:
-      | "found_on_site"
-      | "enrich_verified"
-      | "pattern_guessed_mx_valid"
-      | "pattern_guessed_unverified"
-      | "company_fallback"
-      | "none" = "none"
-    let enrichMetadata: {
-      confidence?: string
-      isCatchAll?: boolean
-      provider?: string
-      message?: string
-      requestId?: string
-      creditsUsed?: number
-      creditsRemaining?: number
-      processingTimeMs?: number
-    } | null = null
-
-    // Step a: Scrape Contact / About page
-    try {
-      const siteScrape = await scrapeUrl(`https://${comp.domain}`, {
-        step,
-        stepPrefix: `stage5-contact-scrape-${comp.id}`,
-        runContext,
-      })
-      const extracted = extractEmailsFromText(
-        siteScrape.markdown || "",
-        comp.domain
-      )
-      if (extracted.length > 0 && isValidPersonName(personName)) {
-        const firstName = personName.split(" ")[0].toLowerCase()
-        const matching = extracted.find((e) => e.includes(firstName))
-        if (matching) {
-          resolvedEmail = matching
-          emailSource = "found_on_site"
-        }
-      }
-    } catch (e) {
-      if (
-        e instanceof FirecrawlCallCapExceededError ||
-        e instanceof FirecrawlSpendPausedError
-      ) {
-        throw e
-      }
-      if (e instanceof FirecrawlRateLimitError) {
-        rateLimitedCalls++
-      }
-    }
-
-    // Step b: Pattern guess + MX verification (only for validated human names)
-    if (!resolvedEmail && isValidPersonName(personName)) {
-      const guesses = generateEmailGuesses(personName, comp.domain)
-      if (guesses.length > 0) {
-        const candidateEmail = guesses[0]
-        const suppressed = await checkSuppression({
-          email: candidateEmail,
-          domain: comp.domain,
-        })
-
-        if (suppressed) {
-          console.log(
-            `[Stage 5] Contact ${candidateEmail} is previously suppressed (${suppressed.reason}). Skipping MX check and enrich.so lookup.`
-          )
-          resolvedEmail = candidateEmail
-          emailSource = "none"
-        } else {
-          const hasMx = await checkDomainMxRecords(comp.domain)
-          resolvedEmail = candidateEmail
-          if (!hasMx) {
-            await recordSuppressionEntry({
-              email: candidateEmail,
-              domain: comp.domain,
-              reason: "mx_invalid",
-              sourceOrgId: researchRun.organizationId,
-              rawSnippet: `MX check failed for ${comp.domain}`,
-            })
-          }
-          emailSource = hasMx
-            ? "pattern_guessed_mx_valid"
-            : "pattern_guessed_unverified"
-        }
-      }
-    }
-
-    // Step c: paid enrich.so verification, layered over the completed free chain.
-    const isSuppressedForEnrich = resolvedEmail
-      ? await checkSuppression({ email: resolvedEmail, domain: comp.domain })
-      : null
-
-    if (!isSuppressedForEnrich && emailSource !== "none") {
-      ;({
-        email: resolvedEmail,
-        emailSource,
-        enrichMetadata,
-      } = await enrichStage5Email({
-        email: resolvedEmail,
-        emailSource,
-        personName,
-        domain: comp.domain,
-        organizationId: researchRun.organizationId,
-        step,
-      }))
-    } else if (isSuppressedForEnrich) {
-      console.log(
-        `[Stage 5] Skipping enrich.so for ${resolvedEmail} — contact is previously suppressed (${isSuppressedForEnrich.reason}).`
-      )
-    }
-
-    // Step d: Company-level fallback (info@/hello@/contact@)
-    if (!resolvedEmail) {
-      const fallbackEmail = `contact@${comp.domain}`
-      const fallbackSuppressed = await checkSuppression({
-        email: fallbackEmail,
-        domain: comp.domain,
-      })
-
-      if (fallbackSuppressed) {
-        console.log(
-          `[Stage 5] Fallback contact ${fallbackEmail} is previously suppressed (${fallbackSuppressed.reason}). Skipping MX check.`
-        )
-        resolvedEmail = fallbackEmail
-        emailSource = "none"
-      } else {
-        const hasMx = await checkDomainMxRecords(comp.domain).catch(() => false)
-        resolvedEmail = fallbackEmail
-        emailSource = hasMx ? "company_fallback" : "pattern_guessed_unverified"
-      }
-    }
-
+    const lookupStatus = lookup.incomplete.size > 0 ? "lookup_incomplete" : "complete"
     const [contact] = await db
       .insert(gtmContact)
       .values({
         prospectCompanyId: comp.id,
-        name: personName,
-        title: personTitle,
-        linkedinUrl,
-        email: resolvedEmail,
-        emailSource,
-        verificationStatus: emailSource === "none" ? "unverified" : emailSource,
-        enrichMetadata,
+        name: person.personName,
+        title: person.personTitle,
+        linkedinUrl: person.linkedinUrl,
+        email: email.email,
+        emailSource: email.emailSource,
+        verificationStatus: email.emailSource === "none" ? "unverified" : email.emailSource,
+        enrichMetadata: email.enrichMetadata,
         geo: "United States",
+        lookupStatus,
       })
       .returning()
-
-    insertedContacts.push({
-      id: contact.id,
-      name: contact.name,
-      title: contact.title,
-      email: contact.email,
-      emailSource: contact.emailSource,
-      companyId: comp.id,
-      companyName: comp.name,
-      companyDescription: comp.description,
-    })
+    insertedContacts.push(toContactData(contact, comp))
+    if (lookupStatus === "lookup_incomplete") {
+      incompleteLookups.push({ lookup, contactId: contact.id, personName: person.personName })
+    }
   }
+
+  // 4. Slower retry pass for lookups that were still rate-limited.
+  const recovered = await retryIncompleteLookups(
+    incompleteLookups.map((i) => i.lookup),
+    lookupOptions,
+    () => touchCampaignProgress(outreachCampaignId)
+  )
+  for (const lookup of recovered) {
+    const entry = incompleteLookups.find((i) => i.lookup === lookup)!
+    await applyRecoveredLookup({ entry, jobFunctions: targetRole.jobFunctions, organizationId, step })
+  }
+  const stillIncomplete = incompleteLookups.length - recovered.length
 
   await advanceCampaign(outreachCampaignId, "find_contacts", {
     currentStage: "write_emails",
   })
 
-  const rateLimitSummary =
-    rateLimitedCalls > 0
-      ? `contact discovery hit rate limits on ${rateLimitedCalls} queries/scrapes`
-      : undefined
+  const notes = [
+    rateLimitedCalls > 0 ? `contact discovery hit rate limits on ${rateLimitedCalls} lookups` : null,
+    recovered.length > 0 ? `${recovered.length} recovered on retry` : null,
+    stillIncomplete > 0 ? `${stillIncomplete} left as lookup incomplete` : null,
+  ].filter(Boolean)
+  const rateLimitSummary = notes.length > 0 ? notes.join(", ") : undefined
 
   const summary = rateLimitSummary
     ? `Identified ${insertedContacts.length} contacts and completed MX validations (${rateLimitSummary}).`
@@ -552,3 +229,66 @@ export async function executeFindContacts(
     rateLimitSummary,
   }
 }
+
+function toContactData(
+  contact: typeof gtmContact.$inferSelect,
+  comp: typeof gtmProspectCompany.$inferSelect
+): ContactData {
+  return {
+    id: contact.id,
+    name: contact.name,
+    title: contact.title,
+    email: contact.email,
+    emailSource: contact.emailSource,
+    companyId: comp.id,
+    companyName: comp.name,
+    companyDescription: comp.description,
+  }
+}
+
+/**
+ * Updates a contact whose rate-limited lookups completed in the retry pass. The
+ * email chain is re-run only if a different person was found, so a paid
+ * enrich.so lookup is never repeated for the same person.
+ */
+async function applyRecoveredLookup({
+  entry,
+  jobFunctions,
+  organizationId,
+  step,
+}: {
+  entry: { lookup: CompanyLookup; contactId: string; personName: string }
+  jobFunctions: string[]
+  organizationId: string
+  step?: InngestStep
+}) {
+  const person = pickDecisionMaker(entry.lookup, jobFunctions)
+  if (person.personName === entry.personName) {
+    await db
+      .update(gtmContact)
+      .set({ lookupStatus: "complete", linkedinUrl: person.linkedinUrl, title: person.personTitle })
+      .where(eq(gtmContact.id, entry.contactId))
+    return
+  }
+  const email = await resolveContactEmail({
+    person,
+    domain: entry.lookup.company.domain,
+    siteMarkdown: entry.lookup.siteMarkdown,
+    organizationId,
+    step,
+  })
+  await db
+    .update(gtmContact)
+    .set({
+      name: person.personName,
+      title: person.personTitle,
+      linkedinUrl: person.linkedinUrl,
+      email: email.email,
+      emailSource: email.emailSource,
+      verificationStatus: email.emailSource === "none" ? "unverified" : email.emailSource,
+      enrichMetadata: email.enrichMetadata,
+      lookupStatus: "complete",
+    })
+    .where(eq(gtmContact.id, entry.contactId))
+}
+

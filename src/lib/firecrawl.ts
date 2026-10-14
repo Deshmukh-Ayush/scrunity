@@ -211,6 +211,7 @@ export function findAboutPageUrl(
 }
 
 import type { InngestStep } from "@/inngest/functions/shared";
+import { getFirecrawlLimiter } from "@/lib/firecrawl-limiter";
 import {
   checkFirecrawlCallAllowed,
   recordFirecrawlUsage,
@@ -365,20 +366,10 @@ export async function sleepWithStep(
   }
 }
 
-let lastFirecrawlRequestTime = 0;
-const MIN_REQUEST_INTERVAL_MS = 1500;
-
-async function throttleFirecrawlRequest() {
-  const now = Date.now();
-  const diff = now - lastFirecrawlRequestTime;
-  if (diff < MIN_REQUEST_INTERVAL_MS) {
-    await new Promise((r) => setTimeout(r, MIN_REQUEST_INTERVAL_MS - diff));
-  }
-  lastFirecrawlRequestTime = Date.now();
-}
-
 /**
  * Shared fetch helper for Firecrawl API calls with durable 429 retry backoff.
+ * Every HTTP attempt goes through the process-wide limiter (pace + concurrency,
+ * see firecrawl-limiter.ts); a 429 pauses the limiter for all callers.
  */
 export async function firecrawlFetchWithRetry(
   url: string,
@@ -392,27 +383,30 @@ export async function firecrawlFetchWithRetry(
 
   let lastDelayMs = 0;
 
+  const limiter = getFirecrawlLimiter();
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    await throttleFirecrawlRequest();
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
-
-    const init: RequestInit = {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    };
-
     let res: Response;
     try {
-      res = await fetch(url, init);
+      res = await limiter.run(async () => {
+        // The timeout covers the request only, not the wait for a limiter slot.
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 45000);
+        try {
+          return await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      });
     } catch (netErr: any) {
-      clearTimeout(timeoutId);
       if (attempt < maxRetries) {
         console.warn(
           `[Firecrawl] Network error on attempt ${attempt + 1}: ${netErr.message}. Retrying...`
@@ -428,8 +422,6 @@ export async function firecrawlFetchWithRetry(
       throw netErr;
     }
 
-    clearTimeout(timeoutId);
-
     if (res.status === 429) {
       const bodyClone = await res.clone().text();
       const { delayMs, source } = extractRetryDelay(
@@ -439,6 +431,7 @@ export async function firecrawlFetchWithRetry(
         options
       );
       lastDelayMs = delayMs;
+      limiter.pause(delayMs);
 
       console.warn(
         `[Firecrawl 429] Rate limit hit on ${url} (attempt ${attempt + 1}/${maxRetries + 1}). ` +

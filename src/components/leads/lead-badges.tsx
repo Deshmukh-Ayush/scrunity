@@ -25,6 +25,20 @@ export function LeadStatusBadge({
   lead: { status: string; rejectionReason?: string | null; name?: string }
 }) {
   const { status, rejectionReason, name } = lead
+
+  // A rate-limited lookup, not a bad contact: its placeholder name is expected.
+  if (status === "lookup_incomplete") {
+    return (
+      <Badge
+        variant="outline"
+        title="Web lookups for this contact were rate-limited. It was not disqualified."
+        className="inline-flex items-center gap-1 border-amber-500/40 bg-amber-500/10 text-[11px] font-medium text-amber-600 dark:text-amber-400"
+      >
+        <AlertTriangle className="size-3 shrink-0 text-amber-500" />
+        Lookup Incomplete
+      </Badge>
+    )
+  }
   const hasInvalidName = Boolean(name) && !isValidPersonName(name || "")
   const isPendingRediscovery =
     hasInvalidName ||

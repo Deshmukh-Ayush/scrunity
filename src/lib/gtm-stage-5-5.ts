@@ -94,6 +94,7 @@ export async function disqualifyContactInDb({
 /**
  * Stage 5.5 Execution: Qualifies all contacts belonging to an outreach campaign.
  * Evaluates the two hard gates and disqualifies any failing contacts.
+ * Contacts with lookupStatus "lookup_incomplete" are skipped (left pending).
  */
 export async function executeQualifyCampaignContacts(outreachCampaignId: string) {
   const contactsWithCompany = await db
@@ -110,6 +111,7 @@ export async function executeQualifyCampaignContacts(outreachCampaignId: string)
 
   let qualifiedCount = 0;
   let disqualifiedCount = 0;
+  let pendingLookupCount = 0;
   const newlyDisqualified: Array<{ contactId: string; name: string; reason: string }> = [];
 
   const [campaignRun] = await db
@@ -126,6 +128,12 @@ export async function executeQualifyCampaignContacts(outreachCampaignId: string)
 
   for (const { contact, company } of contactsWithCompany) {
     await touchCampaignProgress(outreachCampaignId);
+    // A Firecrawl lookup for this contact was rate-limited, so "nothing found"
+    // is unknown: neither qualify nor disqualify (and never suppress) it.
+    if (contact.lookupStatus === "lookup_incomplete") {
+      pendingLookupCount++;
+      continue;
+    }
     // 0. Platform-Wide Suppression Check (negative cache)
     const suppression = await checkSuppression({
       email: contact.email,
@@ -244,6 +252,7 @@ export async function executeQualifyCampaignContacts(outreachCampaignId: string)
     totalContacts: contactsWithCompany.length,
     qualifiedCount,
     disqualifiedCount,
+    pendingLookupCount,
     newlyDisqualified,
   };
 }
