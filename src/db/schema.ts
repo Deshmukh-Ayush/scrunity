@@ -340,6 +340,8 @@ export const gtmResearchRun = pgTable(
     synthesizedProfile: jsonb(
       "synthesized_profile"
     ).$type<SynthesizedCompanyProfile>(),
+    // Wall-clock start/end of each stage attempt, written by the pipeline runner.
+    stageTimings: jsonb("stage_timings").$type<StageTimings>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     stageStartedAt: timestamp("stage_started_at"),
     lastProgressAt: timestamp("last_progress_at"),
@@ -349,6 +351,27 @@ export const gtmResearchRun = pgTable(
   },
   (table) => [index("gtm_research_run_org_idx").on(table.organizationId)]
 )
+
+/** Per stage: the latest attempt's start/end (ISO) and its duration. */
+export type StageTimings = Record<
+  string,
+  { startedAt: string; endedAt: string; ms: number; outcome: string }
+>
+
+/** How Stage 5's verified-lead search ended. Vendor credits stay server-side. */
+export interface LeadSearchOutcome {
+  /** reached_target: N verified found. budget_reached / out_of_companies: ended short. */
+  result: "reached_target" | "budget_reached" | "out_of_companies"
+  target: number
+  verified: number
+  peopleReviewed: number
+  companiesExamined: number
+  /** Which budget stopped the search, when it ended short (internal code). */
+  stopReason?: string | null
+  /** Vendor credits charged for email lookups in this campaign (never sent to customers). */
+  emailCreditsUsed?: number
+  finishedAt: string
+}
 
 export interface SynthesizedCompanyProfile {
   summary: string
@@ -441,6 +464,12 @@ export const gtmOutreachCampaign = pgTable(
     targetRegion: text("target_region"),
     // Visible Stage 4 outcome, e.g. "Only 7 companies matched these filters."
     discoveryNote: text("discovery_note"),
+    // Verified leads Stage 5 searches for; null uses GTM_TARGET_VERIFIED_LEADS.
+    targetVerifiedLeads: integer("target_verified_leads"),
+    // How Stage 5's verified-lead search ended (lib/pipeline/lead-search-budget.ts).
+    leadSearchOutcome: jsonb("lead_search_outcome").$type<LeadSearchOutcome>(),
+    // Wall-clock start/end of each stage attempt, written by the pipeline runner.
+    stageTimings: jsonb("stage_timings").$type<StageTimings>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     stageStartedAt: timestamp("stage_started_at"),
     lastProgressAt: timestamp("last_progress_at"),
@@ -484,7 +513,7 @@ export const gtmProspectCompany = pgTable(
     fitNote: text("fit_note"),
     // Database-mode Stage 5 outcome; null until decision-maker discovery has run.
     decisionMakerStatus: text("decision_maker_status", {
-      enum: ["found", "no_decision_maker_found"],
+      enum: ["found", "no_decision_maker_found", "no_verified_email"],
     }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
@@ -609,6 +638,8 @@ export const gtmContact = pgTable(
         "pattern_guessed_mx_valid",
         "pattern_guessed_unverified",
         "company_fallback",
+        // Returned by the email-enrichment vendor (see lib/email-verification.ts).
+        "vendor_lookup",
         "none",
       ],
     })
@@ -622,6 +653,9 @@ export const gtmContact = pgTable(
         "found_on_site",
         "company_fallback",
         "enrich_verified",
+        // The only status that may be qualified, approved or sent: an enrichment
+        // vendor checked the mailbox itself (lib/email-verification.ts).
+        "mailbox_verified",
       ],
     })
       .default("unverified")
@@ -635,13 +669,27 @@ export const gtmContact = pgTable(
       creditsUsed?: number
       creditsRemaining?: number
       processingTimeMs?: number
+      // Verified-lead search (lib/pipeline/email-lookup.ts): ledger reservation
+      // and the vendor's own status word. Never sent to customers.
+      reservationId?: string
+      vendorStatus?: string | null
+      note?: string | null
     }>(),
     geo: text("geo"),
-    // Database-mode decision makers: where the person came from and the provider
-    // id for a later lookup. emailStatus is null for legacy contacts.
+    // Decision makers from a people provider: where the person came from and the
+    // provider id. emailStatus is null for legacy contacts; for the verified-lead
+    // search it is the outcome of the one email lookup made for this person.
     source: text("source"),
     providerPersonId: text("provider_person_id"),
-    emailStatus: text("email_status", { enum: ["not_looked_up"] }),
+    emailStatus: text("email_status", {
+      enum: ["not_looked_up", "verified", "unverified", "not_found"],
+    }),
+    // Vendor job id of the email lookup, saved before polling so a restart polls
+    // the same job instead of paying for a second lookup.
+    emailLookupRef: text("email_lookup_ref"),
+    emailLookedUpAt: timestamp("email_looked_up_at"),
+    // Neutral reason the verified-lead search skipped this person.
+    skipReason: text("skip_reason"),
     // Legacy Stage 5: "lookup_incomplete" when a Firecrawl lookup for this
     // contact was still rate-limited after retries. Such a contact is neither
     // qualified nor disqualified (or suppressed) until a lookup completes.
