@@ -5,6 +5,7 @@ import { member, organization } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { isPlatformAdminUser } from "@/lib/platform-admin-emails";
 import { safeSignInNext } from "@/lib/sign-in-next";
+import { MANAGER_ROLES, requiresManagerRole } from "@/lib/api-role-policy";
 
 const protectedPaths = ["/dashboard", "/api/billing", "/api/gtm", "/api/onboarding", "/api/admin"];
 
@@ -170,6 +171,18 @@ export async function proxy(request: NextRequest) {
     if (resolved) {
       requestHeaders.set("x-org-id", resolved.organizationId);
       requestHeaders.set("x-org-role", resolved.role);
+    }
+
+    // Role policy for /api/gtm/* (src/lib/api-role-policy.ts), from the member row.
+    if (
+      resolved &&
+      requiresManagerRole(request.method, pathname) &&
+      !MANAGER_ROLES.has(resolved.role)
+    ) {
+      return NextResponse.json(
+        { error: "Only organization owners and admins can do this." },
+        { status: 403 }
+      );
     }
 
     return NextResponse.next({

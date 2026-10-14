@@ -32,7 +32,8 @@ export async function resolveAuthAndOrg(
       auth: {
         userId: proxyUserId,
         orgId: proxyOrgId,
-        role: proxyOrgRole || "owner",
+        // The proxy always sets the member row's role; never assume more.
+        role: proxyOrgRole || "member",
       },
       status: 200,
     };
