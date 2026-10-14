@@ -26,8 +26,9 @@ export async function GET(req: NextRequest) {
     const statusFilter = searchParams.get("status");
     const search = searchParams.get("search");
 
-    // Fetch campaigns for current org for dropdown filter
-    const campaigns = await db
+    // Campaigns for the dropdown filter. Independent of the leads queries, so
+    // started now and awaited together with them below.
+    const campaignsQuery = db
       .select({
         id: gtmOutreachCampaign.id,
         name: gtmIcpSegment.name,
@@ -112,7 +113,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Total count for pagination
-    const [countResult] = await db
+    const countQuery = db
       .select({ count: sql<number>`count(*)::int` })
       .from(gtmContact)
       .innerJoin(
@@ -129,12 +130,9 @@ export async function GET(req: NextRequest) {
       )
       .where(and(...conditions));
 
-    const total = Number(countResult?.count || 0);
-    const totalPages = Math.max(1, Math.ceil(total / pageSize));
-    const offset = (page - 1) * pageSize;
-
     // Paginated leads query
-    const leads = await db
+    const offset = (page - 1) * pageSize;
+    const leadsQuery = db
       .select({
         id: gtmContact.id,
         name: gtmContact.name,
@@ -178,6 +176,14 @@ export async function GET(req: NextRequest) {
       .orderBy(desc(gtmContact.createdAt))
       .limit(pageSize)
       .offset(offset);
+
+    const [campaigns, [countResult], leads] = await Promise.all([
+      campaignsQuery,
+      countQuery,
+      leadsQuery,
+    ]);
+    const total = Number(countResult?.count || 0);
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
     return NextResponse.json({
       success: true,
