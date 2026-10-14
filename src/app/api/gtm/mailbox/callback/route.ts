@@ -3,13 +3,8 @@ import { db } from "@/utils/db";
 import { gtmConnectedMailbox } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { exchangeCodeForTokens } from "@/lib/gmail";
-import { encryptToken, decryptToken } from "@/lib/encryption";
-
-interface StatePayload {
-  orgId: string;
-  userId: string;
-  ts: number;
-}
+import { encryptToken } from "@/lib/encryption";
+import { verifyMailboxOAuthState } from "@/lib/mailbox-oauth-state";
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -34,18 +29,16 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // 1. Verify and decrypt state token
-    let stateData: StatePayload;
-    try {
-      const decrypted = decryptToken(state);
-      stateData = JSON.parse(decrypted) as StatePayload;
-    } catch {
+    // 1. Verify the state: decrypts, at most 10 minutes old, and issued to the
+    // same signed-in user and organization that is finishing the flow.
+    const verifiedState = verifyMailboxOAuthState(state, req.headers);
+    if (!verifiedState.ok) {
       return NextResponse.redirect(
-        new URL("/dashboard/campaigns?error=invalid_or_expired_state", origin)
+        new URL(`/dashboard/campaigns?error=${verifiedState.reason}`, origin)
       );
     }
 
-    const { orgId, userId } = stateData;
+    const { orgId, userId } = verifiedState.state;
 
     // 2. Exchange code for Google tokens
     const tokens = await exchangeCodeForTokens({ code, redirectUri });
