@@ -1,0 +1,373 @@
+{
+  "_note": "Sanitized FullEnrich v2 GET /contact/enrich/bulk/{id} bodies for GTM_PROVIDER_MODE=fixture, keyed by \"first last@domain\" (lowercase). Shapes marked recorded:* copy a real 2026-10-15 probe response (names and addresses replaced with the synthetic people in people-synthetic.json; the profile block, input echo and ids removed). recorded:deliverable = the FullEnrich free test contact; recorded:other_company = a real lookup whose DELIVERABLE address was at a different employer than the prospect company; recorded:high_probability = a real catch-all result. synthetic:* shapes were NOT observed live: catch_all and invalid follow the documented status values, and not_found (empty work_emails, 0 credits) is our assumption of a no-result response. Unknown people resolve to synthetic:not_found. pendingPolls makes the first N polls return IN_PROGRESS.",
+  "results": {
+    "mia fixtureson@atlassian.com": {
+      "shape": "synthetic:catch_all",
+      "body": {
+        "status": "FINISHED",
+        "cost": {
+          "credits": 1
+        },
+        "data": [
+          {
+            "contact_info": {
+              "most_probable_work_email": {
+                "email": "mia.fixtureson@atlassian.com",
+                "status": "CATCH_ALL"
+              },
+              "work_emails": [
+                {
+                  "email": "mia.fixtureson@atlassian.com",
+                  "status": "CATCH_ALL"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "noah sampleberg@atlassian.com": {
+      "shape": "recorded:deliverable",
+      "body": {
+        "status": "FINISHED",
+        "cost": {
+          "credits": 1
+        },
+        "data": [
+          {
+            "contact_info": {
+              "most_probable_work_email": {
+                "email": "noah.sampleberg@atlassian.com",
+                "status": "DELIVERABLE"
+              },
+              "most_probable_phone": null,
+              "work_emails": [
+                {
+                  "email": "noah.sampleberg@atlassian.com",
+                  "status": "DELIVERABLE"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "olivia sampleton@canva.com": {
+      "shape": "recorded:other_company",
+      "body": {
+        "status": "FINISHED",
+        "cost": {
+          "credits": 1
+        },
+        "data": [
+          {
+            "contact_info": {
+              "most_probable_work_email": {
+                "email": "olivia.sampleton@previous-employer.example",
+                "status": "DELIVERABLE"
+              },
+              "most_probable_phone": null,
+              "work_emails": [
+                {
+                  "email": "olivia.sampleton@previous-employer.example",
+                  "status": "DELIVERABLE"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "liam testwood@canva.com": {
+      "shape": "synthetic:not_found",
+      "body": {
+        "status": "FINISHED",
+        "cost": {
+          "credits": 0
+        },
+        "data": [
+          {
+            "contact_info": {
+              "most_probable_phone": null,
+              "work_emails": []
+            }
+          }
+        ]
+      }
+    },
+    "ava demoford@canva.com": {
+      "shape": "recorded:high_probability",
+      "body": {
+        "status": "FINISHED",
+        "cost": {
+          "credits": 1
+        },
+        "data": [
+          {
+            "contact_info": {
+              "most_probable_work_email": {
+                "email": "ava.demoford@canva.com",
+                "status": "HIGH_PROBABILITY"
+              },
+              "most_probable_phone": null,
+              "work_emails": [
+                {
+                  "email": "ava.demoford@canva.com",
+                  "status": "HIGH_PROBABILITY"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "ethan fixturelli@fujitsu.com": {
+      "shape": "recorded:deliverable",
+      "pendingPolls": 2,
+      "body": {
+        "status": "FINISHED",
+        "cost": {
+          "credits": 1
+        },
+        "data": [
+          {
+            "contact_info": {
+              "most_probable_work_email": {
+                "email": "ethan.fixturelli@fujitsu.com",
+                "status": "DELIVERABLE"
+              },
+              "most_probable_phone": null,
+              "work_emails": [
+                {
+                  "email": "ethan.fixturelli@fujitsu.com",
+                  "status": "DELIVERABLE"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "zoe samplestein@freelancer.com": {
+      "shape": "recorded:deliverable",
+      "body": {
+        "status": "FINISHED",
+        "cost": {
+          "credits": 1
+        },
+        "data": [
+          {
+            "contact_info": {
+              "most_probable_work_email": {
+                "email": "zoe.samplestein@freelancer.com",
+                "status": "DELIVERABLE"
+              },
+              "most_probable_phone": null,
+              "work_emails": [
+                {
+                  "email": "zoe.samplestein@freelancer.com",
+                  "status": "DELIVERABLE"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "henry testcott@talentinternational.com": {
+      "shape": "recorded:deliverable",
+      "body": {
+        "status": "FINISHED",
+        "cost": {
+          "credits": 1
+        },
+        "data": [
+          {
+            "contact_info": {
+              "most_probable_work_email": {
+                "email": "henry.testcott@talentinternational.com",
+                "status": "DELIVERABLE"
+              },
+              "most_probable_phone": null,
+              "work_emails": [
+                {
+                  "email": "henry.testcott@talentinternational.com",
+                  "status": "DELIVERABLE"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "grace mockridge@afr.com": {
+      "shape": "synthetic:invalid",
+      "body": {
+        "status": "FINISHED",
+        "cost": {
+          "credits": 0
+        },
+        "data": [
+          {
+            "contact_info": {
+              "most_probable_work_email": {
+                "email": "grace.mockridge@afr.com",
+                "status": "INVALID"
+              },
+              "work_emails": [
+                {
+                  "email": "grace.mockridge@afr.com",
+                  "status": "INVALID"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "jack fixturely@employmenthero.com": {
+      "shape": "recorded:deliverable",
+      "body": {
+        "status": "FINISHED",
+        "cost": {
+          "credits": 1
+        },
+        "data": [
+          {
+            "contact_info": {
+              "most_probable_work_email": {
+                "email": "jack.fixturely@employmenthero.com",
+                "status": "DELIVERABLE"
+              },
+              "most_probable_phone": null,
+              "work_emails": [
+                {
+                  "email": "jack.fixturely@employmenthero.com",
+                  "status": "DELIVERABLE"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "oscar placeholm@cloudstaff.com": {
+      "shape": "recorded:deliverable",
+      "body": {
+        "status": "FINISHED",
+        "cost": {
+          "credits": 1
+        },
+        "data": [
+          {
+            "contact_info": {
+              "most_probable_work_email": {
+                "email": "oscar.placeholm@cloudstaff.com",
+                "status": "DELIVERABLE"
+              },
+              "most_probable_phone": null,
+              "work_emails": [
+                {
+                  "email": "oscar.placeholm@cloudstaff.com",
+                  "status": "DELIVERABLE"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "priya samplewala@inc42.com": {
+      "shape": "recorded:deliverable",
+      "body": {
+        "status": "FINISHED",
+        "cost": {
+          "credits": 1
+        },
+        "data": [
+          {
+            "contact_info": {
+              "most_probable_work_email": {
+                "email": "priya.samplewala@inc42.com",
+                "status": "DELIVERABLE"
+              },
+              "most_probable_phone": null,
+              "work_emails": [
+                {
+                  "email": "priya.samplewala@inc42.com",
+                  "status": "DELIVERABLE"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "arjun testmehta@inc42.com": {
+      "shape": "recorded:high_probability",
+      "body": {
+        "status": "FINISHED",
+        "cost": {
+          "credits": 1
+        },
+        "data": [
+          {
+            "contact_info": {
+              "most_probable_work_email": {
+                "email": "arjun.testmehta@inc42.com",
+                "status": "HIGH_PROBABILITY"
+              },
+              "most_probable_phone": null,
+              "work_emails": [
+                {
+                  "email": "arjun.testmehta@inc42.com",
+                  "status": "HIGH_PROBABILITY"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "rohan demoverma@workafy.com": {
+      "shape": "recorded:deliverable",
+      "body": {
+        "status": "FINISHED",
+        "cost": {
+          "credits": 1
+        },
+        "data": [
+          {
+            "contact_info": {
+              "most_probable_work_email": {
+                "email": "rohan.demoverma@workafy.com",
+                "status": "DELIVERABLE"
+              },
+              "most_probable_phone": null,
+              "work_emails": [
+                {
+                  "email": "rohan.demoverma@workafy.com",
+                  "status": "DELIVERABLE"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "notFound": {
+    "status": "FINISHED",
+    "cost": {
+      "credits": 0
+    },
+    "data": [
+      {
+        "contact_info": {
+          "most_probable_phone": null,
+          "work_emails": []
+        }
+      }
+    ]
+  }
+}

@@ -1,11 +1,19 @@
 {
-  "_note": "SYNTHETIC test data, not a vendor recording. No people-search vendor is connected yet (the Apollo Free plan returns 403 for people search). Names are invented and LinkedIn URLs use the reserved .example domain so they can never point at a real person. Domains match the Delhi company fixture; hoteljobvacancy.com and hackingarticles.in deliberately have nobody, to exercise the not-found path.",
-  "people": [
+  "_note": "SYNTHETIC test data, not a vendor recording. No people-search vendor is connected yet (the Apollo Free plan returns 403 for people search). Names are invented and LinkedIn URLs use the reserved .example domain so they can never point at a real person. Domains match the Delhi company fixture; hoteljobvacancy.com and hackingarticles.in deliberately have nobody, to exercise the not-found path. Australian entries (fx-person-007..015) pair with fullenrich-results.json to exercise the verified-lead search: several candidates per company, each with a different email-lookup outcome.", "people": [
     { "id": "fx-person-001", "domain": "inc42.com", "first_name": "Priya", "last_name": "Samplewala", "title": "Chief Executive Officer", "city": "New Delhi", "state": "Delhi", "country": "India" },
     { "id": "fx-person-002", "domain": "inc42.com", "first_name": "Arjun", "last_name": "Testmehta", "title": "Head of Growth", "city": "New Delhi", "state": "Delhi", "country": "India" },
     { "id": "fx-person-003", "domain": "startuppedia.in", "first_name": "Neha", "last_name": "Fixturekar", "title": "Founder", "city": "New Delhi", "state": "Delhi", "country": "India" },
     { "id": "fx-person-004", "domain": "workafy.com", "first_name": "Rohan", "last_name": "Demoverma", "title": "Co-Founder & COO", "city": "New Delhi", "state": "Delhi", "country": "India" },
     { "id": "fx-person-005", "domain": "canva.com", "first_name": "Olivia", "last_name": "Sampleton", "title": "Head of Partnerships", "city": "Sydney", "state": "New South Wales", "country": "Australia" },
-    { "id": "fx-person-006", "domain": "employmenthero.com", "first_name": "Jack", "last_name": "Fixturely", "title": "VP Sales", "city": "Sydney", "state": "New South Wales", "country": "Australia" }
+    { "id": "fx-person-006", "domain": "employmenthero.com", "first_name": "Jack", "last_name": "Fixturely", "title": "VP Sales", "city": "Sydney", "state": "New South Wales", "country": "Australia" },
+    { "id": "fx-person-007", "domain": "atlassian.com", "first_name": "Mia", "last_name": "Fixtureson", "title": "Chief Executive Officer", "city": "Sydney", "state": "New South Wales", "country": "Australia" },
+    { "id": "fx-person-008", "domain": "atlassian.com", "first_name": "Noah", "last_name": "Sampleberg", "title": "Chief Technology Officer", "city": "Sydney", "state": "New South Wales", "country": "Australia" },
+    { "id": "fx-person-009", "domain": "canva.com", "first_name": "Liam", "last_name": "Testwood", "title": "Head of Sales", "city": "Sydney", "state": "New South Wales", "country": "Australia" },
+    { "id": "fx-person-010", "domain": "canva.com", "first_name": "Ava", "last_name": "Demoford", "title": "Head of Growth", "city": "Sydney", "state": "New South Wales", "country": "Australia" },
+    { "id": "fx-person-011", "domain": "fujitsu.com", "first_name": "Ethan", "last_name": "Fixturelli", "title": "Managing Director", "city": "Sydney", "state": "New South Wales", "country": "Australia" },
+    { "id": "fx-person-012", "domain": "freelancer.com", "first_name": "Zoe", "last_name": "Samplestein", "title": "Chief Operating Officer", "city": "Sydney", "state": "New South Wales", "country": "Australia" },
+    { "id": "fx-person-013", "domain": "talentinternational.com", "first_name": "Henry", "last_name": "Testcott", "title": "Founder", "city": "Sydney", "state": "New South Wales", "country": "Australia" },
+    { "id": "fx-person-014", "domain": "afr.com", "first_name": "Grace", "last_name": "Mockridge", "title": "Editor in Chief", "city": "Sydney", "state": "New South Wales", "country": "Australia" },
+    { "id": "fx-person-015", "domain": "cloudstaff.com", "first_name": "Oscar", "last_name": "Placeholm", "title": "Head of Partnerships", "city": "Sydney", "state": "New South Wales", "country": "Australia" }
   ]
 }

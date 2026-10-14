@@ -75,11 +75,18 @@ export interface DecisionMakerQuery {
   country: string
   state?: string | null
   limit: number
+  /** Retry pass: slower, more patient rate-limit handling (web provider only). */
+  patient?: boolean
 }
 
 export interface DecisionMakerResult {
   people: NormalizedPerson[]
   creditsUsed: number
+  /**
+   * True when a lookup was still rate-limited, so "nobody found" is not known
+   * yet. The verified-lead search retries such a company once at the end.
+   */
+  incomplete?: boolean
 }
 
 export interface PeopleDiscoveryProvider {
@@ -145,5 +152,54 @@ export class VendorRequestError extends Error {
         : status === 401 || status === 403
           ? "provider_access_denied"
           : "provider_request_failed"
+  }
+}
+
+/** One person whose work email should be found and verified. */
+export interface EmailLookupInput {
+  firstName: string
+  lastName: string
+  /** The company we are prospecting; the result must be at this domain. */
+  domain: string
+  companyName?: string | null
+  linkedinUrl?: string | null
+}
+
+/**
+ * The outcome of one email lookup. `verified` only when the vendor checked the
+ * mailbox itself (see lib/email-verification.ts); `email` is null otherwise, so
+ * an unverified address can never be stored or sent to.
+ */
+export interface EmailLookupResult {
+  email: string | null
+  status: "verified" | "unverified" | "not_found"
+  vendor: string
+  creditsUsed: number
+  /** The vendor's own status word (e.g. DELIVERABLE, CATCH_ALL), kept server-side. */
+  vendorStatus: string | null
+  /** Why an address the vendor found was not accepted, e.g. a different company's domain. */
+  note?: string | null
+}
+
+/**
+ * Email-enrichment vendor. Lookups are asynchronous: `start` submits one person
+ * (the only call that can cost credits) and returns a job reference that is
+ * stored before polling; `poll` reads that job (free) until it has a result.
+ */
+export interface EmailEnrichmentProvider {
+  readonly key: string
+  /** Credits one lookup can cost at most; reserved in the ledger before `start`. */
+  readonly maxCreditsPerLookup: number
+  start(input: EmailLookupInput): Promise<{ ref: string }>
+  /** null while the vendor is still working. */
+  poll(ref: string, input: EmailLookupInput): Promise<EmailLookupResult | null>
+}
+
+/** No email vendor is configured (missing API key). Never falls back to guessing. */
+export class EmailProviderUnavailableError extends Error {
+  public readonly failureReason = "email_provider_unavailable"
+  constructor(detail: string) {
+    super(`Email lookup is not available: ${detail}`)
+    this.name = "EmailProviderUnavailableError"
   }
 }
