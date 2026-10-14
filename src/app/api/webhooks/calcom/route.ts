@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { db } from "@/utils/db";
-import { gtmMeeting, gtmContact, gtmProspectCompany } from "@/db/schema";
-import { eq, sql, desc, and } from "drizzle-orm";
+import { gtmMeeting } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { matchBookingContact, uniqueBookedMeetingId } from "@/lib/calcom-match";
 
 export async function POST(req: Request) {
   try {
@@ -98,23 +99,14 @@ export async function POST(req: Request) {
           .set({ status: "cancelled" })
           .where(eq(gtmMeeting.calcomBookingUid, bookingUid));
       } else if (candidateEmails.length > 0) {
-        const [latestMeeting] = await db
-          .select({ id: gtmMeeting.id })
-          .from(gtmMeeting)
-          .where(
-            and(
-              sql`lower(${gtmMeeting.attendeeEmail}) = lower(${candidateEmails[0]})`,
-              eq(gtmMeeting.status, "booked")
-            )
-          )
-          .orderBy(desc(gtmMeeting.createdAt))
-          .limit(1);
-
-        if (latestMeeting) {
+        // Without a booking uid, only cancel when the address has exactly one
+        // booked meeting; otherwise it could belong to another organization.
+        const meetingId = await uniqueBookedMeetingId(candidateEmails[0]);
+        if (meetingId) {
           await db
             .update(gtmMeeting)
             .set({ status: "cancelled" })
-            .where(eq(gtmMeeting.id, latestMeeting.id));
+            .where(eq(gtmMeeting.id, meetingId));
         }
       }
 
@@ -164,38 +156,23 @@ export async function POST(req: Request) {
         }
       }
 
-      // Look up contact by matching attendee email
-      let matchedContact: {
-        contactId: string;
-        outreachCampaignId: string | null;
-        email: string | null;
-      } | null = null;
-
+      // Match the attendee to a contact this platform actually emailed, scoped
+      // to a single organization (lib/calcom-match.ts).
+      let matchedContact: { contactId: string; outreachCampaignId: string | null; email: string | null } | null = null;
       for (const email of candidateEmails) {
-        const [found] = await db
-          .select({
-            contactId: gtmContact.id,
-            outreachCampaignId: gtmProspectCompany.outreachCampaignId,
-            email: gtmContact.email,
-          })
-          .from(gtmContact)
-          .innerJoin(
-            gtmProspectCompany,
-            eq(gtmContact.prospectCompanyId, gtmProspectCompany.id)
-          )
-          .where(sql`lower(${gtmContact.email}) = lower(${email})`)
-          .limit(1);
-
-        if (found) {
-          matchedContact = found;
+        const match = await matchBookingContact(email);
+        if (match.kind === "matched") {
+          matchedContact = match;
           break;
+        }
+        if (match.kind === "ambiguous") {
+          console.warn(`[Cal.com Webhook] Booking not attached: ${match.organizationCount} organizations emailed this attendee.`);
+          return NextResponse.json({ success: true, matched: false, message: "Ambiguous attendee; booking not attached" });
         }
       }
 
       if (!matchedContact) {
-        console.warn(
-          `[Cal.com Webhook] No matching gtm_contact found for attendee emails: ${candidateEmails.join(", ")}`
-        );
+        console.warn("[Cal.com Webhook] No emailed contact found for the attendee.");
         return NextResponse.json({
           success: true,
           matched: false,
