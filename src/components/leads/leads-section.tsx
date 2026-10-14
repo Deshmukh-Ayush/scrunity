@@ -1,4 +1,5 @@
 import * as React from "react";
+import { toPublicEmailStatus } from "@/lib/data/public-fields";
 import { getTenantContext } from "@/lib/tenant-context";
 import { db } from "@/utils/db";
 import {
@@ -187,6 +188,8 @@ export async function LeadsSection({
 
   const leads: Lead[] = leadsRaw.map((l) => ({
     ...l,
+    verificationStatus: toPublicEmailStatus(l.verificationStatus),
+    emailSource: toPublicEmailStatus(l.emailSource),
     createdAt: l.createdAt.toISOString(),
   }));
 

@@ -41,14 +41,14 @@ function moneyPayload(amount: string, currency: string) {
 }
 
 function failureMessage(reason?: string | null) {
-  if (reason === "firecrawl_call_cap_exceeded")
+  if (reason === "web_search_attempt_limit")
     return "Research stopped: this step reached its web-search safety limit for one attempt, which protects your credits. Restart the stage to try again with a fresh limit."
-  if (reason === "firecrawl_lifetime_cap_exceeded")
+  if (reason === "web_search_total_limit")
     return "Research stopped: this run has used its total web-search allowance across all retries. Start a new research run to continue."
-  if (reason === "firecrawl_org_daily_cap_exceeded")
+  if (reason === "web_search_daily_limit")
     return "Research paused: your organization reached today's web-search limit. Restart the stage after 00:00 UTC to continue."
-  if (reason === "paused_firecrawl_allotment_exhausted")
-    return "Research paused: Firecrawl credit allotment nearly exhausted for this billing cycle."
+  if (reason === "web_search_monthly_limit")
+    return "Research paused: your organization's monthly web-search allotment is nearly used up for this billing cycle."
   return reason
     ? `Research failed: ${reason}`
     : "The autonomous research pipeline encountered an error."

@@ -18,17 +18,17 @@ const RUNNING_STAGE_DESCRIPTIONS: Record<string, string> = {
 }
 
 const FAILURE_REASON_TEXT: Record<string, string> = {
-  firecrawl_call_cap_exceeded:
+  web_search_attempt_limit:
     "This step stopped because it reached its web-search safety limit for one attempt, which protects your credits. Click Retry Campaign to run it again with a fresh limit.",
-  firecrawl_lifetime_cap_exceeded:
+  web_search_total_limit:
     "This campaign has used its total web-search allowance across all its retries, so it will not search again. Start a new campaign from the same research to continue.",
-  firecrawl_org_daily_cap_exceeded:
+  web_search_daily_limit:
     "Paused: your organization reached today's web-search limit. Restart the stage after 00:00 UTC to continue.",
-  paused_firecrawl_allotment_exhausted:
+  web_search_monthly_limit:
     "Campaign paused: Your organization's monthly web search allotment is nearly exhausted for this billing cycle.",
-  provider_credit_cap_reached:
+  company_search_monthly_limit:
     "Company search paused: this month's company-database budget is used up. It resets at the start of next month.",
-  provider_credits_exhausted:
+  company_search_unavailable:
     "Company search stopped: the company-database account is out of credits. No further searches were attempted.",
   provider_access_denied:
     "Company search failed: the company-database account does not allow this search. Check the provider plan or API key.",
@@ -36,7 +36,7 @@ const FAILURE_REASON_TEXT: Record<string, string> = {
     "Company search failed: the company database is rate-limiting requests. Retry in a few minutes.",
   provider_request_failed:
     "Company search failed: the company database returned an error. Retry the campaign.",
-  people_provider_unavailable:
+  people_search_unavailable:
     "Decision-maker search is not available yet, so this campaign stopped after your company selection. Nothing was charged.",
   target_country_missing:
     "Company search needs a target country. Start a new research run with a target country selected.",

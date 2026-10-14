@@ -9,6 +9,7 @@ import {
 } from "@/db/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { resolveAuthAndOrg } from "@/lib/gtm-auth";
+import { toPublicEmailStatus } from "@/lib/data/public-fields";
 
 export async function GET(req: NextRequest) {
   try {
@@ -187,7 +188,12 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      leads,
+      // Customers never see vendor-named statuses.
+      leads: leads.map((l) => ({
+        ...l,
+        verificationStatus: toPublicEmailStatus(l.verificationStatus),
+        emailSource: toPublicEmailStatus(l.emailSource),
+      })),
       total,
       page,
       pageSize,

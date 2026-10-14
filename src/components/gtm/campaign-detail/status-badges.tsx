@@ -12,6 +12,12 @@ import type { DraftStatus } from "./types"
 /** How a contact's email address was found, from verified-on-site down to fallback. */
 export function EmailSourceBadge({ source }: { source: string }) {
   switch (source) {
+    case "verified":
+      return (
+        <Badge variant="default" className="gap-1 bg-emerald-600 text-[10px]">
+          <ShieldCheck className="size-3" /> Verified
+        </Badge>
+      )
     case "found_on_site":
       return (
         <Badge variant="default" className="gap-1 bg-emerald-600 text-[10px]">

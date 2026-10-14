@@ -12,6 +12,7 @@ import {
 import { desc, eq, inArray, sql } from "drizzle-orm"
 import { verifyCampaignAccess } from "@/lib/gtm-auth"
 import { getDecisionMakersPerCompany } from "@/lib/providers/config"
+import { publicContactRow, publicPipelineRow, toPublicEmailStatus } from "./public-fields"
 
 /**
  * Every outreach campaign in the organization, newest first, joined with the
@@ -19,7 +20,7 @@ import { getDecisionMakersPerCompany } from "@/lib/providers/config"
  * campaign lists.
  */
 export async function listOrgCampaigns(organizationId: string) {
-  return db
+  const rows = await db
     .select({
       campaign: gtmOutreachCampaign,
       researchRun: gtmResearchRun,
@@ -31,6 +32,10 @@ export async function listOrgCampaigns(organizationId: string) {
     )
     .where(eq(gtmResearchRun.organizationId, organizationId))
     .orderBy(desc(gtmOutreachCampaign.createdAt))
+  return rows.map((row) => ({
+    campaign: publicPipelineRow(row.campaign),
+    researchRun: publicPipelineRow(row.researchRun),
+  }))
 }
 
 /** Vendor identifiers never leave the server: customers must not see which data vendor was used. */
@@ -51,8 +56,13 @@ export async function getCampaignDetail(
   campaignId: string,
   organizationId: string
 ) {
-  const verified = await verifyCampaignAccess(campaignId, organizationId)
-  if (!verified) return null
+  const access = await verifyCampaignAccess(campaignId, organizationId)
+  if (!access) return null
+  const verified = {
+    ...access,
+    campaign: publicPipelineRow(access.campaign),
+    researchRun: publicPipelineRow(access.researchRun),
+  }
 
   const rows = await db
     .select()
@@ -62,7 +72,7 @@ export async function getCampaignDetail(
   const companies = rows.map(withoutVendorFields)
   const discovery = {
     usesCompanyDatabase:
-      verified.campaign.currentStage === "awaiting_company_selection" ||
+      access.campaign.currentStage === "awaiting_company_selection" ||
       rows.some((c) => c.source !== "web_search"),
     decisionMakersPerCompany: getDecisionMakersPerCompany(),
   }
@@ -89,7 +99,7 @@ export async function getCampaignDetail(
       .select()
       .from(gtmContact)
       .where(inArray(gtmContact.prospectCompanyId, companyIds))
-      .then((rows) => rows.map(withoutVendorFields)),
+      .then((rows) => rows.map(publicContactRow)),
     db
       .select()
       .from(gtmEmailDraft)
@@ -104,7 +114,7 @@ export async function getCampaignDetail(
  * first. Callers must verify campaign access before calling.
  */
 export async function listCampaignDrafts(campaignId: string) {
-  return db
+  const rows = await db
     .select({
       id: gtmEmailDraft.id,
       subject: gtmEmailDraft.subject,
@@ -140,4 +150,8 @@ export async function listCampaignDrafts(campaignId: string) {
     )
     .where(eq(gtmEmailDraft.outreachCampaignId, campaignId))
     .orderBy(desc(gtmEmailDraft.createdAt))
+  return rows.map((row) => ({
+    ...row,
+    contact: { ...row.contact, emailSource: toPublicEmailStatus(row.contact.emailSource) },
+  }))
 }

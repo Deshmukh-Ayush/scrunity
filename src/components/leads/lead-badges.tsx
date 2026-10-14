@@ -91,6 +91,7 @@ export function LeadStatusBadge({
 /** How confident we are in the lead's email address. */
 export function VerificationBadge({ status }: { status: string }) {
   switch (status) {
+    case "verified":
     case "enrich_verified":
       return (
         <Badge variant="default" className="text-[10px]">

@@ -9,14 +9,16 @@ import {
 } from "@/db/schema"
 import { desc, eq } from "drizzle-orm"
 import { verifyResearchRunAccess } from "@/lib/gtm-auth"
+import { publicPipelineRow } from "./public-fields"
 
 /** Every research run in the organization, newest first. */
 export async function listOrgResearchRuns(organizationId: string) {
-  return db
+  const runs = await db
     .select()
     .from(gtmResearchRun)
     .where(eq(gtmResearchRun.organizationId, organizationId))
     .orderBy(desc(gtmResearchRun.createdAt))
+  return runs.map(publicPipelineRow)
 }
 
 /**
@@ -48,5 +50,10 @@ export async function getResearchRunDetail(
       .where(eq(gtmOutreachCampaign.researchRunId, researchRunId)),
   ])
 
-  return { researchRun, competitors, segments, campaigns }
+  return {
+    researchRun: publicPipelineRow(researchRun),
+    competitors,
+    segments,
+    campaigns: campaigns.map(publicPipelineRow),
+  }
 }
