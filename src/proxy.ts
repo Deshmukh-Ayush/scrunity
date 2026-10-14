@@ -4,8 +4,7 @@ import { db } from "@/utils/db";
 import { member, organization } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-// /onboarding is kept public for UI development and testing
-const protectedPaths = ["/dashboard", "/api/billing", "/api/gtm"];
+const protectedPaths = ["/dashboard", "/api/billing", "/api/gtm", "/api/onboarding"];
 
 // Called server-to-server by Dodo Payments with no session cookie. Exempt from
 // session auth by exact path only; the route verifies Dodo's webhook signature
@@ -20,9 +19,10 @@ export async function proxy(request: NextRequest) {
     }
 
     const isSignIn = pathname === "/sign-in";
+    const isOnboarding = pathname === "/onboarding";
     const isProtected = protectedPaths.some((path) => pathname.startsWith(path));
 
-    if (!isSignIn && !isProtected) {
+    if (!isSignIn && !isOnboarding && !isProtected) {
       return NextResponse.next();
     }
 
@@ -72,7 +72,7 @@ export async function proxy(request: NextRequest) {
       if (pathname.startsWith("/api/")) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
-      if (isProtected) {
+      if (isProtected || isOnboarding) {
         return NextResponse.redirect(new URL("/sign-in", request.url));
       }
       return NextResponse.next();
@@ -104,15 +104,23 @@ export async function proxy(request: NextRequest) {
       requestHeaders.set("x-org-id", activeOrgId);
     }
 
-    // Guard dashboard route: ensure user has an organization or redirect to onboarding
-    if (pathname.startsWith("/dashboard")) {
+    // Dashboard needs an organization (none -> onboarding); onboarding is only
+    // for users without one (has one -> dashboard).
+    if (pathname.startsWith("/dashboard") || isOnboarding) {
       const userId = session.user.id;
       const orgMemberships = await db
         .select({ role: member.role, organizationId: member.organizationId })
         .from(member)
         .where(eq(member.userId, userId));
 
-      if (orgMemberships.length === 0 && pathname !== "/onboarding") {
+      if (isOnboarding) {
+        if (orgMemberships.length > 0) {
+          return NextResponse.redirect(new URL("/dashboard", request.url));
+        }
+        return NextResponse.next({ request: { headers: requestHeaders } });
+      }
+
+      if (orgMemberships.length === 0) {
         return NextResponse.redirect(new URL("/onboarding", request.url));
       }
 
@@ -146,5 +154,6 @@ export const config = {
     "/dashboard/:path*",
     "/api/billing/:path*",
     "/api/gtm/:path*",
+    "/api/onboarding",
   ],
 };
