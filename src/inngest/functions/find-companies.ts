@@ -7,7 +7,7 @@ import {
   gtmProspectCompany,
   gtmCompanyMetricSnapshot,
 } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { advanceCampaign } from "@/lib/pipeline/stage-state";
 import {
   searchFirecrawl,
@@ -217,27 +217,14 @@ export async function executeFindCompanies(
   }
 
   const selectedProspects = Array.from(prospectMap.values()).slice(0, 8);
-  const insertedCompanies: ProspectCompanyData[] = [];
+  const insertedCompanies = await replaceLegacyProspectCompanies(
+    outreachCampaignId,
+    selectedProspects
+  );
 
-  for (let idx = 0; idx < selectedProspects.length; idx++) {
+  for (let idx = 0; idx < insertedCompanies.length; idx++) {
     const p = selectedProspects[idx];
-    const [inserted] = await db
-      .insert(gtmProspectCompany)
-      .values({
-        outreachCampaignId,
-        name: p.name,
-        domain: p.domain,
-        description: p.description,
-        location: p.location,
-      })
-      .returning();
-
-    insertedCompanies.push({
-      id: inserted.id,
-      name: inserted.name,
-      domain: inserted.domain,
-      description: inserted.description,
-    });
+    const inserted = insertedCompanies[idx];
 
     // Only check LinkedIn metrics for the first 2 companies to conserve search rate limits
     if (idx < 2) {
@@ -305,4 +292,50 @@ export async function executeFindCompanies(
     companies: insertedCompanies,
     rateLimitSummary,
   };
+}
+
+/**
+ * Stores this attempt's prospect companies so a restarted or retried stage
+ * never duplicates them: rows left by an earlier attempt of this stage are
+ * removed first (any company that already has contacts is kept and reused),
+ * and each domain is stored once per campaign. Returns one row per prospect,
+ * in order.
+ */
+export async function replaceLegacyProspectCompanies(
+  outreachCampaignId: string,
+  prospects: { name: string; domain: string; description: string; location: string }[]
+): Promise<ProspectCompanyData[]> {
+  await db
+    .delete(gtmProspectCompany)
+    .where(
+      and(
+        eq(gtmProspectCompany.outreachCampaignId, outreachCampaignId),
+        sql`NOT EXISTS (SELECT 1 FROM gtm_contact c WHERE c.prospect_company_id = ${gtmProspectCompany.id})`
+      )
+    );
+  const kept = await db
+    .select()
+    .from(gtmProspectCompany)
+    .where(eq(gtmProspectCompany.outreachCampaignId, outreachCampaignId));
+  const keptByDomain = new Map(kept.map((row) => [row.domain, row]));
+
+  const stored: ProspectCompanyData[] = [];
+  for (const p of prospects) {
+    const row =
+      keptByDomain.get(p.domain) ??
+      (
+        await db
+          .insert(gtmProspectCompany)
+          .values({
+            outreachCampaignId,
+            name: p.name,
+            domain: p.domain,
+            description: p.description,
+            location: p.location,
+          })
+          .returning()
+      )[0];
+    stored.push({ id: row.id, name: row.name, domain: row.domain, description: row.description });
+  }
+  return stored;
 }
