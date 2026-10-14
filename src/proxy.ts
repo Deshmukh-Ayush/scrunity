@@ -23,6 +23,14 @@ function adminNotFound(request: NextRequest) {
   return NextResponse.rewrite(new URL("/404", request.url));
 }
 
+/**
+ * `?test_org=` impersonation for local scripts. Requires a non-production build
+ * AND ALLOW_TEST_ORG=true in the server's own environment (off by default).
+ */
+function testOrgBypassEnabled() {
+  return process.env.NODE_ENV !== "production" && process.env.ALLOW_TEST_ORG === "true";
+}
+
 // Called server-to-server by Dodo Payments with no session cookie. Exempt from
 // session auth by exact path only; the route verifies Dodo's webhook signature
 // on the raw body instead (src/app/api/billing/webhook/route.ts).
@@ -43,7 +51,12 @@ export async function proxy(request: NextRequest) {
       return NextResponse.next();
     }
 
-    const testOrgParam = request.nextUrl.searchParams.get("test_org") || request.cookies.get("test_org")?.value;
+    // Local test impersonation (?test_org=<orgId>). Off unless the server process
+    // itself opts in, and never in a production build: the hostname comes from the
+    // request, so it cannot be the only guard (a LAN client passed it before).
+    const testOrgParam = testOrgBypassEnabled()
+      ? request.nextUrl.searchParams.get("test_org") || request.cookies.get("test_org")?.value
+      : null;
     const isLocalhost = request.nextUrl.hostname === "localhost" || request.nextUrl.hostname === "127.0.0.1";
 
     const session = await auth.api.getSession({
