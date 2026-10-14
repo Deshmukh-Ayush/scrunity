@@ -1,0 +1,1 @@
+ALTER TABLE "gtm_contact" ADD COLUMN "lookup_status" text DEFAULT 'complete' NOT NULL;

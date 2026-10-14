@@ -176,6 +176,20 @@
       "when": 1791932073090,
       "tag": "0024_dapper_madame_hydra",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791961027886,
+      "tag": "0025_secret_sumo",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791967205313,
+      "tag": "0026_workable_grandmaster",
+      "breakpoints": true
     }
   ]
 }

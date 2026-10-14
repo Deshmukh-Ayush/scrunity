@@ -8,6 +8,7 @@ import {
   integer,
   jsonb,
   bigint,
+  uniqueIndex,
 } from "drizzle-orm/pg-core"
 import { nanoid } from "nanoid"
 
@@ -220,6 +221,9 @@ export const member = pgTable(
   (table) => [
     index("member_org_idx").on(table.organizationId),
     index("member_user_idx").on(table.userId),
+    // One membership per user per org. Lets onboarding repair a half-finished
+    // org creation without ever adding the owner twice.
+    uniqueIndex("member_org_user_unique").on(table.organizationId, table.userId),
   ]
 )
 
@@ -315,7 +319,10 @@ export const gtmResearchRun = pgTable(
     ownTamCurrency: text("own_tam_currency"),
     status: text("status").default("in_progress").notNull(),
     failureReason: text("failure_reason"),
+    // Lifetime Firecrawl calls (backstop cap) and calls in the current stage
+    // attempt (per-attempt cap, reset whenever a stage is claimed).
     firecrawlCallCount: integer("firecrawl_call_count").default(0).notNull(),
+    firecrawlAttemptCallCount: integer("firecrawl_attempt_call_count").default(0).notNull(),
     currentStage: text("current_stage", {
       enum: [
         "research_company",
@@ -410,7 +417,10 @@ export const gtmOutreachCampaign = pgTable(
       .references(() => gtmResearchRun.id, { onDelete: "cascade" }),
     status: text("status").default("in_progress").notNull(),
     failureReason: text("failure_reason"),
+    // Lifetime Firecrawl calls (backstop cap) and calls in the current stage
+    // attempt (per-attempt cap, reset whenever a stage is claimed).
     firecrawlCallCount: integer("firecrawl_call_count").default(0).notNull(),
+    firecrawlAttemptCallCount: integer("firecrawl_attempt_call_count").default(0).notNull(),
     currentStage: text("current_stage", {
       enum: [
         "find_companies",
@@ -508,6 +518,20 @@ export const gtmVendorUsage = pgTable(
   ]
 )
 
+/**
+ * Dodo Payments webhook deliveries, keyed by the `webhook-id` header. A row is
+ * claimed before an event is applied, so a retried delivery is never applied twice.
+ */
+export const billingWebhookEvent = pgTable("billing_webhook_event", {
+  id: text("id").primaryKey(),
+  type: text("type").notNull(),
+  // "processing" while being applied, then "processed" or "ignored".
+  status: text("status").notNull(),
+  organizationId: text("organization_id"),
+  receivedAt: timestamp("received_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"),
+})
+
 export const gtmCompanyMetricSnapshot = pgTable(
   "gtm_company_metric_snapshot",
   {
@@ -579,6 +603,12 @@ export const gtmContact = pgTable(
     source: text("source"),
     providerPersonId: text("provider_person_id"),
     emailStatus: text("email_status", { enum: ["not_looked_up"] }),
+    // Legacy Stage 5: "lookup_incomplete" when a Firecrawl lookup for this
+    // contact was still rate-limited after retries. Such a contact is neither
+    // qualified nor disqualified (or suppressed) until a lookup completes.
+    lookupStatus: text("lookup_status", { enum: ["complete", "lookup_incomplete"] })
+      .default("complete")
+      .notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [index("gtm_contact_company_idx").on(table.prospectCompanyId)]
