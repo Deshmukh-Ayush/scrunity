@@ -1,4 +1,4 @@
-import { and, eq, isNull, lt, ne, or, type AnyColumn } from "drizzle-orm"
+import { and, eq, isNull, lt, ne, or, sql, type AnyColumn } from "drizzle-orm"
 import { db } from "@/utils/db"
 import { gtmOutreachCampaign, gtmResearchRun } from "@/db/schema"
 
@@ -155,4 +155,28 @@ export async function touchCampaignProgress(campaignId: string) {
     .update(gtmOutreachCampaign)
     .set({ lastProgressAt: new Date() })
     .where(eq(gtmOutreachCampaign.id, campaignId))
+}
+
+/** One stage attempt's wall-clock span, merged into the row's stage_timings. */
+export async function recordStageTiming(
+  table: "campaign" | "research_run",
+  id: string,
+  stage: string,
+  startedAt: Date,
+  outcome: string
+) {
+  const endedAt = new Date()
+  const entry = JSON.stringify({
+    [stage]: {
+      startedAt: startedAt.toISOString(),
+      endedAt: endedAt.toISOString(),
+      ms: endedAt.getTime() - startedAt.getTime(),
+      outcome,
+    },
+  })
+  const target = table === "campaign" ? gtmOutreachCampaign : gtmResearchRun
+  await db
+    .update(target)
+    .set({ stageTimings: sql`coalesce(${target.stageTimings}, '{}'::jsonb) || ${entry}::jsonb` })
+    .where(eq(target.id, id))
 }

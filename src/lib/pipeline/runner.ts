@@ -13,6 +13,7 @@ import {
   claimResearchStage,
   failCampaign,
   failResearchRun,
+  recordStageTiming,
 } from "./stage-state"
 
 /**
@@ -62,6 +63,7 @@ async function runClaimedStage({
   execute,
   readState,
   fail,
+  recordTiming,
 }: {
   label: string
   id: string
@@ -70,6 +72,7 @@ async function runClaimedStage({
   execute: () => Promise<unknown>
   readState: () => Promise<{ currentStage: string; status: string } | undefined>
   fail: (reason: string) => Promise<void>
+  recordTiming: (startedAt: Date, outcome: StageOutcome) => Promise<void>
 }): Promise<StageOutcome> {
   if (!(await claim())) {
     console.warn(
@@ -79,6 +82,29 @@ async function runClaimedStage({
   }
 
   console.log(`[Pipeline] ${label} ${id}: running stage "${stage}"`)
+  const startedAt = new Date()
+  const outcome = await executeClaimed({ label, id, stage, execute, readState, fail })
+  await recordTiming(startedAt, outcome).catch((err) =>
+    console.warn(`[Pipeline] ${label} ${id}: could not record stage timing:`, err)
+  )
+  return outcome
+}
+
+async function executeClaimed({
+  label,
+  id,
+  stage,
+  execute,
+  readState,
+  fail,
+}: {
+  label: string
+  id: string
+  stage: string
+  execute: () => Promise<unknown>
+  readState: () => Promise<{ currentStage: string; status: string } | undefined>
+  fail: (reason: string) => Promise<void>
+}): Promise<StageOutcome> {
   try {
     await execute()
   } catch (err) {
@@ -118,6 +144,8 @@ export function runResearchStage(researchRunId: string, stage: ResearchStage) {
           .where(eq(gtmResearchRun.id, researchRunId))
       )[0],
     fail: (reason) => failResearchRun(researchRunId, stage, reason),
+    recordTiming: (startedAt, outcome) =>
+      recordStageTiming("research_run", researchRunId, stage, startedAt, outcome),
   })
 }
 
@@ -140,6 +168,7 @@ export function runCampaignStage(campaignId: string, stage: CampaignStage) {
           .where(eq(gtmOutreachCampaign.id, campaignId))
       )[0],
     fail: (reason) => failCampaign(campaignId, stage, reason),
+    recordTiming: (startedAt, outcome) => recordStageTiming("campaign", campaignId, stage, startedAt, outcome),
   })
 }
 
