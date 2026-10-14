@@ -24,45 +24,6 @@ export interface InvoiceItem {
 }
 
 /**
- * Sample invoices shown when Dodo is not configured or the org has no Dodo
- * customer yet. Kept as-is from the original route; see the cleanup report.
- */
-function sampleInvoices(): InvoiceItem[] {
-  return [
-    {
-      id: "inv_test_01",
-      date: new Date(Date.now() - 86400000 * 2).toISOString(),
-      amount: 349.0,
-      currency: "USD",
-      status: "succeeded",
-      description:
-        "Scale Enterprise Platform Annual Subscription & Quota Upgrade (5,000 AI Prospect Credits + 12 Additional Team Seats)",
-      downloadUrl: "https://example.com/invoice-01.pdf",
-    },
-    {
-      id: "inv_test_02",
-      date: new Date(Date.now() - 86400000 * 32).toISOString(),
-      amount: 79.0,
-      currency: "USD",
-      status: "succeeded",
-      description:
-        "Starter Plan — 600 Monthly AI Prospect Credits + 2 Workspace Seats",
-      downloadUrl: "https://example.com/invoice-02.pdf",
-    },
-    {
-      id: "inv_test_03",
-      date: new Date(Date.now() - 86400000 * 62).toISOString(),
-      amount: 12.0,
-      currency: "USD",
-      status: "succeeded",
-      description:
-        "Top-Up Pack — 100 Instant AI Prospect Credits (No Expiration / No Renewal Shift)",
-      downloadUrl: "https://example.com/invoice-03.pdf",
-    },
-  ]
-}
-
-/**
  * Up to 15 recent Dodo payments for the organization, mapped to invoice rows.
  * A Dodo API failure yields an empty list rather than an error.
  */
@@ -75,8 +36,9 @@ export async function getBillingInvoices(
 
   if (!org) return []
 
+  // No Dodo customer (e.g. pilot access granted by an admin): no invoices to show.
   if (!process.env.DODO_PAYMENTS_API_KEY || !org.dodoCustomerId) {
-    return sampleInvoices()
+    return []
   }
 
   try {
