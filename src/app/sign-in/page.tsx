@@ -20,10 +20,15 @@ export const metadata: Metadata = {
   },
 }
 
-export default function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string | string[] }>
+}) {
+  const { error } = await searchParams
   return (
     <div>
-      <SignInComp />
+      <SignInComp error={typeof error === "string" ? error : undefined} />
     </div>
   )
 }

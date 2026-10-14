@@ -1,8 +1,9 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { db } from "@/utils/db";
-import { organization } from "better-auth/plugins"
+import { magicLink, organization } from "better-auth/plugins"
 import { ONBOARDING_ORG_SOURCE, onboardingOrganizationId } from "@/lib/onboarding-id";
+import { MAGIC_LINK_EXPIRES_IN_SECONDS, magicLinkBaseUrl, sendMagicLink } from "@/lib/magic-link";
 
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL
@@ -11,7 +12,9 @@ export const auth = betterAuth({
     provider: "pg",
   }),
   trustHost: true,
-  trustedOrigins: ["https://scrunity.com", "https://www.scrunity.com", "https://beta.scrunity.com", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"],
+  // The magic-link base URL (NEXT_PUBLIC_APP_URL, e.g. a LAN address or tunnel
+  // during demos) must be trusted for its absolute callback URLs.
+  trustedOrigins: ["https://scrunity.com", "https://www.scrunity.com", "https://beta.scrunity.com", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000", magicLinkBaseUrl()],
   plugins: [
     organization({
       organizationHooks: {
@@ -23,6 +26,15 @@ export const auth = betterAuth({
           return { data: { id: onboardingOrganizationId(user.id) } }
         },
       },
+    }),
+    // Email sign-in for invited customers (Google may be limited to test users).
+    // Tokens are stored hashed, expire after 5 minutes and are consumed on first
+    // use; lib/magic-link.ts only delivers to invited or existing users.
+    magicLink({
+      expiresIn: MAGIC_LINK_EXPIRES_IN_SECONDS,
+      storeToken: "hashed",
+      rateLimit: { window: 60, max: 5 },
+      sendMagicLink,
     }),
   ],
   socialProviders: {

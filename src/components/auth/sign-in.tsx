@@ -6,9 +6,18 @@ import React, { useState } from "react"
 import { Loader2 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import { MagicLinkForm } from "./magic-link-form"
 
-export const SignInComp = () => {
+/** Messages for the `?error=` the magic-link verify endpoint and the proxy redirect with. */
+function signInErrorMessage(error: string | undefined): string | null {
+  if (!error) return null
+  if (error === "session_unavailable") return "We couldn't check your session. Please sign in again."
+  return "That sign-in link is invalid, expired or already used. Request a new one."
+}
+
+export const SignInComp = ({ error }: { error?: string }) => {
   const [isLoading, setIsLoading] = useState(false)
+  const errorMessage = signInErrorMessage(error)
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true)
@@ -76,6 +85,20 @@ export const SignInComp = () => {
             <span className="font-medium">Continue with Google</span>
           </Button>
         </div>
+
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span className="h-px flex-1 bg-border" />
+          or
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
+        <MagicLinkForm />
+
+        {errorMessage && (
+          <p role="alert" className="text-center text-xs text-muted-foreground">
+            {errorMessage}
+          </p>
+        )}
 
         <div>
           <p className="px-2 text-center text-xs text-balance text-muted-foreground">
