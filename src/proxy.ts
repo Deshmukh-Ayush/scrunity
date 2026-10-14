@@ -7,9 +7,18 @@ import { eq } from "drizzle-orm";
 // /onboarding is kept public for UI development and testing
 const protectedPaths = ["/dashboard", "/api/billing", "/api/gtm"];
 
+// Called server-to-server by Dodo Payments with no session cookie. Exempt from
+// session auth by exact path only; the route verifies Dodo's webhook signature
+// on the raw body instead (src/app/api/billing/webhook/route.ts).
+const sessionlessPaths = new Set(["/api/billing/webhook"]);
+
 export async function proxy(request: NextRequest) {
   try {
     const { pathname } = request.nextUrl;
+    if (sessionlessPaths.has(pathname)) {
+      return NextResponse.next();
+    }
+
     const isSignIn = pathname === "/sign-in";
     const isProtected = protectedPaths.some((path) => pathname.startsWith(path));
 
@@ -60,6 +69,9 @@ export async function proxy(request: NextRequest) {
     }
 
     if (!session) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
       if (isProtected) {
         return NextResponse.redirect(new URL("/sign-in", request.url));
       }
