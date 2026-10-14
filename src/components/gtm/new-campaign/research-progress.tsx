@@ -274,11 +274,11 @@ export function ResearchProgress({
                 </span>
               </div>
               <Button
-                variant="default"
+                variant="outline"
                 size="sm"
                 onClick={onRestartStage}
                 disabled={isRestarting}
-                className="h-8 gap-1.5 bg-amber-600 text-xs text-white shadow-sm hover:bg-amber-700"
+                className="h-8 gap-1.5 text-xs"
               >
                 {isRestarting ? (
                   <Loader2 className="size-3.5 animate-spin" />
