@@ -1,45 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
-import { extractDomain, getFallbackLogoUrl, scrapeUrl, normalizeWebsiteUrl } from "@/lib/firecrawl";
+import { extractDomain, getFallbackLogoUrl, normalizeWebsiteUrl } from "@/lib/firecrawl";
+import { resolveAuthAndOrg } from "@/lib/gtm-auth";
+import { QUOTAS, consumeOrgQuota } from "@/lib/org-quota";
 
+/**
+ * Logo for a website. Never calls Firecrawl (it used to scrape with no cap):
+ * returns the favicon-service URL, which is free and deterministic. Capped per
+ * organization per day and cacheable by the browser for a day.
+ */
 export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const rawUrl = searchParams.get("url");
-
-    if (!rawUrl || !rawUrl.trim()) {
-      return NextResponse.json({ error: "URL parameter is required" }, { status: 400 });
-    }
-
-    const cleanUrl = normalizeWebsiteUrl(rawUrl);
-    const domain = extractDomain(cleanUrl);
-    const fallbackLogo = getFallbackLogoUrl(domain);
-
-    // Attempt to scrape with a fast 2.5s timeout; degrade gracefully if slow/failed
-    let resolvedLogo = fallbackLogo;
-    try {
-      const timeoutPromise = new Promise<null>((_, reject) =>
-        setTimeout(() => reject(new Error("Logo scrape timeout")), 2500)
-      );
-      const scrapePromise = scrapeUrl(cleanUrl);
-      const scraped = await Promise.race([scrapePromise, timeoutPromise]);
-      if (scraped && (scraped.ogImage || scraped.favicon)) {
-        resolvedLogo = scraped.ogImage || scraped.favicon || fallbackLogo;
-      }
-    } catch {
-      // Degrade gracefully to fallback Google favicon
-    }
-
-    return NextResponse.json({
-      success: true,
-      logoUrl: resolvedLogo,
-      domain,
-    });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Error fetching logo";
-    return NextResponse.json({
-      success: true,
-      logoUrl: null,
-      error: msg,
-    });
+  const { auth, error, status } = await resolveAuthAndOrg(req.headers);
+  if (error || !auth) {
+    return NextResponse.json({ error: error || "Unauthorized" }, { status: status || 401 });
   }
+
+  const rawUrl = new URL(req.url).searchParams.get("url");
+  if (!rawUrl || !rawUrl.trim()) {
+    return NextResponse.json({ error: "URL parameter is required" }, { status: 400 });
+  }
+
+  const quota = await consumeOrgQuota(auth.orgId, QUOTAS.logoFetch);
+  if (!quota.allowed) {
+    return NextResponse.json({ error: quota.message, quotaExceeded: true }, { status: 429 });
+  }
+
+  const domain = extractDomain(normalizeWebsiteUrl(rawUrl));
+  return NextResponse.json(
+    { success: true, logoUrl: getFallbackLogoUrl(domain), domain },
+    { headers: { "Cache-Control": "private, max-age=86400" } }
+  );
 }

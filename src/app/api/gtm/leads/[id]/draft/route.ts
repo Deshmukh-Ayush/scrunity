@@ -14,6 +14,7 @@ import { generateOutreachEmailDraft } from "@/lib/gtm-ai";
 import { isValidPersonName } from "@/lib/gtm-contact-matcher";
 import { checkLeadQualificationGates } from "@/lib/gtm-stage-5-5";
 import { getSendBlock } from "@/lib/send-eligibility";
+import { QUOTAS, consumeOrgQuota } from "@/lib/org-quota";
 
 export async function POST(
   req: NextRequest,
@@ -114,6 +115,12 @@ export async function POST(
         draft: existingDraft,
         alreadyExisted: true,
       });
+    }
+
+    // Per-organization daily quota on LLM-generated drafts.
+    const quota = await consumeOrgQuota(auth.orgId, QUOTAS.leadDraft);
+    if (!quota.allowed) {
+      return NextResponse.json({ error: quota.message, quotaExceeded: true }, { status: 429 });
     }
 
     // 3. Generate draft using existing stage 6 AI drafting logic

@@ -38,15 +38,20 @@ export class FirecrawlCallCapExceededError extends Error {
 }
 
 export class FirecrawlSpendPausedError extends Error {
-  public readonly failureReason = "paused_firecrawl_allotment_exhausted";
+  public readonly failureReason: string;
   public readonly used: number;
   public readonly allotment: number;
 
-  constructor(used: number, allotment: number) {
+  /** "monthly": billing-cycle allotment; "daily": the per-organization daily cap. */
+  constructor(used: number, allotment: number, kind: "monthly" | "daily" = "monthly") {
     super(
-      `paused — Firecrawl allotment nearly exhausted for this billing cycle (${used}/${allotment} credits used).`
+      kind === "daily"
+        ? `paused — this organization reached its daily web-search limit (${used}/${allotment} calls today); it resets at 00:00 UTC.`
+        : `paused — Firecrawl allotment nearly exhausted for this billing cycle (${used}/${allotment} credits used).`
     );
     this.name = "FirecrawlSpendPausedError";
+    this.failureReason =
+      kind === "daily" ? "firecrawl_org_daily_cap_exceeded" : "paused_firecrawl_allotment_exhausted";
     this.used = used;
     this.allotment = allotment;
   }
@@ -90,6 +95,35 @@ export function getCampaignLifetimeCap(): number {
  * Real monthly Firecrawl credit allotment from active plan.
  * Default 1,500 credits per billing cycle.
  */
+/** Firecrawl calls one organization may make per UTC day (all runs and campaigns). */
+export function getOrgDailyFirecrawlCap(): number {
+  return intEnv("FIRECRAWL_ORG_DAILY_CAP", 400);
+}
+
+/**
+ * Reserves one call against the organization's daily cap by writing a
+ * gtm_vendor_usage row only if today's total is still below the cap, in one
+ * statement, so it holds across serverless instances. Concurrent reservations
+ * can overshoot by at most the limiter's concurrency.
+ */
+async function reserveOrgDailyFirecrawlCall(context: FirecrawlRunContext): Promise<void> {
+  const cap = getOrgDailyFirecrawlCap();
+  const result = await db.execute(sql`
+    INSERT INTO gtm_vendor_usage (id, vendor, endpoint, credits_used, organization_id, research_run_id, campaign_id)
+    SELECT ${crypto.randomUUID()}, 'firecrawl', 'call', 1, ${context.organizationId}, ${context.researchRunId ?? null}, ${context.campaignId ?? null}
+    WHERE (
+      SELECT coalesce(sum(credits_used), 0) FROM gtm_vendor_usage
+      WHERE vendor = 'firecrawl' AND organization_id = ${context.organizationId}
+        AND created_at >= date_trunc('day', now() AT TIME ZONE 'UTC')
+    ) < ${cap}
+    RETURNING id
+  `);
+  if (result.rows.length === 0) {
+    console.warn(`[Firecrawl Spend Paused] Organization ${context.organizationId} reached its daily cap of ${cap} calls.`);
+    throw new FirecrawlSpendPausedError(cap, cap, "daily");
+  }
+}
+
 export function getMonthlyFirecrawlAllotment(): number {
   return process.env.FIRECRAWL_MONTHLY_ALLOTMENT
     ? parseInt(process.env.FIRECRAWL_MONTHLY_ALLOTMENT, 10)
@@ -129,6 +163,9 @@ export async function checkFirecrawlCallAllowed(
       );
       throw new FirecrawlSpendPausedError(used, allotment);
     }
+
+    // 1b. Per-organization daily cap (also reserves this call in the ledger).
+    await reserveOrgDailyFirecrawlCall(context);
   }
 
   // 2. Reserve one call from the stage-attempt budget and the lifetime

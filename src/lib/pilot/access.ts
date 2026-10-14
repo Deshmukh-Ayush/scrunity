@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm"
 import { db } from "@/utils/db"
 import { organization, user } from "@/db/schema"
 import { getMaxActiveCampaigns } from "@/config/billing"
+import { getAiCreditBalance } from "@/lib/gtm-ai-credits"
 import { onboardingOrganizationId } from "@/lib/onboarding-id"
 import { claimPilotInvite, resumePilotClaimForOrganization } from "./claim"
 
@@ -45,4 +46,15 @@ export async function resolveCampaignAccess(organizationId: string, userId: stri
   }
   if (outcome === "claimed") plan = await organizationPlan(organizationId)
   return { hasAccess: getMaxActiveCampaigns(plan) !== 0, plan }
+}
+
+/**
+ * Whether the organization may start work that spends web-search and LLM
+ * budget (research runs): a plan that allows campaigns, or credits on hand.
+ */
+export async function hasSpendAccess(organizationId: string, userId: string): Promise<boolean> {
+  const { hasAccess } = await resolveCampaignAccess(organizationId, userId)
+  if (hasAccess) return true
+  const { creditsRemaining } = await getAiCreditBalance(organizationId)
+  return creditsRemaining > 0
 }

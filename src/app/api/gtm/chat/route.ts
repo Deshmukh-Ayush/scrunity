@@ -8,6 +8,7 @@ import {
 } from "ai";
 import { gtmModel } from "@/lib/gtm-ai";
 import { resolveAuthAndOrg } from "@/lib/gtm-auth";
+import { QUOTAS, consumeOrgQuota } from "@/lib/org-quota";
 import { createGtmAgentTools } from "@/lib/chat/agent-tools";
 
 export const maxDuration = 60;
@@ -37,6 +38,11 @@ Principles:
 3. CONVERSATIONAL COLLABORATION: When answering about campaign status or prospects, suggest next actions (e.g. approving pending drafts, launching a campaign, or refining an ICP segment).`;
 }
 
+function chatMaxOutputTokens(): number {
+  const parsed = parseInt(process.env.GTM_CHAT_MAX_OUTPUT_TOKENS ?? "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 2000;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const reqHeaders = await headers();
@@ -56,6 +62,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Per-organization chat quota (database-backed, holds across instances).
+    const quota = await consumeOrgQuota(auth.orgId, QUOTAS.chatMessage);
+    if (!quota.allowed) {
+      return NextResponse.json({ error: quota.message, quotaExceeded: true }, { status: 429 });
+    }
+
     const tools = createGtmAgentTools(auth.orgId, auth.userId);
 
     const result = streamText({
@@ -63,6 +75,8 @@ export async function POST(req: NextRequest) {
       system: buildChatSystemPrompt(undefined, companyName),
       messages,
       stopWhen: isStepCount(5),
+      // Output cap per model step (at most 5 steps per request).
+      maxOutputTokens: chatMaxOutputTokens(),
       tools,
       onError: ({ error }) => {
         console.error("[POST /api/gtm/chat] streamText error during generation/synthesis:", {

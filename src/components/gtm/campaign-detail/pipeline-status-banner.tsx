@@ -22,6 +22,8 @@ const FAILURE_REASON_TEXT: Record<string, string> = {
     "This step stopped because it reached its web-search safety limit for one attempt, which protects your credits. Click Retry Campaign to run it again with a fresh limit.",
   firecrawl_lifetime_cap_exceeded:
     "This campaign has used its total web-search allowance across all its retries, so it will not search again. Start a new campaign from the same research to continue.",
+  firecrawl_org_daily_cap_exceeded:
+    "Paused: your organization reached today's web-search limit. Restart the stage after 00:00 UTC to continue.",
   paused_firecrawl_allotment_exhausted:
     "Campaign paused: Your organization's monthly web search allotment is nearly exhausted for this billing cycle.",
   provider_credit_cap_reached:

@@ -9,6 +9,8 @@ import { getFallbackLogoUrl, normalizeWebsiteUrl } from "@/lib/firecrawl";
 import { listOrgResearchRuns } from "@/lib/data/research-runs";
 import { z } from "zod";
 import { targetMarketInputSchema } from "@/lib/gtm-target-market";
+import { hasSpendAccess, noAccessMessage } from "@/lib/pilot/access";
+import { QUOTAS, consumeOrgQuota } from "@/lib/org-quota";
 
 const createResearchRunSchema = z.object({
   websiteUrl: z.string().min(1, "Website URL is required"),
@@ -77,6 +79,16 @@ export async function POST(req: NextRequest) {
         },
         { status: 200 }
       );
+    }
+
+    // Spend guard: research runs use web search and LLM calls, so they need an
+    // active plan or credits, and each organization has a daily run quota.
+    if (!(await hasSpendAccess(auth.orgId, auth.userId))) {
+      return NextResponse.json({ error: noAccessMessage(), noAccess: true }, { status: 403 });
+    }
+    const quota = await consumeOrgQuota(auth.orgId, QUOTAS.researchRun);
+    if (!quota.allowed) {
+      return NextResponse.json({ error: quota.message, quotaExceeded: true }, { status: 429 });
     }
 
     // High quality favicon without incurring Firecrawl scrape credits before row exists
