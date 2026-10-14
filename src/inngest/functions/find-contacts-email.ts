@@ -7,7 +7,7 @@ import {
 import { findProfessionalEmail } from "@/lib/enrich"
 import { checkCreditAllowance, recordCreditUsage } from "@/lib/ai/credits"
 import { isValidPersonName } from "@/lib/gtm-contact-matcher"
-import { checkSuppression, recordSuppressionEntry } from "@/lib/gtm-suppression"
+import { checkSuppression } from "@/lib/gtm-suppression"
 import type { DecisionMaker } from "./find-contacts-lookup"
 import type { InngestStep } from "./shared"
 
@@ -111,6 +111,8 @@ export async function resolveContactEmail({
   let resolvedEmail: string | null = null
   let emailSource: EmailSource = "none"
   let enrichMetadata: EnrichMetadata | null = null
+  // No MX records for the guessed address's domain: a paid lookup would be wasted.
+  let mxCheckFailed = false
 
   // Step a: an address on the scraped homepage that matches the person's first name
   const extracted = extractEmailsFromText(siteMarkdown, domain)
@@ -139,15 +141,9 @@ export async function resolveContactEmail({
       } else {
         const hasMx = await checkDomainMxRecords(domain)
         resolvedEmail = candidateEmail
-        if (!hasMx) {
-          await recordSuppressionEntry({
-            email: candidateEmail,
-            domain,
-            reason: "mx_invalid",
-            sourceOrgId: organizationId,
-            rawSnippet: `MX check failed for ${domain}`,
-          })
-        }
+        // A failed MX lookup (possibly transient DNS) only lowers confidence in
+        // this guess; it is not written to platform-wide suppression.
+        mxCheckFailed = !hasMx
         emailSource = hasMx ? "pattern_guessed_mx_valid" : "pattern_guessed_unverified"
       }
     }
@@ -158,7 +154,9 @@ export async function resolveContactEmail({
     ? await checkSuppression({ email: resolvedEmail, domain })
     : null
 
-  if (!isSuppressedForEnrich && emailSource !== "none") {
+  if (mxCheckFailed) {
+    console.log(`[Stage 5] Skipping enrich.so for ${domain}: no MX records for the guessed address.`)
+  } else if (!isSuppressedForEnrich && emailSource !== "none") {
     ;({ email: resolvedEmail, emailSource, enrichMetadata } = await enrichStage5Email({
       email: resolvedEmail,
       emailSource,

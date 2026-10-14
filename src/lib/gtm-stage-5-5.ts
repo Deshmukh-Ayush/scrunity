@@ -14,7 +14,6 @@ import {
   checkSuppression,
   recordSuppressionEntry,
   getSuppressionDisqualificationMessage,
-  type SuppressionReason,
 } from "./gtm-suppression";
 
 import {
@@ -192,14 +191,9 @@ export async function executeQualifyCampaignContacts(outreachCampaignId: string)
         contactName: contact.name,
         reason,
       });
-      await recordSuppressionEntry({
-        email: contact.email,
-        domain: company.domain,
-        reason: "invalid_contact_name",
-        sourceOrgId,
-        sourceContactId: contact.id,
-        rawSnippet: contact.name,
-      });
+      // No suppression entry: a bad name is weak scraped data about this
+      // contact, not a do-not-contact decision, and a platform-wide entry
+      // would block the address for every customer.
       newlyDisqualified.push({
         contactId: contact.id,
         name: contact.name,
@@ -220,22 +214,9 @@ export async function executeQualifyCampaignContacts(outreachCampaignId: string)
         reason,
       });
 
-      // Record hard disqualification negative findings to platform-wide suppression
-      let suppressionReason: SuppressionReason = "mx_invalid";
-      if (gateCheck.failedGate === "linkedin") {
-        suppressionReason = "no_linkedin_found";
-      } else if (gateCheck.failedGate === "email_confidence") {
-        suppressionReason = "mx_invalid";
-      }
-
-      await recordSuppressionEntry({
-        email: contact.email,
-        domain: company.domain,
-        reason: suppressionReason,
-        sourceOrgId,
-        sourceContactId: contact.id,
-        rawSnippet: reason,
-      });
+      // No suppression entry: a low-confidence email or a missing LinkedIn
+      // profile is weak data for this campaign, not a do-not-contact decision,
+      // and a platform-wide entry would block the address for every customer.
 
       newlyDisqualified.push({
         contactId: contact.id,
