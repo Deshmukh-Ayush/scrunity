@@ -532,6 +532,45 @@ export const billingWebhookEvent = pgTable("billing_webhook_event", {
   processedAt: timestamp("processed_at"),
 })
 
+/**
+ * Pilot access allowlist, managed by platform admins (PLATFORM_ADMIN_EMAILS).
+ * When the invited email finishes onboarding, its organization gets `plan`
+ * (the same activation a Dodo subscription runs) and then `credits` extra on
+ * top, exactly once (lib/pilot/claim.ts). `claimLockedAt` is a short lease so
+ * concurrent onboarding submits never apply an invite twice; `planAppliedAt`
+ * and `creditsGrantedAt` let a retry finish a half-applied claim.
+ */
+export const pilotInvite = pgTable(
+  "pilot_invite",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    // Always stored trimmed and lowercased.
+    email: text("email").notNull(),
+    plan: text("plan").notNull(),
+    credits: integer("credits").default(0).notNull(),
+    note: text("note"),
+    status: text("status", { enum: ["invited", "claimed", "revoked"] })
+      .default("invited")
+      .notNull(),
+    claimedUserId: text("claimed_user_id"),
+    claimedOrgId: text("claimed_org_id"),
+    claimLockedAt: timestamp("claim_locked_at"),
+    planAppliedAt: timestamp("plan_applied_at"),
+    creditsGrantedAt: timestamp("credits_granted_at"),
+    claimedAt: timestamp("claimed_at"),
+    revokedAt: timestamp("revoked_at"),
+    createdByUserId: text("created_by_user_id").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (table) => [uniqueIndex("pilot_invite_email_unique").on(table.email)]
+)
+
 export const gtmCompanyMetricSnapshot = pgTable(
   "gtm_company_metric_snapshot",
   {
@@ -912,8 +951,13 @@ export const gtmAiCreditTransaction = pgTable(
     periodId: text("period_id").references(() => gtmAiCreditPeriod.id, {
       onDelete: "set null",
     }),
-    type: text("type", { enum: ["debit", "topup", "period_reset"] }).notNull(),
+    // manual_grant: credits added by a platform admin or by a pilot invite claim.
+    type: text("type", { enum: ["debit", "topup", "period_reset", "manual_grant"] }).notNull(),
     amount: integer("amount").notNull(),
+    // The platform admin who made a manual grant (null for automatic rows).
+    createdByUserId: text("created_by_user_id"),
+    // Optional unique key: a grant that carries one is applied at most once.
+    idempotencyKey: text("idempotency_key"),
     relatedCampaignId: text("related_campaign_id").references(
       () => gtmOutreachCampaign.id,
       { onDelete: "set null" }
@@ -927,6 +971,7 @@ export const gtmAiCreditTransaction = pgTable(
     index("gtm_ai_credit_tx_period_idx").on(table.periodId),
     index("gtm_ai_credit_tx_created_idx").on(table.createdAt),
     index("gtm_ai_credit_tx_campaign_idx").on(table.relatedCampaignId),
+    uniqueIndex("gtm_ai_credit_tx_idempotency_key_unique").on(table.idempotencyKey),
   ]
 )
 

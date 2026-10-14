@@ -190,6 +190,13 @@
       "when": 1791967205313,
       "tag": "0026_workable_grandmaster",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1791970550610,
+      "tag": "0027_chemical_surge",
+      "breakpoints": true
     }
   ]
 }
