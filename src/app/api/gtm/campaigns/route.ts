@@ -9,6 +9,7 @@ import { getPlanLimits, getMaxActiveCampaigns } from "@/config/billing";
 import { listOrgCampaigns } from "@/lib/data/campaigns";
 import { seedCampaignConversation } from "@/lib/gtm-campaign-conversation";
 import { z } from "zod";
+import { noAccessMessage, resolveCampaignAccess } from "@/lib/pilot/access";
 
 const createCampaignSchema = z.object({
   icpSegmentId: z.string().min(1, "ICP segment ID is required"),
@@ -69,6 +70,13 @@ export async function POST(req: NextRequest) {
         },
         { status: 200 }
       );
+    }
+
+    // No plan yet (e.g. signed up without a pilot invite): one clear message
+    // instead of a "limit of 0 campaigns" error.
+    const access = await resolveCampaignAccess(auth.orgId, auth.userId);
+    if (!access.hasAccess) {
+      return NextResponse.json({ error: noAccessMessage(), noAccess: true }, { status: 403 });
     }
 
     // Step 2: Plan limit check - verify active campaign capacity (Step 2 & Step 5)

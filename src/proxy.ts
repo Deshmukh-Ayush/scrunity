@@ -3,8 +3,24 @@ import { auth } from "@/lib/auth";
 import { db } from "@/utils/db";
 import { member, organization } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { isPlatformAdminUser } from "@/lib/platform-admin-emails";
 
-const protectedPaths = ["/dashboard", "/api/billing", "/api/gtm", "/api/onboarding"];
+const protectedPaths = ["/dashboard", "/api/billing", "/api/gtm", "/api/onboarding", "/api/admin"];
+
+// Platform admin area (PLATFORM_ADMIN_EMAILS). Anyone else gets a plain 404.
+const isAdminPath = (pathname: string) =>
+  pathname === "/dashboard/admin" ||
+  pathname.startsWith("/dashboard/admin/") ||
+  pathname === "/api/admin" ||
+  pathname.startsWith("/api/admin/");
+
+function adminNotFound(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  // No route matches this path, so the app's not-found page renders with a 404.
+  return NextResponse.rewrite(new URL("/404", request.url));
+}
 
 // Called server-to-server by Dodo Payments with no session cookie. Exempt from
 // session auth by exact path only; the route verifies Dodo's webhook signature
@@ -32,6 +48,11 @@ export async function proxy(request: NextRequest) {
     const session = await auth.api.getSession({
       headers: request.headers,
     });
+
+    // Checked before the localhost test_org bypass: impersonation never reaches admin.
+    if (isAdminPath(pathname) && !isPlatformAdminUser(session?.user)) {
+      return adminNotFound(request);
+    }
 
     if (!session && isLocalhost && testOrgParam && isProtected) {
       const [testOrg] = await db
@@ -146,6 +167,7 @@ export async function proxy(request: NextRequest) {
     // who this is, so protected paths are refused; public paths stay public.
     console.error("proxy middleware error:", err);
     const { pathname } = request.nextUrl;
+    if (isAdminPath(pathname)) return adminNotFound(request);
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { error: "We couldn't verify your session. Please try again in a moment." },
@@ -167,5 +189,6 @@ export const config = {
     "/api/billing/:path*",
     "/api/gtm/:path*",
     "/api/onboarding",
+    "/api/admin/:path*",
   ],
 };

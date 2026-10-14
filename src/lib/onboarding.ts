@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth"
 import { ONBOARDING_ORG_SOURCE, onboardingOrganizationId } from "@/lib/onboarding-id"
 import { db } from "@/utils/db"
 import { member, organization } from "@/db/schema"
+import { claimPilotInvite } from "@/lib/pilot/claim"
 
 export type OnboardingResult =
   | { status: "created" | "resumed" | "existing"; organizationId: string }
@@ -97,6 +98,34 @@ export async function ensureOnboardingOrganization(
 ): Promise<OnboardingResult> {
   const session = await auth.api.getSession({ headers: reqHeaders })
   if (!session) return { status: "unauthorized" }
+
+  const result = await createOrResumeOrganization(reqHeaders, session, rawName)
+
+  // Pilot access: an invited email's own onboarding org gets the invited plan
+  // and credits once (lib/pilot/claim.ts). Runs on every successful submit, so
+  // a resubmit finishes a claim that failed halfway. A throw here surfaces as
+  // a retryable 500 from /api/onboarding.
+  if (
+    "organizationId" in result &&
+    result.organizationId === onboardingOrganizationId(session.user.id) &&
+    session.user.emailVerified
+  ) {
+    await claimPilotInvite({
+      userId: session.user.id,
+      email: session.user.email,
+      organizationId: result.organizationId,
+    })
+  }
+  return result
+}
+
+type Session = NonNullable<Awaited<ReturnType<typeof auth.api.getSession>>>
+
+async function createOrResumeOrganization(
+  reqHeaders: Headers,
+  session: Session,
+  rawName: string
+): Promise<OnboardingResult> {
   const userId = session.user.id
   const activeOrgId = session.session.activeOrganizationId
 

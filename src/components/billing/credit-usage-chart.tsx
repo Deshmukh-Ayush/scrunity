@@ -47,7 +47,7 @@ export interface UsageDataPoint {
 
 export interface RecentTx {
   id: string
-  type: "debit" | "topup" | "period_reset" | string
+  type: "debit" | "topup" | "manual_grant" | "period_reset" | string
   amount: number
   description: string | null
   relatedCampaignId: string | null
@@ -290,8 +290,8 @@ export function CreditUsageChart({
                 <tbody className="divide-y divide-border/40">
                   {recentTransactions.map((tx) => {
                     const isDebit = tx.type === "debit"
-                    const isTopup = tx.type === "topup"
-                    const isReset = tx.type === "period_reset"
+                    const isGrant = tx.type === "manual_grant"
+                    const isTopup = tx.type === "topup" || isGrant
 
                     const badge = isDebit ? (
                       <Badge
@@ -302,7 +302,7 @@ export function CreditUsageChart({
                       </Badge>
                     ) : isTopup ? (
                       <Badge className="h-4 border-emerald-500/20 bg-emerald-500/15 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
-                        Top-Up
+                        {isGrant ? "Granted" : "Top-Up"}
                       </Badge>
                     ) : (
                       <Badge

@@ -1,29 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/utils/db";
 import { gtmSuppressionEntry } from "@/db/schema";
-import { resolveAuthAndOrg } from "@/lib/gtm-auth";
+import { getPlatformAdmin } from "@/lib/platform-admin";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { normalizeEmail, normalizeDomain } from "@/lib/gtm-suppression";
 
 /**
  * Internal Admin Inspection Endpoint for Platform-Wide Suppression Table.
- * Gated by authentication and organization owner/admin role verification.
+ * Gated to platform admins (PLATFORM_ADMIN_EMAILS); org owners are customers and must not see it.
  * Strictly internal — not exposed to regular customer-facing navigation or APIs.
  */
 export async function GET(req: NextRequest) {
   try {
-    const { auth, error, status } = await resolveAuthAndOrg(req.headers);
-
-    if (error || !auth) {
-      return NextResponse.json({ error: error || "Unauthorized" }, { status: status || 401 });
-    }
-
-    // Role check: Only owners/admins can inspect platform-wide suppression entries
-    if (auth.role !== "owner" && auth.role !== "admin") {
-      return NextResponse.json(
-        { error: "Forbidden: Admin or Owner privileges required" },
-        { status: 403 }
-      );
+    // Platform-wide data across every customer: platform admins only, 404 otherwise.
+    if (!(await getPlatformAdmin(req.headers))) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     const { searchParams } = new URL(req.url);
