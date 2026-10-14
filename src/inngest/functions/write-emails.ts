@@ -14,6 +14,9 @@ import { advanceCampaign, touchCampaignProgress } from "@/lib/pipeline/stage-sta
 import { generateOutreachEmailDraft } from "@/lib/gtm-ai";
 import { safeRealtimePublish } from "./shared";
 
+/** Parallel LLM drafting calls (each is independent of the others). */
+const DRAFT_CONCURRENCY = 3;
+
 export interface WriteEmailsResult {
   draftCount: number;
 }
@@ -73,7 +76,7 @@ export async function executeWriteEmails(
     )
     .where(eq(gtmProspectCompany.outreachCampaignId, outreachCampaignId));
 
-  const { checkLeadQualificationGates, disqualifyContactInDb } = await import("@/lib/gtm-stage-5-5");
+  const { checkLeadQualificationGates, disqualifyContactInDb, isSkippedBySearch } = await import("@/lib/gtm-stage-5-5");
   const { isValidPersonName } = await import("@/lib/gtm-contact-matcher");
 
   const qualifiedContacts: typeof contactsWithCompany = [];
@@ -83,6 +86,8 @@ export async function executeWriteEmails(
 
     // Rate-limited lookup: not known to be unqualified, but not drafted either.
     if (contact.lookupStatus === "lookup_incomplete") continue;
+    // Skipped by the verified-lead search (no verified email): no draft of any kind.
+    if (isSkippedBySearch(contact)) continue;
 
     // Check existing rejected drafts
     const [existingRejected] = await db
@@ -138,7 +143,9 @@ export async function executeWriteEmails(
       continue;
     }
 
-    if (contact.emailSource !== "none" && contact.email !== null) {
+    // Already drafted (restart or re-run of this stage): never draft twice.
+    if (existingRejected) continue;
+    if (contact.email !== null) {
       qualifiedContacts.push(item);
     }
   }
@@ -151,25 +158,32 @@ export async function executeWriteEmails(
     status: "draft";
   }> = [];
 
-  for (const { contact, company } of qualifiedContacts) {
+  // Drafts are independent LLM calls: run a few at a time instead of one by one.
+  for (let i = 0; i < qualifiedContacts.length; i += DRAFT_CONCURRENCY) {
     await touchCampaignProgress(outreachCampaignId);
-    const draft = await generateOutreachEmailDraft({
-      contactName: contact.name,
-      contactTitle: contact.title,
-      companyName: company.name,
-      companyDescription: company.description,
-      segmentPainPoint: segment.painPoint,
-      senderCompanyName: researchRun.companyName,
-      senderCompanyDescription: researchRun.companyDescription,
-    });
-
-    draftsToInsert.push({
-      contactId: contact.id,
-      outreachCampaignId,
-      subject: draft.subject,
-      body: draft.body,
-      status: "draft",
-    });
+    const batch = qualifiedContacts.slice(i, i + DRAFT_CONCURRENCY);
+    const drafts = await Promise.all(
+      batch.map(({ contact, company }) =>
+        generateOutreachEmailDraft({
+          contactName: contact.name,
+          contactTitle: contact.title,
+          companyName: company.name,
+          companyDescription: company.description,
+          segmentPainPoint: segment.painPoint,
+          senderCompanyName: researchRun.companyName,
+          senderCompanyDescription: researchRun.companyDescription,
+        })
+      )
+    );
+    batch.forEach(({ contact }, j) =>
+      draftsToInsert.push({
+        contactId: contact.id,
+        outreachCampaignId,
+        subject: drafts[j].subject,
+        body: drafts[j].body,
+        status: "draft",
+      })
+    );
   }
 
   if (draftsToInsert.length > 0) {

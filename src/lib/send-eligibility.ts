@@ -10,12 +10,14 @@ import { checkSuppression } from "@/lib/gtm-suppression"
  * approves a draft and again by the sender right before an email leaves, so a
  * skipped earlier check or a direct API call cannot get around it.
  *
- * Blocks: no email, lookup incomplete, invalid name, failed qualification gates,
- * this organization's do-not-contact list (opt-outs), and platform-wide
- * suppression (hard bounces, aggregator domains).
+ * Blocks: no email, synthetic fixture people, lookup incomplete, invalid name,
+ * failed qualification gates (which include "email verified at mailbox level",
+ * lib/email-verification.ts), this organization's do-not-contact list
+ * (opt-outs), and platform-wide suppression (hard bounces, aggregator domains).
  */
 export type SendBlockCode =
   | "no_email"
+  | "synthetic_contact"
   | "lookup_incomplete"
   | "invalid_name"
   | "not_qualified"
@@ -35,6 +37,8 @@ export interface SendCandidate {
   emailSource?: string | null
   linkedinUrl?: string | null
   lookupStatus?: string | null
+  /** People-provider key; "fixture" people are invented and must never be emailed. */
+  source?: string | null
   domain?: string | null
 }
 
@@ -51,6 +55,9 @@ export async function isOptedOut(organizationId: string, email: string): Promise
 
 export async function getSendBlock(organizationId: string, c: SendCandidate): Promise<SendBlock | null> {
   if (!c.email?.trim()) return { code: "no_email", message: "This contact has no email address." }
+  if (c.source === "fixture") {
+    return { code: "synthetic_contact", message: "This is a test contact and cannot be emailed." }
+  }
   if (c.lookupStatus === "lookup_incomplete") {
     return { code: "lookup_incomplete", message: "This contact's lookup is not finished yet." }
   }
@@ -100,6 +107,7 @@ export async function loadDraftForSending(draftId: string) {
       emailSource: gtmContact.emailSource,
       linkedinUrl: gtmContact.linkedinUrl,
       lookupStatus: gtmContact.lookupStatus,
+      source: gtmContact.source,
       domain: gtmProspectCompany.domain,
     })
     .from(gtmEmailDraft)

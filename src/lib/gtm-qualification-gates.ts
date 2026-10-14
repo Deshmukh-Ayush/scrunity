@@ -1,3 +1,5 @@
+import { isVerifiedEmail } from "./email-verification";
+
 export interface ContactGateData {
   id?: string;
   name?: string | null;
@@ -20,53 +22,29 @@ export interface GateCheckResult {
 }
 
 /**
- * Permitted verification statuses that pass the email confidence floor.
- * Must be at least MX-validated or provider/enrich verified.
- */
-export const ALLOWED_EMAIL_VERIFICATION_STATUSES = new Set([
-  "pattern_guessed_mx_valid",
-  "enrich_verified",
-  "verified",
-  "provider_verified",
-]);
-
-/**
- * Gate 1: Email Confidence Floor
- * Rejects unverified, plain pattern_guessed (without MX check), company fallback, or missing email.
+ * Gate 1: Verified email only
+ * Passes only an address an email vendor verified at mailbox level (see
+ * lib/email-verification.ts). Pattern guesses, MX-only, catch-all, scraped and
+ * company fallback addresses are all refused.
  */
 export function checkEmailConfidenceFloor(contact: ContactGateData): {
   passed: boolean;
   reason?: string;
 } {
-  const email = contact.email?.trim();
-  if (!email) {
-    return {
-      passed: false,
-      reason: "Email confidence too low — unverified",
-    };
+  if (!contact.email?.trim()) {
+    return { passed: false, reason: "No verified email address" };
   }
-
-  const vStatus = (contact.verificationStatus || contact.emailSource || "unverified").trim();
-
-  if (!ALLOWED_EMAIL_VERIFICATION_STATUSES.has(vStatus)) {
-    if (
-      vStatus === "pattern_guessed_unverified" ||
-      vStatus === "pattern_guessed" ||
-      vStatus === "company_fallback"
-    ) {
-      return {
-        passed: false,
-        reason: "Email confidence too low — pattern-guessed with no MX validation",
-      };
-    }
-
-    return {
-      passed: false,
-      reason: "Email confidence too low — unverified",
-    };
+  if (!isVerifiedEmail(contact)) {
+    return { passed: false, reason: "Email address is not verified" };
   }
-
   return { passed: true };
+}
+
+/** linkedin.example is the reserved host of the synthetic fixture people (fixture mode only). */
+function isLinkedInProfileUrl(url: string): boolean {
+  const lower = url.toLowerCase();
+  if (lower.includes("linkedin.com")) return true;
+  return process.env.GTM_PROVIDER_MODE === "fixture" && lower.includes("linkedin.example/in/");
 }
 
 /**
@@ -78,7 +56,7 @@ export function checkLinkedInProfileGate(contact: ContactGateData): {
   reason?: string;
 } {
   const li = contact.linkedinUrl?.trim();
-  if (!li || !li.toLowerCase().includes("linkedin.com")) {
+  if (!li || !isLinkedInProfileUrl(li)) {
     return {
       passed: false,
       reason: "No LinkedIn profile found",
@@ -93,7 +71,7 @@ export function checkLinkedInProfileGate(contact: ContactGateData): {
  * Pure validation function with zero database or server dependencies.
  */
 export function checkLeadQualificationGates(contact: ContactGateData): GateCheckResult {
-  // Gate 1: Email Confidence Floor
+  // Gate 1: Verified email
   const emailCheck = checkEmailConfidenceFloor(contact);
   if (!emailCheck.passed) {
     return {

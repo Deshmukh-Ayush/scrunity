@@ -140,6 +140,7 @@ export async function executeSendEmails({
       contactLinkedinUrl: gtmContact.linkedinUrl,
       contactEmailSource: gtmContact.emailSource,
       contactLookupStatus: gtmContact.lookupStatus,
+      contactSource: gtmContact.source,
       companyDomain: gtmProspectCompany.domain,
     })
     .from(gtmEmailDraft)
@@ -184,6 +185,7 @@ export async function executeSendEmails({
       emailSource: draft.contactEmailSource,
       linkedinUrl: draft.contactLinkedinUrl,
       lookupStatus: draft.contactLookupStatus,
+      source: draft.contactSource,
       domain: draft.companyDomain,
     });
     if (block) {

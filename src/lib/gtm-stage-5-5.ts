@@ -20,7 +20,6 @@ import {
 import {
   type ContactGateData,
   type GateCheckResult,
-  ALLOWED_EMAIL_VERIFICATION_STATUSES,
   checkEmailConfidenceFloor,
   checkLinkedInProfileGate,
   checkLeadQualificationGates,
@@ -29,11 +28,15 @@ import {
 export {
   type ContactGateData,
   type GateCheckResult,
-  ALLOWED_EMAIL_VERIFICATION_STATUSES,
   checkEmailConfidenceFloor,
   checkLinkedInProfileGate,
   checkLeadQualificationGates,
 };
+
+/** A person the verified-lead search tried or skipped without finding a verified email. */
+export function isSkippedBySearch(contact: { emailStatus?: string | null }): boolean {
+  return Boolean(contact.emailStatus && contact.emailStatus !== "verified");
+}
 
 /**
  * Marks a contact as disqualified in the database by creating/updating a rejected email draft.
@@ -134,6 +137,9 @@ export async function executeQualifyCampaignContacts(outreachCampaignId: string)
       pendingLookupCount++;
       continue;
     }
+    // The verified-lead search already skipped this person (no verified email,
+    // no LinkedIn, ...): never qualified, and not a disqualification either.
+    if (isSkippedBySearch(contact)) continue;
     // 0a. This organization's do-not-contact list (opt-outs). Keyed by email,
     // so it holds after a campaign re-run rediscovers the same person.
     if (sourceOrgId && contact.email && (await isOptedOut(sourceOrgId, contact.email))) {
