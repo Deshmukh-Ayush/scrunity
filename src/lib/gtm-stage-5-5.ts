@@ -10,6 +10,7 @@ import { eq, desc } from "drizzle-orm";
 import { isValidPersonName } from "./gtm-contact-matcher";
 import { isAggregatorOrReviewDomain } from "./firecrawl";
 import { touchCampaignProgress } from "./pipeline/stage-state";
+import { isOptedOut } from "./send-eligibility";
 import {
   checkSuppression,
   recordSuppressionEntry,
@@ -133,7 +134,22 @@ export async function executeQualifyCampaignContacts(outreachCampaignId: string)
       pendingLookupCount++;
       continue;
     }
-    // 0. Platform-Wide Suppression Check (negative cache)
+    // 0a. This organization's do-not-contact list (opt-outs). Keyed by email,
+    // so it holds after a campaign re-run rediscovers the same person.
+    if (sourceOrgId && contact.email && (await isOptedOut(sourceOrgId, contact.email))) {
+      disqualifiedCount++;
+      const reason = "Opted out: this person asked not to be contacted.";
+      await disqualifyContactInDb({
+        contactId: contact.id,
+        outreachCampaignId,
+        contactName: contact.name,
+        reason,
+      });
+      newlyDisqualified.push({ contactId: contact.id, name: contact.name, reason });
+      continue;
+    }
+
+    // 0b. Platform-Wide Suppression Check (negative cache)
     const suppression = await checkSuppression({
       email: contact.email,
       domain: company.domain,

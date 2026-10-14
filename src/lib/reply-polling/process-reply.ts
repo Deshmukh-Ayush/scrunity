@@ -23,6 +23,7 @@ import { isBounceMessage } from "@/lib/gtm-bounce"
 import type { EligibleDraft } from "./eligible-drafts"
 import type { ConnectedMailbox, ProviderThread } from "./provider-thread"
 import { recordBounceForDraft } from "./record-bounce"
+import { recordOptOut } from "@/lib/send-eligibility"
 
 export const DAILY_SEND_CAP = 50
 
@@ -160,6 +161,7 @@ export async function processLatestReply({
   accessToken,
   maxTurns,
   mockSender,
+  mockClassifier,
 }: {
   mailbox: ConnectedMailbox
   draft: EligibleDraft
@@ -168,6 +170,8 @@ export async function processLatestReply({
   accessToken: string
   maxTurns: number
   mockSender?: (params: any) => Promise<any>
+  /** Test hook: replaces the LLM reply classifier. */
+  mockClassifier?: typeof classifyReplyIntent
 }): Promise<ReplyOutcome> {
   const messages = thread?.messages || []
   if (messages.length <= 1) return NOTHING // no replies yet
@@ -235,7 +239,7 @@ export async function processLatestReply({
     isMsgSentByMailbox
   )
 
-  const classification = await classifyReplyIntent({
+  const classification = await (mockClassifier ?? classifyReplyIntent)({
     replyText: replyText || rawSnippet,
     originalSubject: draft.subject,
     originalBody: draft.body,
@@ -258,8 +262,19 @@ export async function processLatestReply({
     return outcome
   }
 
-  // Explicit decline: record it and stop permanently.
+  // Explicit decline (the classifier's bucket for "not interested",
+  // "unsubscribe", "stop emailing me"): record it, stop permanently, and put the
+  // address on this organization's do-not-contact list so no later campaign,
+  // re-run or restart emails it again. Only this organization is affected.
   if (classification.intent === "not_interested") {
+    if (draft.contactEmail) {
+      await recordOptOut({
+        organizationId: mailbox.organizationId,
+        email: draft.contactEmail,
+        contactId: draft.contactId,
+        sourceDraftId: draft.id,
+      })
+    }
     await db
       .insert(gtmEmailEvent)
       .values(replyEvent({ intentReasoning: classification.reasoning }))
