@@ -130,7 +130,7 @@ export function CreditUsageChart({
         </div>
 
         {/* Filter buttons: Daily, Weekly, Monthly */}
-        <div className="flex shrink-0 flex-wrap items-center gap-1 rounded-lg border border-border/50 bg-muted/60 p-1">
+        <div className="flex shrink-0 flex-wrap items-center gap-1 rounded-lg bg-muted/60 p-1 shadow-surface">
           <Button
             variant={range === "daily" ? "secondary" : "ghost"}
             size="sm"
@@ -221,7 +221,7 @@ export function CreditUsageChart({
                     if (active && payload && payload.length) {
                       const item = payload[0].payload as UsageDataPoint
                       return (
-                        <div className="rounded-lg border border-border bg-popover p-2.5 text-xs shadow-md">
+                        <div className="rounded-lg bg-popover p-2.5 text-xs shadow-md shadow-floating">
                           <p className="font-semibold text-foreground">
                             {item.label}
                           </p>
@@ -267,7 +267,7 @@ export function CreditUsageChart({
             in Stage 7.
           </p>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-border/50">
+          <div className="overflow-hidden rounded-lg shadow-surface">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[540px] text-left text-xs">
                 <thead className="border-b border-border/50 bg-muted/40 text-muted-foreground">

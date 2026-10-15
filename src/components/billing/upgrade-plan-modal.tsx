@@ -42,7 +42,7 @@ function PlanOption({
       data-selected={isSelected || undefined}
       data-current={isCurrent || undefined}
       className={cn(
-        "relative flex cursor-pointer flex-col justify-between rounded-xl border p-4 transition-all",
+        "relative flex cursor-pointer flex-col justify-between rounded-xl p-4 transition-all shadow-surface",
         // "Most popular" styling takes precedence over the selection highlight.
         config.isPopular
           ? "border-primary/60 bg-primary/5 shadow-sm"

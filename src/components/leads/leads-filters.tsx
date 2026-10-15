@@ -49,7 +49,7 @@ export function LeadsFilters({
   onReset: () => void
 }) {
   return (
-    <div className="flex flex-col items-stretch gap-3 rounded-lg border border-border/60 bg-card p-3 sm:flex-row sm:items-center">
+    <div className="flex flex-col items-stretch gap-3 rounded-lg bg-card p-3 sm:flex-row sm:items-center shadow-surface">
       <div className="relative min-w-[220px] flex-1">
         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -58,7 +58,7 @@ export function LeadsFilters({
           aria-label="Search leads"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="h-8 bg-background pr-7 pl-8 text-xs"
+          className="pr-7 pl-8"
         />
         {search && (
           <Button
@@ -83,7 +83,7 @@ export function LeadsFilters({
           }
         >
           <SelectTrigger
-            className="h-8 w-full bg-background text-xs"
+            className="w-full"
             aria-label="Campaign"
           >
             <SelectValue placeholder="All Campaigns" />
@@ -107,7 +107,7 @@ export function LeadsFilters({
           }
         >
           <SelectTrigger
-            className="h-8 w-full bg-background text-xs"
+            className="w-full"
             aria-label="Status"
           >
             <SelectValue placeholder="All Statuses" />

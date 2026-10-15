@@ -118,7 +118,7 @@ export function AgentChatInterface({
                     size="sm"
                     variant="outline"
                     onClick={chat.stopGenerating}
-                    className="size-8 rounded-full border-destructive/30 p-0 text-destructive hover:bg-destructive/10"
+                    className="size-8 rounded-full border-destructive/30 p-0 text-danger hover:bg-danger-tint"
                     title="Stop generating"
                     aria-label="Stop generating"
                   >

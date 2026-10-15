@@ -42,7 +42,7 @@ export const NavItem = forwardRef<HTMLDivElement, NavItemProps>(
               {isActive && (
                 <motion.div
                   layoutId="activeSidebarItem"
-                  className="absolute inset-0 rounded-md bg-primary/10 border border-primary/20 pointer-events-none"
+                  className="absolute inset-0 rounded-md bg-surface shadow-raised pointer-events-none"
                   transition={{ type: "spring", stiffness: 350, damping: 30 }}
                 />
               )}
@@ -70,7 +70,7 @@ export const NavItem = forwardRef<HTMLDivElement, NavItemProps>(
         {isActive && (
           <motion.div
             layoutId="activeSidebarItem"
-            className="absolute inset-0 rounded-md bg-primary/10 border border-primary/20 pointer-events-none"
+            className="absolute inset-0 rounded-md bg-surface shadow-raised pointer-events-none"
             transition={{ type: "spring", stiffness: 350, damping: 30 }}
           />
         )}

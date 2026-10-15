@@ -32,7 +32,7 @@ export function ProspectsPanel() {
             return (
               <div
                 key={c.id}
-                className="space-y-1.5 rounded-md border bg-card p-3 text-xs"
+                className="space-y-1.5 rounded-md bg-card p-3 text-xs shadow-surface"
               >
                 <div className="flex items-center justify-between font-medium text-foreground">
                   <span>{c.name}</span>
@@ -75,7 +75,7 @@ export function ProspectsPanel() {
           {contacts.map((ct) => (
             <div
               key={ct.id}
-              className="space-y-1.5 rounded-md border bg-card p-3 text-xs"
+              className="space-y-1.5 rounded-md bg-card p-3 text-xs shadow-surface"
             >
               <div className="flex items-center justify-between">
                 <span className="font-medium text-foreground">{ct.name}</span>

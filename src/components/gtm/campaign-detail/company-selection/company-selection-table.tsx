@@ -139,7 +139,7 @@ export function CompanySelectionGrid() {
     companies.length > 0 && selectedIds.size === companies.length
 
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="rounded-lg bg-card shadow-surface">
       <Table className="min-w-[960px]">
         <TableHeader>
           <TableRow className="hover:bg-transparent">
@@ -283,7 +283,7 @@ export function CompanySelectionFooter() {
   const prospects = selectedIds.size * perCompany
 
   return (
-    <div className="sticky bottom-0 z-10 flex flex-col gap-3 rounded-lg border bg-background/95 px-4 py-3 text-xs backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+    <div className="sticky bottom-0 z-10 flex flex-col gap-3 rounded-lg bg-background/95 px-4 py-3 text-xs backdrop-blur sm:flex-row sm:items-center sm:justify-between shadow-surface">
       <p className="text-muted-foreground" aria-live="polite">
         <span className="font-medium text-foreground">{companies.length}</span>{" "}
         {companies.length === 1 ? "company" : "companies"} in view ·{" "}

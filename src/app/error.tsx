@@ -18,8 +18,8 @@ export default function GlobalError({
 
   return (
     <div className="flex h-screen w-full flex-col items-center justify-center bg-background px-4 text-center">
-      <div className="rounded-full bg-destructive/10 p-4 mb-6">
-        <AlertCircle className="h-12 w-12 text-destructive" />
+      <div className="rounded-full bg-danger-tint p-4 mb-6">
+        <AlertCircle className="h-12 w-12 text-danger" />
       </div>
       <h1 className="text-3xl font-bold tracking-tight mb-2">Something went wrong</h1>
       <p className="text-muted-foreground max-w-125 mb-8">

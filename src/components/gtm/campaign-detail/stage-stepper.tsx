@@ -67,7 +67,7 @@ export function StageStepper() {
                     : undefined
                 }
                 className={cn(
-                  "flex flex-col items-center gap-1.5 rounded-lg border p-3 transition-all",
+                  "flex flex-col items-center gap-1.5 rounded-lg p-3 transition-all shadow-surface",
                   "data-[state=current]:border-primary data-[state=current]:bg-primary/5 data-[state=current]:font-medium data-[state=current]:text-primary data-[state=current]:ring-1 data-[state=current]:ring-primary/20",
                   "data-[state=stalled]:border-warning-border data-[state=stalled]:bg-warning-tint data-[state=stalled]:font-medium data-[state=stalled]:text-warning data-[state=stalled]:ring-1 data-[state=stalled]:ring-warning-border",
                   "data-[state=past]:border-border data-[state=past]:bg-muted/30 data-[state=past]:text-foreground",

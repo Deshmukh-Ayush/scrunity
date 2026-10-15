@@ -74,7 +74,7 @@ export async function PlanLimitsCard() {
 
       <CardContent className="p-0 grid grid-cols-1 lg:grid-cols-3 gap-4 pt-1">
         {/* Active Campaigns */}
-        <div className="rounded-xl border border-border/60 bg-muted/20 p-4 flex flex-col justify-between">
+        <div className="rounded-xl bg-muted/20 p-4 flex flex-col justify-between shadow-surface">
           <div>
             <div className="flex items-center justify-between text-muted-foreground">
               <span className="text-xs font-medium">Active Campaigns</span>
@@ -102,7 +102,7 @@ export async function PlanLimitsCard() {
         </div>
 
         {/* Team Seats */}
-        <div className="rounded-xl border border-border/60 bg-muted/20 p-4 flex flex-col justify-between">
+        <div className="rounded-xl bg-muted/20 p-4 flex flex-col justify-between shadow-surface">
           <div>
             <div className="flex items-center justify-between text-muted-foreground">
               <span className="text-xs font-medium">Team Seats</span>
@@ -127,7 +127,7 @@ export async function PlanLimitsCard() {
         </div>
 
         {/* Stages 1-3 Research */}
-        <div className="rounded-xl border border-border/60 bg-muted/20 p-4 flex flex-col justify-between">
+        <div className="rounded-xl bg-muted/20 p-4 flex flex-col justify-between shadow-surface">
           <div>
             <div className="flex items-center justify-between text-muted-foreground">
               <span className="text-xs font-medium">Stages 1-3 Research</span>

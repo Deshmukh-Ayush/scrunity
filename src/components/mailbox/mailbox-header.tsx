@@ -30,7 +30,7 @@ export function MailboxHeader({
   return (
     <div className="flex flex-col justify-between gap-3 border-b border-border/70 bg-card/60 px-6 py-3.5 backdrop-blur-xs sm:flex-row sm:items-center">
       <div className="flex items-center gap-3">
-        <div className="rounded-lg border border-primary/20 bg-primary/10 p-2 text-primary">
+        <div className="rounded-lg bg-primary/10 p-2 text-primary shadow-surface">
           <Mail className="size-4" />
         </div>
         <div>
@@ -55,7 +55,7 @@ export function MailboxHeader({
         <div
           role="tablist"
           aria-label="Mailbox view"
-          className="flex items-center rounded-md border border-border/80 bg-muted/40 p-0.5"
+          className="flex items-center rounded-md bg-muted/40 p-0.5 shadow-surface"
         >
           {tabs.map((tab) => (
             <button

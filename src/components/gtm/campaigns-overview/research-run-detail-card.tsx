@@ -57,7 +57,7 @@ export function ResearchRunDetailCard({
               {competitors.map((c) => (
                 <div
                   key={c.id}
-                  className="space-y-1 rounded-md border bg-muted/20 p-2.5 text-xs"
+                  className="space-y-1 rounded-md bg-muted/20 p-2.5 text-xs shadow-surface"
                 >
                   <div className="flex items-center justify-between font-medium text-foreground">
                     <span>{c.name}</span>
@@ -89,7 +89,7 @@ export function ResearchRunDetailCard({
               {segments.map((seg) => (
                 <div
                   key={seg.id}
-                  className="space-y-2.5 rounded-lg border bg-card p-3.5 transition-all hover:border-foreground/30"
+                  className="space-y-2.5 rounded-lg bg-card p-3.5 transition-all shadow-surface"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>

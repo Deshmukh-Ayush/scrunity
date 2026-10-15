@@ -24,7 +24,7 @@ function Notice({
       role={tone === "error" ? "alert" : "status"}
       data-tone={tone}
       className={cn(
-        "flex items-start gap-3 rounded-xl border p-4",
+        "flex items-start gap-3 rounded-xl p-4 shadow-surface",
         "data-[tone=success]:border-success-border data-[tone=success]:bg-success-tint data-[tone=success]:text-success",
         "data-[tone=error]:border-danger-border data-[tone=error]:bg-danger-tint data-[tone=error]:text-danger"
       )}
@@ -62,7 +62,7 @@ function ConnectedMailboxCard({
   onDisconnect: () => void
 }) {
   return (
-    <div className="space-y-4 rounded-xl border border-border/80 bg-muted/20 p-5">
+    <div className="space-y-4 rounded-xl bg-muted/20 p-5 shadow-surface">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="rounded-full border border-success-border bg-success-tint p-2.5 text-success">
@@ -125,7 +125,7 @@ function ProviderOptions({ onConnected }: { onConnected: () => void }) {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2 rounded-xl border border-border/80 bg-card/60 p-5">
+      <div className="space-y-2 rounded-xl bg-card/60 p-5 shadow-surface">
         <h4 className="text-xs font-semibold text-foreground">
           Choose Your Mailbox Connection Provider
         </h4>
@@ -137,7 +137,7 @@ function ProviderOptions({ onConnected }: { onConnected: () => void }) {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="flex flex-col justify-between space-y-4 rounded-xl border border-border/80 bg-card/40 p-5 transition-all hover:border-primary/50">
+        <div className="flex flex-col justify-between space-y-4 rounded-xl bg-card/40 p-5 transition-all shadow-surface">
           <div className="space-y-2">
             <div className="flex size-9 items-center justify-center rounded-lg bg-danger-tint text-sm font-semibold text-danger">
               G
@@ -163,7 +163,7 @@ function ProviderOptions({ onConnected }: { onConnected: () => void }) {
           </a>
         </div>
 
-        <div className="relative flex flex-col justify-between space-y-4 rounded-xl border border-border/50 bg-muted/20 p-5 opacity-80 select-none">
+        <div className="relative flex flex-col justify-between space-y-4 rounded-xl bg-muted/20 p-5 opacity-80 select-none shadow-surface">
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex size-9 items-center justify-center rounded-lg border border-border/40 bg-muted text-sm font-semibold text-muted-foreground">
@@ -195,7 +195,7 @@ function ProviderOptions({ onConnected }: { onConnected: () => void }) {
           </Button>
         </div>
 
-        <div className="flex flex-col justify-between space-y-4 rounded-xl border border-border/80 bg-card/40 p-5 transition-all hover:border-primary/50">
+        <div className="flex flex-col justify-between space-y-4 rounded-xl bg-card/40 p-5 transition-all shadow-surface">
           <div className="space-y-2">
             <div className="flex size-9 items-center justify-center rounded-lg bg-success-tint text-sm font-semibold text-success">
               <Server className="size-4" />

@@ -77,7 +77,7 @@ export function BuyCreditsModal({ trigger }: { trigger?: React.ReactNode }) {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="space-y-3 rounded-lg border border-border/60 bg-muted/30 p-4">
+            <div className="space-y-3 rounded-lg bg-muted/30 p-4 shadow-surface">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>Top-Up Pack:</span>
                 <span className="font-medium text-foreground">

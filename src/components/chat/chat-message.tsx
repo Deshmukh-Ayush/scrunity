@@ -14,7 +14,7 @@ export function ChatMessage({
   if (message.role === "user") {
     return (
       <div className="flex w-full justify-end">
-        <div className="max-w-[85%] rounded-2xl border border-border/70 bg-muted/80 px-4 py-2.5 text-xs leading-relaxed whitespace-pre-wrap text-foreground shadow-2xs">
+        <div className="max-w-[85%] rounded-2xl bg-muted/80 px-4 py-2.5 text-xs leading-relaxed whitespace-pre-wrap text-foreground shadow-2xs shadow-surface">
           {message.content}
         </div>
       </div>

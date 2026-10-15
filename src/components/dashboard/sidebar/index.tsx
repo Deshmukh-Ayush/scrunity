@@ -131,7 +131,7 @@ export function DashboardSidebar({
           {/* PostHog-style Top-Level Mode Switcher */}
           <div className={cn("shrink-0", isCollapsed ? "px-2 pt-1 pb-2" : "px-3 pt-1 pb-2")}>
             {isCollapsed ? (
-              <div className="flex flex-col gap-1 items-center bg-muted/60 p-1 rounded-xl border border-border/40">
+              <div className="flex flex-col gap-1 items-center bg-muted/60 p-1 rounded-xl shadow-surface">
                 <button
                   type="button"
                   onClick={() => handleModeChange("campaigns")}
@@ -160,7 +160,7 @@ export function DashboardSidebar({
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 p-1 bg-muted/60 dark:bg-muted/40 rounded-xl border border-border/40 text-xs font-medium text-muted-foreground">
+              <div className="grid grid-cols-2 p-1 bg-muted/60 dark:bg-muted/40 rounded-xl text-xs font-medium text-muted-foreground shadow-surface">
                 <button
                   type="button"
                   onClick={() => handleModeChange("campaigns")}

@@ -25,7 +25,7 @@ function MessageCard({ msg }: { msg: MailboxMessage }) {
     <article
       data-direction={msg.isOutbound ? "outbound" : "inbound"}
       className={cn(
-        "space-y-3 rounded-xl border p-4.5 shadow-2xs transition-all",
+        "space-y-3 rounded-xl p-4.5 shadow-2xs transition-all shadow-surface",
         "data-[direction=outbound]:border-border/80 data-[direction=outbound]:bg-card",
         "data-[direction=inbound]:border-primary/30 data-[direction=inbound]:bg-primary/5 dark:data-[direction=inbound]:bg-primary/10"
       )}

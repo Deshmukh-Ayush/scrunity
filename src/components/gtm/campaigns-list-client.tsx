@@ -232,7 +232,7 @@ export function CampaignsListClient({
           </CardContent>
         </Card>
       ) : (
-        <div className="rounded-md border bg-card">
+        <div className="rounded-md bg-card shadow-surface">
           <Table>
             <TableHeader>
               <TableRow>

@@ -205,7 +205,7 @@ export function SegmentDigestCard({
 
         {/* Headline Numbers Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-          <div className="border rounded-md p-2.5 bg-muted/20">
+          <div className="rounded-md p-2.5 bg-muted/20 shadow-surface">
             <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
               <Mail className="size-3" /> Emails Sent
             </span>
@@ -215,7 +215,7 @@ export function SegmentDigestCard({
             <span className="text-[10px] text-muted-foreground">Total dispatched</span>
           </div>
 
-          <div className="border rounded-md p-2.5 bg-muted/20">
+          <div className="rounded-md p-2.5 bg-muted/20 shadow-surface">
             <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
               <MessageSquare className="size-3" /> Replies
             </span>
@@ -228,7 +228,7 @@ export function SegmentDigestCard({
             <span className="text-[10px] text-muted-foreground">Overall reply rate</span>
           </div>
 
-          <div className="border rounded-md p-2.5 bg-muted/20">
+          <div className="rounded-md p-2.5 bg-muted/20 shadow-surface">
             <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1 text-success">
               <CheckCircle2 className="size-3" /> Interested
             </span>
@@ -241,7 +241,7 @@ export function SegmentDigestCard({
             <span className="text-[10px] text-muted-foreground">Interested rate</span>
           </div>
 
-          <div className="border rounded-md p-2.5 bg-muted/20">
+          <div className="rounded-md p-2.5 bg-muted/20 shadow-surface">
             <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1 text-primary">
               <Calendar className="size-3" /> Booked Calls
             </span>
@@ -254,7 +254,7 @@ export function SegmentDigestCard({
             <span className="text-[10px] text-muted-foreground">Meeting booking rate</span>
           </div>
 
-          <div className="border rounded-md p-2.5 bg-muted/20 col-span-2 sm:col-span-1">
+          <div className="rounded-md p-2.5 bg-muted/20 col-span-2 sm:col-span-1 shadow-surface">
             <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
               <XCircle className="size-3" /> Bounces
             </span>
@@ -266,7 +266,7 @@ export function SegmentDigestCard({
         </div>
 
         {/* Reply Intent Breakdown */}
-        <div className="border rounded-md p-3 bg-muted/10 space-y-1.5">
+        <div className="rounded-md p-3 bg-muted/10 space-y-1.5 shadow-surface">
           <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
             Classified Reply Breakdown
           </span>
@@ -301,7 +301,7 @@ export function SegmentDigestCard({
 
         {/* Generated Summary Section */}
         {digest?.summary ? (
-          <div className="border rounded-md p-3.5 bg-card space-y-2">
+          <div className="rounded-md p-3.5 bg-card space-y-2 shadow-surface">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
               <Sparkles className="size-3.5 text-primary" />
               <span>GTM Learning Summary</span>

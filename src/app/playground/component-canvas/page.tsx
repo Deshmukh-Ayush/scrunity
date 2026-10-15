@@ -3,7 +3,7 @@ import { headers } from "next/headers"
 import { notFound } from "next/navigation"
 import { getPlatformAdmin } from "@/lib/platform-admin"
 import { ComponentCanvas } from "@/components/playground/component-canvas/component-canvas"
-import { ButtonExamples } from "@/components/playground/component-canvas/button-examples"
+import { RegistryGroups } from "@/components/playground/component-canvas/registry-groups"
 import { InventoryGroups } from "@/components/playground/component-canvas/inventory-groups"
 
 export const metadata: Metadata = {
@@ -20,7 +20,7 @@ export default async function ComponentCanvasPage() {
 
   return (
     <ComponentCanvas>
-      <ButtonExamples />
+      <RegistryGroups />
       <InventoryGroups />
     </ComponentCanvas>
   )

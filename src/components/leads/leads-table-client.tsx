@@ -250,7 +250,7 @@ export function LeadsTableClient({
         onReset={handleClearFilters}
       />
 
-      <div className="overflow-hidden rounded-md border border-border/60 bg-card">
+      <div className="overflow-hidden rounded-md bg-card shadow-surface">
         <Table>
           <TableHeader className="bg-muted/40">
             <TableRow>

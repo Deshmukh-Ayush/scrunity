@@ -233,7 +233,7 @@ export function ResearchProgress({
                     <p className="mt-1 text-xs text-muted-foreground">
                       {step.description}
                     </p>
-                    <div className="mt-2 rounded border border-border/40 bg-muted/30 p-2 font-mono text-xs text-foreground">
+                    <div className="mt-2 rounded bg-muted/30 p-2 font-mono text-xs text-foreground shadow-surface">
                       {step.summary}
                     </div>
 
@@ -288,8 +288,8 @@ export function ResearchProgress({
           )}
 
           {hasFailed && (
-            <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-center">
-              <div className="flex items-center gap-2 text-xs font-medium text-destructive">
+            <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-lg bg-danger-tint p-4 text-center shadow-surface">
+              <div className="flex items-center gap-2 text-xs font-medium text-danger">
                 <AlertCircle className="size-4 shrink-0" />
                 <span>
                   {errorMessage ||

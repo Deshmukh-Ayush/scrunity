@@ -83,7 +83,7 @@ export function AddSeatsModal({
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="space-y-3 rounded-lg border border-border/60 bg-muted/30 p-4">
+            <div className="space-y-3 rounded-lg bg-muted/30 p-4 shadow-surface">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>Currently active extra seats:</span>
                 <span className="font-semibold text-foreground">

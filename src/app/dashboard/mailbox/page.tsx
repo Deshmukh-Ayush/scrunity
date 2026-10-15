@@ -23,7 +23,7 @@ function MailboxSkeleton() {
           <Skeleton className="h-8 w-full" />
           <div className="space-y-3 pt-2">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="p-3 border border-border/50 rounded-lg space-y-2">
+              <div key={i} className="p-3 rounded-lg space-y-2 shadow-surface">
                 <div className="flex justify-between">
                   <Skeleton className="h-3.5 w-28" />
                   <Skeleton className="h-3 w-12" />

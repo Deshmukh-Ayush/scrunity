@@ -52,7 +52,7 @@ function GrantCreditsForm({ organization }: { organization: AdminOrganization })
       />
       <Input
         aria-label="Reason"
-        className="h-8 min-w-[200px] flex-1"
+        className="min-w-[200px] flex-1"
         placeholder="Reason, e.g. paid ₹X directly, invoice 123"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
@@ -132,7 +132,7 @@ export function AdminOrganizationsClient({
             Current plan and credit balance. Credits are added as a manual grant on top of the current balance.
           </p>
         </div>
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="overflow-x-auto rounded-lg shadow-surface">
           <table className="w-full text-left text-xs">
             <thead className="bg-muted/40 text-muted-foreground">
               <tr>
@@ -170,7 +170,7 @@ export function AdminOrganizationsClient({
 
       <div className="space-y-3">
         <h2 className="text-sm font-semibold">Recent manual grants</h2>
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="overflow-x-auto rounded-lg shadow-surface">
           <table className="w-full text-left text-xs">
             <thead className="bg-muted/40 text-muted-foreground">
               <tr>

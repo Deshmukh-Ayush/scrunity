@@ -168,7 +168,7 @@ export function PipelineStatusBanner() {
       <Card className="border-destructive/40 bg-destructive/5 p-4">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 rounded-full bg-destructive/10 p-2 text-destructive">
+            <div className="mt-0.5 rounded-full bg-danger-tint p-2 text-danger">
               <AlertCircle className="size-5" />
             </div>
             <div className="space-y-1">

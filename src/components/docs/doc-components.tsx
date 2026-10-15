@@ -46,7 +46,7 @@ export function Code({ children }: { children: React.ReactNode }) {
 
 export function CodeBlock({ children }: { children: string }) {
   return (
-    <pre className="my-3 overflow-x-auto rounded-[10px] border border-border/40 bg-muted/20 p-4 font-mono text-[12.5px] leading-[1.7] text-foreground/90">
+    <pre className="my-3 overflow-x-auto rounded-[10px] bg-muted/20 p-4 font-mono text-[12.5px] leading-[1.7] text-foreground/90 shadow-surface">
       <code>{children}</code>
     </pre>
   )
@@ -60,7 +60,7 @@ export function Table({
   rows: string[][]
 }) {
   return (
-    <div className="my-3 overflow-x-auto rounded-[10px] border border-border/40">
+    <div className="my-3 overflow-x-auto rounded-[10px] shadow-surface">
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr>

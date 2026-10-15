@@ -54,7 +54,7 @@ export function ProfileMenu() {
       {/* Custom Dropdown Menu */}
       {isOpen && (
         <div
-          className="absolute bottom-[calc(100%+8px)] left-0 z-50 w-full min-w-56 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-lg"
+          className="absolute bottom-[calc(100%+8px)] left-0 z-50 w-full min-w-56 overflow-hidden rounded-xl bg-popover text-popover-foreground shadow-lg shadow-floating"
           role="menu"
         >
           <div className="flex flex-col gap-0.5 p-1.5">

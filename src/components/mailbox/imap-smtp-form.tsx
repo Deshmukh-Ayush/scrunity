@@ -57,7 +57,7 @@ function Field({
       <label htmlFor={id} className="text-[11px] font-medium text-foreground">
         {label}
       </label>
-      <Input id={id} className="h-8 bg-background text-xs" {...inputProps} />
+      <Input id={id} className="w-full" {...inputProps} />
     </div>
   )
 }
@@ -110,7 +110,7 @@ export function ImapSmtpForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="animate-in space-y-5 rounded-xl border border-border/90 bg-card/60 p-6 duration-200 fade-in-50"
+      className="animate-in space-y-5 rounded-xl bg-card/60 p-6 duration-200 fade-in-50 shadow-surface"
     >
       <div className="flex items-start justify-between border-b border-border/60 pb-3">
         <div>

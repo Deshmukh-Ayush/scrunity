@@ -32,11 +32,11 @@ export async function BillingInvoicesCard() {
 
       <CardContent className="p-0">
         {invoices.length === 0 ? (
-          <div className="rounded-lg border border-border/40 bg-muted/20 py-8 text-center text-xs text-muted-foreground">
+          <div className="rounded-lg bg-muted/20 py-8 text-center text-xs text-muted-foreground shadow-surface">
             No payments through Dodo yet. Invoices for card payments will appear here.
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-border/50">
+          <div className="overflow-hidden rounded-lg shadow-surface">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[600px] text-left text-xs">
                 <thead className="border-b border-border/50 bg-muted/40 text-muted-foreground">

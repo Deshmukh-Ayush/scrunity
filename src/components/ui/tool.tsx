@@ -130,7 +130,7 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
       return (
         <Badge
           variant="outline"
-          className="h-4.5 px-1.5 border-destructive/30 bg-destructive/10 text-destructive gap-1">
+          className="h-4.5 px-1.5 border-destructive/30 bg-danger-tint text-danger gap-1">
           <AlertCircle className="size-2.5" />
           Failed
         </Badge>
@@ -191,7 +191,7 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
               className={cn(
                 "size-6 rounded-lg flex items-center justify-center shrink-0",
                 state === "output-error"
-                  ? "bg-destructive/10 text-destructive"
+                  ? "bg-danger-tint text-danger"
                   : "bg-success-tint text-success"
               )}
             >
@@ -220,7 +220,7 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
         <CollapsibleContent className="p-3 space-y-3 bg-muted/10">
           {/* Error View */}
           {state === "output-error" && (
-            <div className="p-2.5 rounded-lg border border-destructive/20 bg-destructive/5 text-xs text-destructive flex items-start gap-2">
+            <div className="p-2.5 rounded-lg border border-destructive/20 bg-destructive/5 text-xs text-danger flex items-start gap-2">
               <AlertCircle className="size-4 shrink-0 mt-0.5" />
               <div className="min-w-0">
                 <p className="font-medium">Execution Error</p>

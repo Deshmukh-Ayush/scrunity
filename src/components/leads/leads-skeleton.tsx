@@ -29,7 +29,7 @@ export function LeadsSkeleton() {
       </div>
 
       {/* Table Skeleton using real shadcn Table primitives */}
-      <div className="rounded-md border border-border/60 bg-card overflow-hidden">
+      <div className="rounded-md bg-card overflow-hidden shadow-surface">
         <Table>
           <TableHeader className="bg-muted/40">
             <TableRow>

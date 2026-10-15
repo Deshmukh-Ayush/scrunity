@@ -16,7 +16,7 @@ import type { Draft } from "./types"
 function DraftError({ message }: { message: string }) {
   const formatted = formatErrorMessage(message)
   return (
-    <div className="mt-2 space-y-1.5 rounded-md border border-destructive/25 bg-destructive/10 p-2.5 text-xs">
+    <div className="mt-2 space-y-1.5 rounded-md bg-danger-tint p-2.5 text-xs shadow-surface">
       <div className="flex items-start gap-2">
         <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-danger" />
         <div className="flex-1 space-y-0.5">
@@ -153,7 +153,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
           </div>
         ) : (
           <>
-            <div className="space-y-2 rounded-md border bg-muted/20 p-3 text-xs">
+            <div className="space-y-2 rounded-md bg-muted/20 p-3 text-xs shadow-surface">
               <div className="font-medium text-foreground">
                 Subject: {draft.subject}
               </div>

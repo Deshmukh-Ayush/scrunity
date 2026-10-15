@@ -29,7 +29,7 @@ export function MagicLinkForm({ next }: { next?: string }) {
 
   if (state === "sent") {
     return (
-      <p role="status" className="rounded-md border border-border px-3 py-2 text-center text-xs text-muted-foreground">
+      <p role="status" className="rounded-md px-3 py-2 text-center text-xs text-muted-foreground shadow-surface">
         If this email has access to Scrunity, a sign-in link is on its way. It works once and expires in 5 minutes.
       </p>
     )

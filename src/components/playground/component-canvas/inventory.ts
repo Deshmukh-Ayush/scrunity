@@ -34,6 +34,9 @@ export const INVENTORY: InventoryGroup[] = [
       e("code-block.tsx", "client", "CodeBlock", "CodeBlockCode", "CodeBlockGroup"),
       e("collapsible.tsx", "client", "Collapsible", "CollapsibleContent", "CollapsibleTrigger"),
       e("dialog.tsx", "client", "Dialog", "DialogClose", "DialogContent", "DialogDescription", "DialogFooter", "DialogHeader", "DialogOverlay", "DialogPortal", "DialogTitle", "DialogTrigger"),
+      e("dropdown-menu.tsx", "client", "DropdownMenu", "DropdownMenuContent", "DropdownMenuGroup", "DropdownMenuItem", "DropdownMenuLabel", "DropdownMenuSeparator", "DropdownMenuShortcut", "DropdownMenuTrigger"),
+      e("field.tsx", "client", "Field", "FieldContent", "FieldDescription", "FieldError", "FieldGroup", "FieldLabel", "FieldLegend", "FieldSeparator", "FieldSet", "FieldTitle"),
+      e("icons.tsx", "shared", "Hugeicons set (Mail, Plus, Check, …)"),
       e("input.tsx", "shared", "Input"),
       e("label.tsx", "client", "Label"),
       e("local-date.tsx", "client", "LocalDate"),
@@ -212,6 +215,7 @@ export const INVENTORY: InventoryGroup[] = [
     entries: [
       e("docs/doc-components.tsx", "shared", "Callout", "Code", "CodeBlock", "H3", "P", "Section", "Table"),
       e("landing/container.tsx", "shared", "Container"),
+      e("layout/container.tsx", "shared", "Container"),
       e("og/og-template.tsx", "shared", "OgTemplate"),
       e("providers/posthog-provider.tsx", "client", "PostHogProvider"),
       e("theme-provider.tsx", "client", "ThemeProvider"),

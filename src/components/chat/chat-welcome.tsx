@@ -57,7 +57,7 @@ export function ChatWelcome({
             key={title}
             type="button"
             onClick={() => onPrompt(prompt)}
-            className="group rounded-xl border border-border/60 bg-muted/30 p-3 text-xs transition-all hover:border-border hover:bg-muted/70"
+            className="group rounded-xl bg-muted/30 p-3 text-xs transition-all hover:bg-muted/70 shadow-surface"
           >
             <div className="flex items-center gap-2 font-medium text-foreground group-hover:text-primary">
               <Icon className="size-3.5" />

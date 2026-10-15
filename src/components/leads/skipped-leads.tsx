@@ -63,7 +63,7 @@ export function SkippedLeads({
   }
 
   return (
-    <details className="group rounded-md border border-border/60 bg-card text-xs" onToggle={onToggle}>
+    <details className="group rounded-md bg-card text-xs shadow-surface" onToggle={onToggle}>
       <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2 text-muted-foreground select-none hover:text-foreground">
         <ChevronRight className="size-3.5 transition-transform group-open:rotate-90" aria-hidden />
         Skipped ({count})
