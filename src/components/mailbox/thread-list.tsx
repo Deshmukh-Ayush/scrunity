@@ -1,6 +1,7 @@
 "use client"
 
-import { AlertTriangle, Inbox, RefreshCw, Search } from "@/components/ui/icons"
+import { Inbox, RefreshCw, Search } from "@/components/ui/icons"
+import { XCircleSolid } from "@/components/icons/status"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -82,7 +83,7 @@ function ThreadRow({
             <Badge
               variant="danger"
               className="gap-1 px-1.5 py-0">
-              <AlertTriangle className="size-2.5" />
+              <XCircleSolid className="size-2.5" />
               Bounced
             </Badge>
           )}

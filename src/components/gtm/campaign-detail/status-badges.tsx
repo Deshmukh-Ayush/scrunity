@@ -1,11 +1,5 @@
-import {
-  AlertCircle,
-  AlertTriangle,
-  Check,
-  HelpCircle,
-  ShieldCheck,
-  XCircle,
-} from "@/components/ui/icons"
+import { AlertTriangleSolid, CheckCircleSolid, XCircleSolid } from "@/components/icons/status"
+import { Check, HelpCircle, ShieldCheck } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
 import type { DraftStatus } from "./types"
 
@@ -15,7 +9,7 @@ export function EmailSourceBadge({ source }: { source: string }) {
     case "verified":
       return (
         <Badge variant="success" className="gap-1">
-          <ShieldCheck className="size-3" /> Verified
+          <CheckCircleSolid className="size-3" /> Verified
         </Badge>
       )
     case "found_on_site":
@@ -30,7 +24,7 @@ export function EmailSourceBadge({ source }: { source: string }) {
         <Badge
           variant="warning"
           className="gap-1">
-          <AlertCircle className="size-3" /> Pattern Guessed (Unverified)
+          <AlertTriangleSolid className="size-3" /> Pattern Guessed (Unverified)
         </Badge>
       )
     case "company_fallback":
@@ -74,7 +68,7 @@ export function DraftStatusBadge({
       <Badge
         variant="danger"
         className="gap-1 capitalize">
-        <AlertTriangle className="size-3" /> Bounced
+        <XCircleSolid className="size-3" /> Bounced
       </Badge>
     )
   }
@@ -89,7 +83,7 @@ export function DraftStatusBadge({
     case "failed":
       return (
         <Badge variant="danger" className="gap-1 capitalize">
-          <XCircle className="size-3" /> Failed
+          <XCircleSolid className="size-3" /> Failed
         </Badge>
       )
     case "approved":

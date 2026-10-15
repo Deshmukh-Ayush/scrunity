@@ -1,4 +1,5 @@
-import { AlertTriangle, CheckCircle2, MailReply } from "@/components/ui/icons"
+import { MailReply } from "@/components/ui/icons"
+import { AlertTriangleSolid, CheckCircleSolid, XCircleSolid } from "@/components/icons/status"
 import { isVerifiedStatus } from "@/lib/email-verification"
 import { Badge } from "@/components/ui/badge"
 import { isValidPersonName } from "@/lib/gtm-contact-matcher"
@@ -34,7 +35,7 @@ export function LeadStatusBadge({
         variant="warning"
         title="Web lookups for this contact were rate-limited. It was not disqualified."
         className="inline-flex items-center gap-1">
-        <AlertTriangle className="size-3 shrink-0 text-warning" />
+        <AlertTriangleSolid className="size-3 shrink-0 text-warning" />
         Lookup Incomplete
       </Badge>
     )
@@ -50,7 +51,7 @@ export function LeadStatusBadge({
       <Badge
         variant="warning"
         className="inline-flex items-center gap-1">
-        <AlertTriangle className="size-3 shrink-0 text-warning" />
+        <AlertTriangleSolid className="size-3 shrink-0 text-warning" />
         Pending Re-discovery
       </Badge>
     )
@@ -73,7 +74,7 @@ export function LeadStatusBadge({
         <Badge
           variant="danger"
           className="inline-flex items-center gap-1">
-          <AlertTriangle className="size-3 shrink-0 text-danger" />
+          <XCircleSolid className="size-3 shrink-0 text-danger" />
           Bounced
         </Badge>
       )
@@ -96,7 +97,7 @@ export function VerificationBadge({ status }: { status: string }) {
   if (isVerifiedStatus(status)) {
     return (
       <Badge variant="success">
-        <CheckCircle2 data-icon="inline-start" />
+        <CheckCircleSolid data-icon="inline-start" />
         Verified
       </Badge>
     )

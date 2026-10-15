@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { AlertCircle, ArrowLeft, Loader2, RotateCcw, Send } from "@/components/ui/icons"
+import { ArrowLeft, Loader2, RotateCcw, Send } from "@/components/ui/icons"
+import { AlertTriangleSolid } from "@/components/icons/status"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -55,7 +56,7 @@ export function CampaignDetailHeader() {
               <Badge
                 variant="warning"
                 className="gap-1.5 self-start px-3 py-1 capitalize sm:self-auto">
-                <AlertCircle className="size-3 text-warning" />
+                <AlertTriangleSolid className="size-3 text-warning" />
                 {stageLabel} (Stalled)
               </Badge>
             ) : (
@@ -84,7 +85,7 @@ export function CampaignDetailHeader() {
               variant="warning"
               className="gap-1"
               title="Inngest dev server is not running on port 8288">
-              <AlertCircle className="size-3 text-warning" />
+              <AlertTriangleSolid className="size-3 text-warning" />
               Inngest Offline
             </Badge>
           )}

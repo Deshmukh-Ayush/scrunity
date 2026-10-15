@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { AlertTriangle, CheckCircle2, Plus, Send, Trash2, XCircle } from "@/components/ui/icons"
+import { Plus, Send, Trash2 } from "@/components/ui/icons"
+import { AlertTriangleSolid, CheckCircleSolid, InfoCircleSolid, XCircleSolid } from "@/components/icons/status"
 import { BRAND_STOPS, COLORS, contrast } from "@/lib/design/tokens"
 import type { ShowcaseEntry, StateName } from "./types"
 
@@ -94,16 +95,20 @@ export const badgeEntry: ShowcaseEntry = {
       <Badge>Draft</Badge>
       <Badge variant="neutral">Stage 4</Badge>
       <Badge variant="success">
-        <CheckCircle2 data-icon="inline-start" />
+        <CheckCircleSolid data-icon="inline-start" />
         Verified
       </Badge>
       <Badge variant="warning">
-        <AlertTriangle data-icon="inline-start" />
+        <AlertTriangleSolid data-icon="inline-start" />
         Needs review
       </Badge>
       <Badge variant="danger">
-        <XCircle data-icon="inline-start" />
+        <XCircleSolid data-icon="inline-start" />
         Bounced
+      </Badge>
+      <Badge>
+        <InfoCircleSolid data-icon="inline-start" />
+        Info
       </Badge>
       <Badge>12 leads</Badge>
     </div>

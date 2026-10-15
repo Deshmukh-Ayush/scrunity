@@ -11,10 +11,10 @@ import { cn } from "@/lib/utils"
  *
  * Optical alignment (better-ui): a leading icon gets 4px padding against the
  * text side's 6px, every icon renders at 14px with a 2px stroke (medium text),
- * and icons sit 0.5px low to meet the label's visual center.
+ * and icons sit 0.75px low, measured at 3x against the x-height center of the label (0.17px off; 1px measured 0.17px low and looked low by eye).
  */
 const badgeVariants = cva(
-  "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-sm px-1.5 text-meta whitespace-nowrap tabular-nums [--icon-stroke:2px] has-[>svg:first-child]:ps-1 has-data-[icon=inline-start]:ps-1 has-data-[icon=inline-end]:pe-1 [&>svg]:pointer-events-none [&>svg]:size-3.5! [&>svg]:shrink-0 [&>svg]:translate-y-[0.5px]",
+  "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-sm px-1.5 text-meta whitespace-nowrap tabular-nums [--icon-stroke:2px] has-[>svg:first-child]:ps-1 has-data-[icon=inline-start]:ps-1 has-data-[icon=inline-end]:pe-1 [&>svg]:pointer-events-none [&>svg]:size-3.5! [&>svg]:shrink-0 [&>svg]:translate-y-[0.75px]",
   {
     variants: {
       variant: {

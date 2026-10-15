@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { AlertTriangleSolid, CheckCircleSolid } from "@/components/icons/status"
 import Link from "next/link"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
@@ -14,17 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import {
-  Plus,
-  RefreshCw,
-  ArrowRight,
-  Target,
-  Sparkles,
-  CheckCircle2,
-  AlertCircle,
-  Send,
-  Building2,
-} from "@/components/ui/icons"
+import { Plus, RefreshCw, ArrowRight, Target, Sparkles, Send, Building2 } from "@/components/ui/icons"
 import { checkStageStaleness } from "@/lib/gtm-staleness"
 import { useHydrated } from "@/hooks/use-hydrated"
 import { LocalDate } from "@/components/ui/local-date"
@@ -104,7 +95,7 @@ export function CampaignsListClient({
         <Badge
           variant="warning"
           className="gap-1">
-          <AlertCircle className="size-3 text-warning" /> Stalled (
+          <AlertTriangleSolid className="size-3 text-warning" /> Stalled (
           {campaign.currentStage.replace(/_/g, " ")})
         </Badge>
       )
@@ -120,7 +111,7 @@ export function CampaignsListClient({
       case "awaiting_company_selection":
         return (
           <Badge variant="warning" className="gap-1">
-            <AlertCircle className="size-3" /> Choose Companies
+            <AlertTriangleSolid className="size-3" /> Choose Companies
           </Badge>
         )
       case "find_contacts":
@@ -140,7 +131,7 @@ export function CampaignsListClient({
           <Badge
             variant="warning"
             className="gap-1">
-            <AlertCircle className="size-3" /> Awaiting Review
+            <AlertTriangleSolid className="size-3" /> Awaiting Review
           </Badge>
         )
       case "send_emails":
@@ -157,7 +148,7 @@ export function CampaignsListClient({
           <Badge
             variant="success"
             className="gap-1">
-            <CheckCircle2 className="size-3" /> Completed
+            <CheckCircleSolid className="size-3" /> Completed
           </Badge>
         )
       default:

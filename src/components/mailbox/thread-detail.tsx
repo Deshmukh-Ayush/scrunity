@@ -1,18 +1,9 @@
 "use client"
 
 import * as React from "react"
+import { XCircleSolid } from "@/components/icons/status"
 import Link from "next/link"
-import {
-  AlertCircle,
-  AlertTriangle,
-  Building2,
-  ExternalLink,
-  Info,
-  Mail,
-  Send,
-  User,
-  VolumeX,
-} from "@/components/ui/icons"
+import { AlertCircle, Building2, ExternalLink, Info, Mail, Send, User, VolumeX } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -160,7 +151,7 @@ export function ThreadDetail({ thread }: { thread: MailboxThread | null }) {
               <Badge
                 variant="danger"
                 className="gap-1">
-                <AlertTriangle className="size-3" /> Delivery Bounced
+                <XCircleSolid className="size-3" /> Delivery Bounced
               </Badge>
             )}
             <IntentBadge intent={thread.classifiedIntent} />

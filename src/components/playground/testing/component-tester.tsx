@@ -14,6 +14,16 @@ import { ComponentPicker } from "./component-picker"
 export function ComponentTester() {
   const [selectedId, setSelectedId] = useState(SHOWCASE[0].id)
 
+  // The header is sticky (56px): keep focused elements from scrolling under it (WCAG 2.4.11).
+  useEffect(() => {
+    const root = document.documentElement
+    const previous = root.style.scrollPaddingTop
+    root.style.scrollPaddingTop = "72px"
+    return () => {
+      root.style.scrollPaddingTop = previous
+    }
+  }, [])
+
   useEffect(() => {
     const fromHash = () => {
       const id = window.location.hash.slice(1)

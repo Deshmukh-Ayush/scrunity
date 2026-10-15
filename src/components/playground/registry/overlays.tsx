@@ -30,7 +30,8 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ChevronDown, CheckCircle2, Copy, Edit2, MailReply, MoreHorizontal, Trash2 } from "@/components/ui/icons"
+import { ChevronDown, Copy, Edit2, MailReply, MoreHorizontal, Trash2 } from "@/components/ui/icons"
+import { CheckCircleSolid } from "@/components/icons/status"
 import type { ShowcaseEntry, StateName } from "./types"
 
 const TRIGGER_STATES: StateName[] = ["default", "hover", "focus-visible", "pressed", "disabled"]
@@ -55,7 +56,7 @@ export const cardEntry: ShowcaseEntry = {
         </CardHeader>
         <CardContent className="flex items-center gap-2">
           <Badge variant="success">
-            <CheckCircle2 data-icon="inline-start" />
+            <CheckCircleSolid data-icon="inline-start" />
             Verified
           </Badge>
           <span className="text-body text-fg-muted tabular-nums">3 decision makers</span>

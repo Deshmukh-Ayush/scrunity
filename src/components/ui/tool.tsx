@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { CheckCircleSolid } from "@/components/icons/status"
 import { useState } from "react";
 import {
   Collapsible,
@@ -9,7 +10,6 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import {
-  CheckCircle2,
   ChevronDown,
   Loader2,
   AlertCircle,
@@ -20,9 +20,7 @@ import {
   RotateCcw,
   Mail,
   Sparkles,
-  ExternalLink,
   Building2,
-  BadgeCheck,
 } from "@/components/ui/icons";
 import { Badge } from "@/components/ui/badge";
 
@@ -165,7 +163,7 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
       <Badge
         variant="success"
         className="h-4.5 px-1.5 gap-1">
-        <CheckCircle2 className="size-2.5" />
+        <CheckCircleSolid className="size-2.5" />
         Completed
       </Badge>
     );
@@ -391,7 +389,7 @@ function ProspectsRenderer({ output }: { output?: Record<string, unknown> }) {
                       <Badge
                         variant="success"
                         className="px-1 py-0 gap-0.5">
-                        <BadgeCheck className="size-2.5" />
+                        <CheckCircleSolid className="size-2.5" />
                         Verified
                       </Badge>
                     ) : (
