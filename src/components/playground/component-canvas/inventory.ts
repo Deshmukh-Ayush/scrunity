@@ -28,6 +28,9 @@ export const INVENTORY: InventoryGroup[] = [
       e("alert.tsx", "shared", "Alert", "AlertAction", "AlertDescription", "AlertTitle"),
       e("badge.tsx", "shared", "Badge"),
       e("button.tsx", "shared", "Button"),
+      e("data-table/data-table.tsx", "client", "DataTable", "DataTableMessage"),
+      e("data-table/cells.tsx", "client", "TextCell", "EntityCell", "StatusCell", "DateCell", "NumberCell", "ActionsCell"),
+      e("data-table/filter-chips.tsx", "client", "FilterChips"),
       e("card.tsx", "shared", "Card", "CardAction", "CardContent", "CardDescription", "CardFooter", "CardHeader", "CardTitle"),
       e("chart.tsx", "client", "ChartContainer", "ChartLegend", "ChartLegendContent", "ChartStyle", "ChartTooltip", "ChartTooltipContent"),
       e("chat-container.tsx", "client", "ChatContainerRoot", "ChatContainerContent", "ChatContainerScrollAnchor"),
@@ -98,9 +101,17 @@ export const INVENTORY: InventoryGroup[] = [
     entries: [
       e("campaigns-overview.tsx", "data", "CampaignsOverview"),
       e("campaigns-overview-client.tsx", "client", "CampaignsOverviewClient"),
-      e("active-campaign-card.tsx", "shared", "ActiveCampaignCard"),
-      e("research-run-card.tsx", "shared", "ResearchRunCard"),
+      e("campaign-columns.tsx", "shared", "campaignColumns"),
       e("research-run-detail-card.tsx", "shared", "ResearchRunDetailCard"),
+    ],
+  },
+  {
+    id: "gtm-research",
+    title: "gtm / research",
+    entries: [
+      e("research-overview.tsx", "data", "ResearchOverview"),
+      e("research-overview-client.tsx", "client", "ResearchOverviewClient"),
+      e("research-columns.tsx", "shared", "researchColumns"),
     ],
   },
   {

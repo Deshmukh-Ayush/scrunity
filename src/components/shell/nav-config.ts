@@ -1,4 +1,4 @@
-import { Home, Mail, Target, Users } from "@/components/ui/icons"
+import { Home, Mail, Search, Target, Users } from "@/components/ui/icons"
 
 /**
  * The sidebar's main navigation. Only routes that exist and work today belong
@@ -21,6 +21,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
     icon: Target,
     matchPrefix: true,
   },
+  { label: "Research", href: "/dashboard/research", icon: Search },
   { label: "Leads", href: "/dashboard/leads", icon: Users, matchPrefix: true },
   { label: "Mailbox", href: "/dashboard/mailbox", icon: Mail },
 ]
@@ -34,6 +35,9 @@ export function isNavItemActive(
   pathname: string,
   tab: string | null
 ) {
+  // The new research run flow sits under /campaigns/new but belongs to Research.
+  if (pathname === "/dashboard/campaigns/new")
+    return item.href === "/dashboard/research"
   // Settings lives on the mailbox route; while it is open, Mailbox is not the current page.
   if (item.href === "/dashboard/mailbox")
     return pathname === item.href && tab !== "settings"
@@ -52,11 +56,16 @@ export interface Crumb {
 
 export function breadcrumbsFor(pathname: string, tab: string | null): Crumb[] {
   const campaigns = { label: "Campaigns", href: "/dashboard/campaigns" }
+  // The new research run flow lives under /campaigns/new but belongs to Research.
   if (pathname === "/dashboard/campaigns/new")
-    return [campaigns, { label: "New campaign" }]
+    return [
+      { label: "Research", href: "/dashboard/research" },
+      { label: "New research run" },
+    ]
   if (pathname.startsWith("/dashboard/campaigns/"))
     return [campaigns, { label: "Campaign" }]
   if (pathname === "/dashboard/campaigns") return [{ label: "Campaigns" }]
+  if (pathname === "/dashboard/research") return [{ label: "Research" }]
   if (pathname.startsWith("/dashboard/leads")) return [{ label: "Leads" }]
   if (pathname === "/dashboard/mailbox")
     return [{ label: tab === "settings" ? "Settings" : "Mailbox" }]

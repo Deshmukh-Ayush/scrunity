@@ -89,7 +89,7 @@ export function ResearchRunDetailCard({
               {segments.map((seg) => (
                 <div
                   key={seg.id}
-                  className="space-y-2.5 rounded-lg bg-card p-3.5 transition-all shadow-surface"
+                  className="space-y-2.5 rounded-lg bg-card p-3.5 shadow-surface transition-all"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -121,10 +121,7 @@ export function ResearchRunDetailCard({
                     {seg.criteria && seg.criteria.length > 0 && (
                       <div className="flex flex-wrap gap-1 pt-1">
                         {seg.criteria.map((cr, i) => (
-                          <Badge
-                            key={i}
-                            variant="neutral"
-                            className="py-0">
+                          <Badge key={i} variant="neutral" className="py-0">
                             {cr}
                           </Badge>
                         ))}

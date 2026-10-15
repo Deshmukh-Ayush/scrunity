@@ -5,6 +5,9 @@ export type { CampaignItem }
 
 /** A research run row as returned by GET /api/gtm/research-runs. */
 export interface ResearchRunItem extends MarketContextFields {
+  logoUrl?: string | null
+  // Display-only: number of ICP segments the run produced.
+  segmentCount?: number
   id: string
   companyName: string
   websiteUrl: string
@@ -37,4 +40,15 @@ export interface ResearchRunDetail {
   researchRun: ResearchRunItem
   competitors: CompetitorItem[]
   segments: IcpSegmentItem[]
+}
+
+/** A campaign row as returned by GET /api/gtm/campaigns, with the table's display extras. */
+export interface CampaignRow {
+  campaign: CampaignItem["campaign"] & {
+    targetVerifiedLeads?: number | null
+    leadSearchOutcome?: { verified: number; target: number } | null
+  }
+  researchRun: CampaignItem["researchRun"]
+  segmentName: string | null
+  stats: { drafts: number; sent: number; replies: number }
 }

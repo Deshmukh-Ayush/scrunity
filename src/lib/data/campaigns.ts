@@ -3,6 +3,7 @@ import "server-only"
 import { db } from "@/utils/db"
 import {
   gtmCompanyMetricSnapshot,
+  gtmIcpSegment,
   gtmContact,
   gtmEmailDraft,
   gtmOutreachCampaign,
@@ -25,23 +26,43 @@ export async function listOrgCampaigns(organizationId: string) {
     .select({
       campaign: gtmOutreachCampaign,
       researchRun: gtmResearchRun,
+      // Display-only extras for the Campaigns table (same rows, same order).
+      segmentName: gtmIcpSegment.name,
+      draftCount: sql<number>`(SELECT count(*)::int FROM gtm_email_draft d WHERE d.outreach_campaign_id = ${gtmOutreachCampaign.id})`,
+      sentCount: sql<number>`(SELECT count(*)::int FROM gtm_email_draft d WHERE d.outreach_campaign_id = ${gtmOutreachCampaign.id} AND d.status = 'sent')`,
+      replyCount: sql<number>`(SELECT count(DISTINCT e.email_draft_id)::int FROM gtm_email_event e JOIN gtm_email_draft d ON d.id = e.email_draft_id WHERE d.outreach_campaign_id = ${gtmOutreachCampaign.id} AND e.type = 'replied')`,
     })
     .from(gtmOutreachCampaign)
     .innerJoin(
       gtmResearchRun,
       eq(gtmOutreachCampaign.researchRunId, gtmResearchRun.id)
     )
+    .leftJoin(
+      gtmIcpSegment,
+      eq(gtmOutreachCampaign.icpSegmentId, gtmIcpSegment.id)
+    )
     .where(eq(gtmResearchRun.organizationId, organizationId))
     .orderBy(desc(gtmOutreachCampaign.createdAt))
   return rows.map((row) => ({
     campaign: publicPipelineRow(row.campaign),
     researchRun: publicPipelineRow(row.researchRun),
+    segmentName: row.segmentName,
+    stats: {
+      drafts: row.draftCount,
+      sent: row.sentCount,
+      replies: row.replyCount,
+    },
   }))
 }
 
 /** Vendor identifiers never leave the server: customers must not see which data vendor was used. */
 // leadSearchState holds the search's internal queue (people not yet tried).
-const VENDOR_FIELDS: readonly string[] = ["source", "providerId", "providerPersonId", "leadSearchState"]
+const VENDOR_FIELDS: readonly string[] = [
+  "source",
+  "providerId",
+  "providerPersonId",
+  "leadSearchState",
+]
 
 function withoutVendorFields<T extends { source: unknown }>(row: T) {
   return Object.fromEntries(
@@ -72,7 +93,10 @@ export async function getCampaignDetail(
     .from(gtmProspectCompany)
     .where(eq(gtmProspectCompany.outreachCampaignId, campaignId))
     // Best fit first (database mode); legacy rows have no score and keep their order.
-    .orderBy(sql`${gtmProspectCompany.fitScore} DESC NULLS LAST`, gtmProspectCompany.createdAt)
+    .orderBy(
+      sql`${gtmProspectCompany.fitScore} DESC NULLS LAST`,
+      gtmProspectCompany.createdAt
+    )
   const companies = rows.map(withoutVendorFields)
   const discovery = {
     usesCompanyDatabase:
@@ -126,11 +150,15 @@ export async function getCampaignDetail(
       id: contact.id,
       name: contact.name,
       title: contact.title,
-      companyName: rows.find((c) => c.id === contact.prospectCompanyId)?.name ?? "",
+      companyName:
+        rows.find((c) => c.id === contact.prospectCompanyId)?.name ?? "",
       reason,
     })
   }
-  const leadSummary = { reviewed: allContacts.length, verified: contacts.length }
+  const leadSummary = {
+    reviewed: allContacts.length,
+    verified: contacts.length,
+  }
 
   return {
     ...verified,
