@@ -3,8 +3,7 @@
 import React, { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { authClient, useSession } from "@/lib/auth-client"
-import { MoreHorizontal, Sun, Moon, Monitor, ArrowUpRight } from "lucide-react"
-import { useTheme } from "next-themes"
+import { MoreHorizontal, ArrowUpRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
 import posthog from "posthog-js"
@@ -18,7 +17,6 @@ export function ProfileMenu() {
   const userEmail = user?.email || ""
   const userImage = user?.image || null
 
-  const { theme, setTheme } = useTheme()
   const [isOpen, setIsOpen] = React.useState(false)
   const menuRef = React.useRef<HTMLDivElement>(null)
 
@@ -85,51 +83,6 @@ export function ProfileMenu() {
                     {userEmail}
                   </span>
                 )}
-              </div>
-            </div>
-
-            <div className="my-1 h-px bg-border" role="separator" />
-
-            {/* Appearance Toggles matching reference image */}
-            <div className="flex items-center justify-between px-2.5 py-2 text-sm">
-              <span>Appearance</span>
-              <div className="flex items-center gap-1 rounded-full border bg-muted/50 p-0.5">
-                <button
-                  onClick={() => setTheme("light")}
-                  className={cn(
-                    "rounded-full p-1 transition-colors",
-                    theme === "light"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                  title="Light theme"
-                >
-                  <Sun className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => setTheme("dark")}
-                  className={cn(
-                    "rounded-full p-1 transition-colors",
-                    theme === "dark"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                  title="Dark theme"
-                >
-                  <Moon className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => setTheme("system")}
-                  className={cn(
-                    "rounded-full p-1 transition-colors",
-                    theme === "system"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                  title="System theme"
-                >
-                  <Monitor className="h-3.5 w-3.5" />
-                </button>
               </div>
             </div>
 
