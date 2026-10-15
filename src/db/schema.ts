@@ -352,11 +352,71 @@ export const gtmResearchRun = pgTable(
   (table) => [index("gtm_research_run_org_idx").on(table.organizationId)]
 )
 
-/** Per stage: the latest attempt's start/end (ISO) and its duration. */
-export type StageTimings = Record<
-  string,
-  { startedAt: string; endedAt: string; ms: number; outcome: string }
->
+/** One stage attempt's start/end (ISO), duration and outcome. */
+export interface StageTimingAttempt {
+  startedAt: string
+  endedAt: string
+  ms: number
+  outcome: string
+}
+
+/**
+ * Per stage: every attempt, oldest first. Rows written before every attempt
+ * was kept hold a single object (the latest attempt); read them with
+ * stageTimingAttempts() in lib/pipeline/stage-state.ts.
+ */
+export type StageTimings = Record<string, StageTimingAttempt[] | StageTimingAttempt>
+
+/**
+ * The company search a database-mode campaign ran (Stage 4), in plain words.
+ * Shown at the selection gate. No vendor ids or names.
+ */
+export interface CompanySearchFilters {
+  /** What is searched for, e.g. "digital marketing agencies". */
+  label: string
+  includeKeywords: string[]
+  excludeKeywords: string[]
+  /** Industry names (the provider's own lowercase industry list). */
+  industries: string[]
+  headcountMin: number | null
+  headcountMax: number | null
+  /** e.g. "United States" or "Texas, United States". */
+  market: string
+  /** Companies matching the filters in the provider's database, when it reports it. */
+  totalMatches?: number | null
+  /** Companies fetched (one page). */
+  fetched?: number
+}
+
+/** A decision maker found for a company, kept until the search has tried them. */
+export interface LeadCandidate {
+  providerPersonId: string
+  firstName: string
+  lastName: string
+  title: string | null
+  linkedinUrl: string | null
+  location: string | null
+  source: string
+}
+
+/** Per-company progress of the stepwise verified-lead search (Stage 5). */
+export interface LeadSearchCompanyState {
+  /** Ranked people from the people search; null until the search ran. */
+  candidates?: LeadCandidate[] | null
+  /** The people search was rate-limited: retry (patiently) after this time (ISO). */
+  deferredUntil?: string | null
+  /** The patient retry was also rate-limited in this attempt. */
+  gaveUpAttemptId?: string | null
+}
+
+/** Campaign-level state of the stepwise verified-lead search (Stage 5). */
+export interface LeadSearchCampaignState {
+  attemptId: string | null
+  /** Target job titles, derived once per attempt. */
+  titles: string[]
+  /** The budget that stopped this attempt (internal code); null while running. */
+  stopReason?: string | null
+}
 
 /** How Stage 5's verified-lead search ended. Vendor credits stay server-side. */
 export interface LeadSearchOutcome {
@@ -368,6 +428,8 @@ export interface LeadSearchOutcome {
   companiesExamined: number
   /** Which budget stopped the search, when it ended short (internal code). */
   stopReason?: string | null
+  /** Selected companies the search never got to (marked "not_reached"). */
+  companiesNotReached?: number
   /** Vendor credits charged for email lookups in this campaign (never sent to customers). */
   emailCreditsUsed?: number
   finishedAt: string
@@ -462,8 +524,16 @@ export const gtmOutreachCampaign = pgTable(
     // Copied from the research run at creation so they can differ per campaign later.
     targetCountryCode: text("target_country_code"),
     targetRegion: text("target_region"),
-    // Visible Stage 4 outcome, e.g. "Only 7 companies matched these filters."
+    // Visible Stage 4 outcome, e.g. "1,204 companies matched these filters; showing the first 15."
     discoveryNote: text("discovery_note"),
+    // The company search Stage 4 ran (database mode), shown at the selection gate.
+    searchFilters: jsonb("search_filters").$type<CompanySearchFilters>(),
+    // The stage attempt that owns the row: set by every stage claim, so a step of
+    // a superseded attempt (restart, double trigger) can tell and stop.
+    stageAttemptId: text("stage_attempt_id"),
+    stageAttemptStartedAt: timestamp("stage_attempt_started_at"),
+    // Stepwise verified-lead search state (Stage 5): titles and stop reason.
+    leadSearchState: jsonb("lead_search_state").$type<LeadSearchCampaignState>(),
     // Verified leads Stage 5 searches for; null uses GTM_TARGET_VERIFIED_LEADS.
     targetVerifiedLeads: integer("target_verified_leads"),
     // How Stage 5's verified-lead search ended (lib/pipeline/lead-search-budget.ts).
@@ -511,10 +581,15 @@ export const gtmProspectCompany = pgTable(
       .notNull(),
     // One short LLM line on why the company fits the segment (database mode).
     fitNote: text("fit_note"),
+    // 0-100 fit with the segment, from the same LLM call (database mode).
+    fitScore: integer("fit_score"),
     // Database-mode Stage 5 outcome; null until decision-maker discovery has run.
+    // not_reached: selected, but the search ended (target or budget) before it.
     decisionMakerStatus: text("decision_maker_status", {
-      enum: ["found", "no_decision_maker_found", "no_verified_email"],
+      enum: ["found", "no_decision_maker_found", "no_verified_email", "not_reached"],
     }),
+    // Stepwise verified-lead search progress for this company (Stage 5).
+    leadSearchState: jsonb("lead_search_state").$type<LeadSearchCompanyState>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
