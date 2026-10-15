@@ -51,6 +51,10 @@
   --brand-top: color-mix(in srgb, var(--brand) 92%, white);
   --brand-bottom: color-mix(in srgb, var(--brand) 94%, black);
   --brand-edge: color-mix(in srgb, var(--brand) 80%, black);
+  /* Selected main-nav item (founder exception: brand fill outside buttons). Text and
+     icon in one token; near-black is 7.63:1 on brand, white (var(--brand-foreground)) 2.59:1. */
+  --nav-selected-bg: var(--brand);
+  --nav-selected-fg: var(--text-strong);
   /* Focus uses --ring (= --brand); see @utility focus-ring. 2.59:1 on white is the founder's accepted decision. */
   /* Vertical offset of icons inside badges. Tune by hand: positive moves icons down. */
   --badge-icon-offset: -0.25px;
@@ -166,6 +170,8 @@
 
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
+  --color-nav-selected: var(--nav-selected-bg);
+  --color-nav-selected-fg: var(--nav-selected-fg);
 
   --color-success: var(--success);
   --color-success-tint: var(--success-tint);

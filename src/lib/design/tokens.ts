@@ -78,6 +78,10 @@ export const CONTRAST_PAIRS: ContrastPair[] = [
   { name: `brand button text (${BRAND_BUTTON_TEXT}) on gradient bottom`, fg: brandText, bg: BRAND_STOPS.bottom, rule: "info" },
   { name: "white on --brand", fg: C.white, bg: C.brand, rule: "info" },
   { name: "text-strong on --brand", fg: C.textStrong, bg: C.brand, rule: "info" },
+  // Selected main-nav item (brand fill, founder exception). Text and icon are --nav-selected-fg.
+  { name: "nav selected text (--nav-selected-fg = text-strong) on --brand", fg: C.textStrong, bg: C.brand, rule: "text" },
+  { name: "nav selected text, white option, on --brand", fg: C.white, bg: C.brand, rule: "info" },
+  { name: "nav selected focus ring (text-strong) on canvas gap", fg: C.textStrong, bg: C.canvas, rule: "ui" },
   { name: "focus ring (--brand) on surface", fg: C.brand, bg: C.surface, rule: "accepted" },
   { name: "focus ring (--brand) on canvas", fg: C.brand, bg: C.canvas, rule: "accepted" },
 ]

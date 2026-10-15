@@ -43,6 +43,7 @@ export function SidebarContent({
                   href={item.href}
                   icon={item.icon}
                   label={item.label}
+                  tone="nav"
                   current={isNavItemActive(item, pathname, tab)}
                 />
               </li>

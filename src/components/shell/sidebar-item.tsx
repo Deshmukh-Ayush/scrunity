@@ -7,23 +7,38 @@ import { cn } from "@/lib/utils"
 
 /**
  * Sidebar rows. 32px tall, 6px radius, 16px icon, 14/20 medium label.
- * Hover fills with --muted-fill; the current page is a white chip
- * (shadow-raised) with aria-current="page". Focus is the shared brand ring.
- * ui-hover / ui-focus also match data-force, so the testing route can show
- * every state at once.
+ * Hover fills with --muted-fill on rows that are not the current page. Focus
+ * is the shared brand ring. ui-hover / ui-focus also match data-force, so the
+ * testing route can show every state at once.
+ *
+ * Current page (aria-current="page"):
+ * - tone="nav" (main navigation): solid brand fill with --nav-selected-fg text
+ *   and icon (founder decision, see docs/design-system.md "Brand"). The brand
+ *   ring would vanish on a brand fill, so focus there is a 2px near-black ring
+ *   behind a 2px canvas gap.
+ * - tone="list" (chat rows, menu trigger): a white chip with shadow-raised.
  */
 export const sidebarItemClassName = cn(
   "group/sidebar-item flex h-8 w-full min-w-0 items-center gap-2 rounded-sm border border-transparent px-2 text-start text-body font-medium text-fg-default outline-none select-none",
   "transition-[background-color,color,box-shadow,border-color] duration-(--motion-fast) ease-out motion-reduce:transition-none",
-  "ui-hover:bg-muted ui-hover:text-fg-strong ui-focus:focus-ring",
-  "aria-[current=page]:bg-surface aria-[current=page]:text-fg-strong aria-[current=page]:shadow-raised",
+  "not-aria-[current=page]:ui-hover:bg-muted not-aria-[current=page]:ui-hover:text-fg-strong ui-focus:focus-ring",
   "[&_svg]:size-4 [&_svg]:shrink-0"
 )
+
+const selectedClassName = {
+  list: "aria-[current=page]:bg-surface aria-[current=page]:text-fg-strong aria-[current=page]:shadow-raised",
+  nav: cn(
+    "aria-[current=page]:bg-nav-selected aria-[current=page]:text-nav-selected-fg",
+    "aria-[current=page]:ui-focus:border-transparent aria-[current=page]:ui-focus:ring-2 aria-[current=page]:ui-focus:ring-fg-strong",
+    "aria-[current=page]:ui-focus:ring-offset-2 aria-[current=page]:ui-focus:ring-offset-canvas"
+  ),
+}
 
 type SidebarItemProps = Omit<React.ComponentProps<typeof Link>, "children"> & {
   icon?: React.ComponentType<{ className?: string }>
   label: string
   current?: boolean
+  tone?: "nav" | "list"
   "data-force"?: "hover" | "focus-visible"
 }
 
@@ -31,19 +46,24 @@ export function SidebarItem({
   icon: Icon,
   label,
   current = false,
+  tone = "list",
   className,
   ...props
 }: SidebarItemProps) {
+  const iconColor = !current
+    ? "text-fg-muted"
+    : tone === "nav"
+      ? "text-nav-selected-fg"
+      : "text-fg-strong"
   return (
     <Link
       data-slot="sidebar-item"
+      data-tone={tone}
       aria-current={current ? "page" : undefined}
-      className={cn(sidebarItemClassName, className)}
+      className={cn(sidebarItemClassName, selectedClassName[tone], className)}
       {...props}
     >
-      {Icon && (
-        <Icon className="text-fg-muted group-aria-[current=page]/sidebar-item:text-fg-strong" />
-      )}
+      {Icon && <Icon className={iconColor} />}
       <span className="min-w-0 truncate">{label}</span>
     </Link>
   )

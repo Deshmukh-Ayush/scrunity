@@ -56,12 +56,14 @@ export function AppShell({
 }
 
 function MobileNav({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = React.useState(false)
   const pathname = usePathname()
   const search = useSearchParams().toString()
-
-  // Following a link inside the drawer closes it.
-  React.useEffect(() => setOpen(false), [pathname, search])
+  // The drawer is open for the route it was opened on, so following a link
+  // inside it (a new route) closes it without an effect.
+  const route = `${pathname}?${search}`
+  const [openOn, setOpenOn] = React.useState<string | null>(null)
+  const open = openOn === route
+  const setOpen = (next: boolean) => setOpenOn(next ? route : null)
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>

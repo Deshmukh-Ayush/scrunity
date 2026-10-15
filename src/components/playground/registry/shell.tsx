@@ -3,7 +3,7 @@ import {
   FeedSection,
   FeedSectionHeader,
 } from "@/components/home/feed-row"
-import { SidebarGroup, SidebarItem } from "@/components/shell/sidebar-item"
+import { SidebarItem } from "@/components/shell/sidebar-item"
 import { CreditsPill } from "@/components/shell/sidebar-content"
 import {
   AlertTriangle,
@@ -14,27 +14,68 @@ import {
   MailReply,
   Send,
 } from "@/components/ui/icons"
-import { ComposerDemo, SidebarDemo } from "./shell-demos"
+import {
+  ComposerDemo,
+  GroupDemo,
+  SidebarDemo,
+  WHITE_NAV_TEXT,
+} from "./shell-demos"
 import type { ForcedStateProps, ShowcaseEntry, StateName } from "./types"
 
 const LINK_STATES: StateName[] = ["default", "hover", "focus-visible"]
-const noop = () => {}
 
 const linkForce = (
   props: ForcedStateProps
 ): "hover" | "focus-visible" | undefined =>
   props["data-force"] === "pressed" ? undefined : props["data-force"]
 
+function SelectedNavItem({
+  white = false,
+  force,
+}: {
+  white?: boolean
+  force?: "hover" | "focus-visible"
+}) {
+  return (
+    <div className="w-48" style={white ? WHITE_NAV_TEXT : undefined}>
+      <SidebarItem
+        href="#sidebar"
+        icon={Home}
+        label="Home"
+        tone="nav"
+        current
+        data-force={force}
+      />
+    </div>
+  )
+}
+
 export const sidebarEntry: ShowcaseEntry = {
   id: "sidebar",
   name: "Sidebar",
   group: "Shell",
   description:
-    '32px rows, 6px radius, 16px icon, 14/20 medium label. Hover fills with --muted-fill; the current page is a white chip with aria-current="page". Groups collapse with the accordion transition.',
+    'Rows: 32px, 6px radius, 16px icon, 14/20 medium label; hover fills with --muted-fill. The current main-nav item is a solid brand fill (founder exception) with aria-current="page"; its text and icon are one token, --nav-selected-fg. Near-black (7.63:1, the default) and white (2.59:1, fails AA for 14px text) side by side. Focus on it is a near-black ring behind a canvas gap. Click "Chats" to collapse a group.',
   render: () => (
     <div className="flex flex-wrap items-start gap-6">
-      <SidebarDemo />
-      <SidebarDemo chatsOpen={false} />
+      <figure className="flex flex-col gap-2">
+        <figcaption className="text-meta text-fg-muted">
+          Near-black text (default) · 7.63:1
+        </figcaption>
+        <SidebarDemo />
+      </figure>
+      <figure className="flex flex-col gap-2">
+        <figcaption className="text-meta text-fg-muted">
+          White text · 2.59:1
+        </figcaption>
+        <SidebarDemo selectedText="white" />
+      </figure>
+      <figure className="flex flex-col gap-2">
+        <figcaption className="text-meta text-fg-muted">
+          Chats collapsed
+        </figcaption>
+        <SidebarDemo chatsOpen={false} />
+      </figure>
     </div>
   ),
   states: [
@@ -47,39 +88,43 @@ export const sidebarEntry: ShowcaseEntry = {
             href="#sidebar"
             icon={Home}
             label="Campaigns"
+            tone="nav"
             data-force={linkForce(props)}
           />
         </div>
       ),
     },
     {
-      label: "selected",
+      label: "selected (near-black)",
+      supports: LINK_STATES,
+      render: (props) => <SelectedNavItem force={linkForce(props)} />,
+    },
+    {
+      label: "selected (white)",
+      supports: LINK_STATES,
+      render: (props) => <SelectedNavItem white force={linkForce(props)} />,
+    },
+    {
+      label: "chat row (selected)",
       supports: LINK_STATES,
       render: (props) => (
         <div className="w-48">
           <SidebarItem
             href="#sidebar"
-            icon={Home}
-            label="Home"
+            label="Draft a follow-up"
             current
+            className="font-normal"
             data-force={linkForce(props)}
           />
         </div>
       ),
     },
     {
-      label: "group (collapsed)",
+      label: "group (click to toggle)",
       supports: LINK_STATES,
       render: (props) => (
         <div className="w-48">
-          <SidebarGroup
-            label="Chats"
-            open={false}
-            onOpenChange={noop}
-            data-force={linkForce(props)}
-          >
-            <span />
-          </SidebarGroup>
+          <GroupDemo data-force={linkForce(props)} />
         </div>
       ),
     },
