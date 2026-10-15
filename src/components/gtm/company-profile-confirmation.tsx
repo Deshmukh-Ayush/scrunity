@@ -79,7 +79,7 @@ export function CompanyProfileConfirmation({
           <p className="text-sm font-medium">Signals</p>
           <div className="flex flex-wrap gap-2">
             {profile.signals.map((signal) => (
-              <Badge key={signal} variant="secondary">
+              <Badge key={signal} variant="neutral">
                 {signal}
               </Badge>
             ))}
@@ -117,7 +117,7 @@ export function CompanyProfileConfirmation({
             </Button>
           )}
           {!isEditing ? (
-            <Button onClick={onContinue}>Looks good, continue</Button>
+            <Button variant="brand" onClick={onContinue}>Looks good, continue</Button>
           ) : null}
         </div>
       </CardContent>

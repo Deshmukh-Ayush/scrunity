@@ -81,10 +81,10 @@ export function DraftReviewSection() {
           {counts.pending > 0 && (
             <Button
               variant="outline"
-              size="sm"
+              size="md"
               onClick={approveAllDrafts}
               disabled={isUpdating}
-              className="h-8 gap-1.5 border-success-border text-xs text-success hover:bg-success-tint hover:text-success"
+              className="gap-1.5"
             >
               {isUpdating ? (
                 <Loader2 className="size-3.5 animate-spin" />

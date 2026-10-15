@@ -83,7 +83,7 @@ export const Onboard = () => {
             </p>
           )}
 
-          <Button type="submit" disabled={isSubmitting}>
+          <Button variant="brand" type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Creating..." : "Create organization"}
           </Button>
         </form>

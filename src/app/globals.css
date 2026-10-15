@@ -5,6 +5,26 @@
 /* Light mode only for now. Existing `dark:` classes stay inert (no `.dark` palette). */
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Interaction states that the component testing route can force with
+ * data-force="hover|pressed|focus-visible" so every state shows at once.
+ * Hover only applies on devices that can hover.
+ */
+@custom-variant ui-hover {
+  @media (hover: hover) {
+    &:hover { @slot; }
+  }
+  &[data-force~="hover"] { @slot; }
+}
+@custom-variant ui-pressed {
+  &:active { @slot; }
+  &[data-force~="pressed"] { @slot; }
+}
+@custom-variant ui-focus {
+  &:focus-visible { @slot; }
+  &[data-force~="focus-visible"] { @slot; }
+}
+
 /* ─────────────────────────────────────────────────────────────
  * Design tokens. Semantic names describe purpose, not appearance.
  * docs/design-system.md explains each one; scripts/report-contrast.ts

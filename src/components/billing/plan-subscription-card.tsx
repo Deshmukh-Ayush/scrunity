@@ -32,12 +32,12 @@ export async function PlanSubscriptionCard() {
   const status = org?.subscriptionStatus || (isSubscribed ? "active" : "unsubscribed");
 
   const statusBadge = {
-    active: <Badge className="bg-success-tint text-success border-success-border text-[11px] font-medium">Active</Badge>,
-    past_due: <Badge className="bg-warning-tint text-warning border-warning-border text-[11px] font-medium">Past Due</Badge>,
-    canceled: <Badge variant="destructive" className="text-[11px] font-medium">Canceled</Badge>,
-    trialing: <Badge variant="secondary" className="text-[11px] font-medium">Trialing</Badge>,
-    unsubscribed: <Badge variant="secondary" className="text-[11px] font-medium">No Active Plan</Badge>,
-  }[status] || <Badge variant="secondary" className="text-[11px] font-medium">{status}</Badge>;
+    active: <Badge variant="success">Active</Badge>,
+    past_due: <Badge variant="warning">Past Due</Badge>,
+    canceled: <Badge variant="danger">Canceled</Badge>,
+    trialing: <Badge variant="neutral">Trialing</Badge>,
+    unsubscribed: <Badge variant="neutral">No Active Plan</Badge>,
+  }[status] || <Badge variant="neutral">{status}</Badge>;
 
   const renewalDateStr = org?.currentPeriodEnd
     ? new Date(org.currentPeriodEnd).toLocaleDateString("en-US", {

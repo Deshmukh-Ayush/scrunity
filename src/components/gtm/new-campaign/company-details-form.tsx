@@ -214,7 +214,7 @@ export function CompanyDetailsForm({
             )}
 
             <div className="flex justify-end pt-4">
-              <Button type="submit" disabled={isSubmitting} className="gap-2">
+              <Button variant="brand" type="submit" disabled={isSubmitting} className="gap-2">
                 {isSubmitting ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />

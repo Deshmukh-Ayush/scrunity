@@ -14,8 +14,7 @@ export function IntentBadge({
       return (
         <Badge
           variant="success"
-          className="shrink-0 gap-1 px-2 py-0.5 text-[10px] font-semibold"
-        >
+          className="shrink-0 gap-1 px-2 py-0.5">
           <span className="size-1.5 rounded-full bg-success" />
           Interested
         </Badge>
@@ -23,9 +22,8 @@ export function IntentBadge({
     case "question":
       return (
         <Badge
-          variant="tertiary"
-          className="shrink-0 gap-1 px-2 py-0.5 text-[10px] font-semibold"
-        >
+          variant="neutral"
+          className="shrink-0 gap-1 px-2 py-0.5">
           <span className="size-1.5 rounded-full bg-primary" />
           Question
         </Badge>
@@ -34,8 +32,7 @@ export function IntentBadge({
       return (
         <Badge
           variant="outline"
-          className="shrink-0 gap-1 border-border/70 bg-muted/40 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
-        >
+          className="shrink-0 gap-1 border-border/70 bg-muted/40 px-2 py-0.5 text-muted-foreground">
           <span className="size-1.5 rounded-full bg-muted-foreground/60" />
           Not Interested
         </Badge>
@@ -44,8 +41,7 @@ export function IntentBadge({
       return (
         <Badge
           variant="outline"
-          className="shrink-0 gap-1 border-border/70 bg-muted/30 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
-        >
+          className="shrink-0 gap-1 border-border/70 bg-muted/30 px-2 py-0.5 text-muted-foreground">
           Auto Reply
         </Badge>
       )
@@ -54,8 +50,7 @@ export function IntentBadge({
       return (
         <Badge
           variant="outline"
-          className="shrink-0 border-border/70 bg-muted/20 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
-        >
+          className="shrink-0 border-border/70 bg-muted/20 px-2 py-0.5 text-muted-foreground">
           Unclear
         </Badge>
       )

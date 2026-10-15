@@ -28,7 +28,7 @@ export function CampaignsCreated({ campaignIds }: { campaignIds: string[] }) {
         <Link
           href="/dashboard/campaigns"
           className={cn(
-            buttonVariants({ variant: "default" }),
+            buttonVariants({ }),
             "w-full gap-2 sm:w-auto"
           )}
         >

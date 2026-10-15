@@ -5,13 +5,11 @@ import { CanvasGroup, CanvasSlot } from "./canvas-group"
 type ButtonVariant = NonNullable<VariantProps<typeof buttonVariants>["variant"]>
 
 export const BUTTON_VARIANTS = [
-  "default",
-  "tertiary",
-  "outline",
   "secondary",
+  "outline",
   "ghost",
-  "destructive",
-  "link",
+  "brand",
+  "danger",
 ] as const satisfies readonly ButtonVariant[]
 
 // Coverage: stops compiling when button.tsx gains a variant that isn't listed above.

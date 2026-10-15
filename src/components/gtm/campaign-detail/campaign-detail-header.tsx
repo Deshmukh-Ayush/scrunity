@@ -53,17 +53,15 @@ export function CampaignDetailHeader() {
           {campaign.status === "in_progress" ? (
             staleness.isStalled ? (
               <Badge
-                variant="outline"
-                className="gap-1.5 self-start border-warning-border bg-warning-tint px-3 py-1 text-xs font-medium text-warning capitalize sm:self-auto"
-              >
+                variant="warning"
+                className="gap-1.5 self-start px-3 py-1 capitalize sm:self-auto">
                 <AlertCircle className="size-3 text-warning" />
                 {stageLabel} (Stalled)
               </Badge>
             ) : (
               <Badge
                 variant="outline"
-                className="gap-1.5 self-start border-primary/40 bg-primary/10 px-3 py-1 text-xs text-primary capitalize sm:self-auto"
-              >
+                className="gap-1.5 self-start px-3 py-1 text-primary capitalize sm:self-auto">
                 <Loader2 className="size-3 animate-spin" />
                 {stageLabel} (Running)
               </Badge>
@@ -73,32 +71,30 @@ export function CampaignDetailHeader() {
               variant={
                 campaign.status === "done" ||
                 campaign.status === "awaiting_approval"
-                  ? "default"
-                  : "secondary"
+                  ? "neutral"
+                  : "neutral"
               }
-              className="self-start px-3 py-1 text-xs capitalize sm:self-auto"
-            >
+              className="self-start px-3 py-1 capitalize sm:self-auto">
               {stageLabel}
             </Badge>
           )}
 
           {inngestOffline && (
             <Badge
-              variant="outline"
-              className="gap-1 border-warning-border bg-warning-tint text-xs text-warning"
-              title="Inngest dev server is not running on port 8288"
-            >
+              variant="warning"
+              className="gap-1"
+              title="Inngest dev server is not running on port 8288">
               <AlertCircle className="size-3 text-warning" />
               Inngest Offline
             </Badge>
           )}
 
           {counts.approved > 0 && campaign.currentStage !== "send_emails" && (
-            <Button
-              size="sm"
+            <Button variant="brand"
+              size="md"
               onClick={startSending}
               disabled={isDispatching || !mailbox}
-              className="h-8 gap-1.5 text-xs shadow-sm"
+              className="gap-1.5"
             >
               {isDispatching ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -113,10 +109,10 @@ export function CampaignDetailHeader() {
             campaign.status !== "failed" && (
               <Button
                 variant="outline"
-                size="sm"
+                size="md"
                 onClick={restartPipeline}
                 disabled={isRestarting}
-                className="h-8 gap-1.5 text-xs"
+                className="gap-1.5"
                 title="Restart or re-run autonomous research pipeline"
               >
                 {isRestarting ? (

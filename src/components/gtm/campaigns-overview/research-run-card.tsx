@@ -54,13 +54,12 @@ export function ResearchRunCard({
       <CardHeader className="p-4 pb-2">
         <div className="flex items-center justify-between">
           <Badge
-            variant={run.status === "done" ? "default" : "secondary"}
+            variant={run.status === "done" ? "neutral" : "neutral"}
             className={cn(
               "text-xs capitalize",
               staleness.isStalled &&
                 "border-warning-border bg-warning-tint font-medium text-warning"
-            )}
-          >
+            )}>
             {staleness.isStalled
               ? `Stalled (${stageLabel})`
               : run.status === "done"

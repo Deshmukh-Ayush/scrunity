@@ -30,7 +30,7 @@ export function ManagePortalButton() {
       variant="outline"
       onClick={openPortal}
       disabled={loading}
-      className="gap-1.5 text-xs"
+      className="gap-1.5"
     >
       <CreditCard className="h-3.5 w-3.5" />
       {loading ? "Loading..." : "Manage in Dodo Portal"}

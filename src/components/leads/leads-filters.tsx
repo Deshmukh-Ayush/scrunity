@@ -125,9 +125,9 @@ export function LeadsFilters({
       {hasActiveFilters && (
         <Button
           variant="ghost"
-          size="sm"
+          size="md"
           onClick={onReset}
-          className="h-8 shrink-0 px-2 text-xs text-muted-foreground hover:text-foreground"
+          className="shrink-0 text-muted-foreground hover:text-foreground"
         >
           <X className="mr-1 size-3" />
           Reset

@@ -30,10 +30,9 @@ export function LeadStatusBadge({
   if (status === "lookup_incomplete") {
     return (
       <Badge
-        variant="outline"
+        variant="warning"
         title="Web lookups for this contact were rate-limited. It was not disqualified."
-        className="inline-flex items-center gap-1 border-warning-border bg-warning-tint text-[11px] font-medium text-warning"
-      >
+        className="inline-flex items-center gap-1">
         <AlertTriangle className="size-3 shrink-0 text-warning" />
         Lookup Incomplete
       </Badge>
@@ -48,9 +47,8 @@ export function LeadStatusBadge({
   if (isPendingRediscovery) {
     return (
       <Badge
-        variant="outline"
-        className="inline-flex items-center gap-1 border-warning-border bg-warning-tint text-[11px] font-medium text-warning"
-      >
+        variant="warning"
+        className="inline-flex items-center gap-1">
         <AlertTriangle className="size-3 shrink-0 text-warning" />
         Pending Re-discovery
       </Badge>
@@ -59,17 +57,16 @@ export function LeadStatusBadge({
 
   switch (status) {
     case "meeting_booked":
-      return <Badge variant="default">Meeting Booked</Badge>
+      return <Badge variant="neutral">Meeting Booked</Badge>
     case "replied":
-      return <Badge variant="default">Replied</Badge>
+      return <Badge variant="neutral">Replied</Badge>
     case "sent":
-      return <Badge variant="secondary">Sent</Badge>
+      return <Badge variant="neutral">Sent</Badge>
     case "bounced":
       return (
         <Badge
-          variant="outline"
-          className="inline-flex items-center gap-1 border-danger-border bg-danger-tint text-[11px] font-medium text-danger"
-        >
+          variant="danger"
+          className="inline-flex items-center gap-1">
           <AlertTriangle className="size-3 shrink-0 text-danger" />
           Bounced
         </Badge>
@@ -79,12 +76,12 @@ export function LeadStatusBadge({
     case "drafted":
       return <Badge variant="outline">Drafted</Badge>
     case "disqualified":
-      return <Badge variant="destructive">Disqualified</Badge>
+      return <Badge variant="danger">Disqualified</Badge>
     case "failed":
-      return <Badge variant="destructive">Failed</Badge>
+      return <Badge variant="danger">Failed</Badge>
     case "discovered":
     default:
-      return <Badge variant="secondary">Discovered</Badge>
+      return <Badge variant="neutral">Discovered</Badge>
   }
 }
 
@@ -94,41 +91,39 @@ export function VerificationBadge({ status }: { status: string }) {
     case "verified":
     case "enrich_verified":
       return (
-        <Badge variant="default" className="text-[10px]">
+        <Badge variant="neutral">
           Verified
         </Badge>
       )
     case "pattern_guessed_mx_valid":
       return (
         <Badge
-          variant="outline"
-          className="border-success-border text-[10px] text-success"
-        >
+          variant="success">
           MX Valid
         </Badge>
       )
     case "pattern_guessed_unverified":
       return (
-        <Badge variant="secondary" className="text-[10px]">
+        <Badge variant="neutral">
           Pattern Guessed
         </Badge>
       )
     case "found_on_site":
       return (
-        <Badge variant="outline" className="text-[10px]">
+        <Badge variant="outline">
           Found on Site
         </Badge>
       )
     case "company_fallback":
       return (
-        <Badge variant="secondary" className="text-[10px]">
+        <Badge variant="neutral">
           Company Fallback
         </Badge>
       )
     case "unverified":
     default:
       return (
-        <Badge variant="secondary" className="text-[10px]">
+        <Badge variant="neutral">
           Unverified
         </Badge>
       )

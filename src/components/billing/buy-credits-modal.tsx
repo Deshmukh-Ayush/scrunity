@@ -51,7 +51,7 @@ export function BuyCreditsModal({ trigger }: { trigger?: React.ReactNode }) {
         <Button
           size="sm"
           onClick={() => setOpen(true)}
-          className="gap-1.5 font-medium"
+          className="gap-1.5"
         >
           <Zap className="h-4 w-4 text-muted-foreground" />
           Buy Credits
@@ -97,9 +97,9 @@ export function BuyCreditsModal({ trigger }: { trigger?: React.ReactNode }) {
                       key={count}
                       role="radio"
                       aria-checked={packs === count}
-                      variant={packs === count ? "default" : "outline"}
-                      size="sm"
-                      className="h-8 px-3 text-xs"
+                      variant={packs === count ? "secondary" : "ghost"}
+                      size="md"
+                      className="px-3"
                       onClick={() => setPacks(count)}
                     >
                       {count}x ({count * 100})
@@ -150,7 +150,7 @@ export function BuyCreditsModal({ trigger }: { trigger?: React.ReactNode }) {
             <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button
+            <Button variant="brand"
               size="sm"
               onClick={handleCheckout}
               disabled={loading}

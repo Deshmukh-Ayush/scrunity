@@ -142,7 +142,7 @@ export function ResearchProgress({
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center justify-between text-base">
             <span>Pipeline Execution Timeline</span>
-            <Badge variant="outline" className="gap-1 text-xs font-normal">
+            <Badge variant="outline" className="gap-1 font-normal">
               <Loader2 className="size-3 animate-spin text-primary" />
               Live Inngest Pipeline
             </Badge>
@@ -212,22 +212,20 @@ export function ResearchProgress({
                       {step.isActive && (
                         <Badge
                           variant={
-                            staleness.isStalled ? "outline" : "secondary"
+                            staleness.isStalled ? "outline" : "neutral"
                           }
                           className={cn(
                             "py-0 text-[10px]",
                             staleness.isStalled &&
                               "border-warning-border bg-warning-tint font-medium text-warning"
-                          )}
-                        >
+                          )}>
                           {staleness.isStalled ? "Stalled" : "In Progress"}
                         </Badge>
                       )}
                       {step.isComplete && (
                         <Badge
-                          variant="outline"
-                          className="border-success-border py-0 text-[10px] text-success"
-                        >
+                          variant="success"
+                          className="py-0">
                           Completed
                         </Badge>
                       )}
@@ -246,14 +244,13 @@ export function ResearchProgress({
                             <Badge
                               key={c.id}
                               variant="outline"
-                              className="gap-1 text-[11px]"
-                            >
+                              className="gap-1">
                               <Globe className="size-3 text-muted-foreground" />
                               {c.name}
                             </Badge>
                           ))}
                           {competitors.length > 5 && (
-                            <Badge variant="outline" className="text-[11px]">
+                            <Badge variant="outline">
                               +{competitors.length - 5} more
                             </Badge>
                           )}
@@ -275,10 +272,10 @@ export function ResearchProgress({
               </div>
               <Button
                 variant="outline"
-                size="sm"
+                size="md"
                 onClick={onRestartStage}
                 disabled={isRestarting}
-                className="h-8 gap-1.5 text-xs"
+                className="gap-1.5"
               >
                 {isRestarting ? (
                   <Loader2 className="size-3.5 animate-spin" />
@@ -301,10 +298,10 @@ export function ResearchProgress({
               </div>
               <Button
                 variant="outline"
-                size="sm"
+                size="md"
                 onClick={onRetryResearch}
                 disabled={isRestarting}
-                className="h-8 gap-1.5 text-xs"
+                className="gap-1.5"
               >
                 {isRestarting ? (
                   <Loader2 className="size-3.5 animate-spin" />

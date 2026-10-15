@@ -13,7 +13,7 @@ export default function GlobalNotFound() {
         We couldn't find the page you were looking for. It might have been moved or deleted.
       </p>
       <Link href="/dashboard">
-        <Button variant="default">Return to Dashboard</Button>
+        <Button>Return to Dashboard</Button>
       </Link>
     </div>
   );

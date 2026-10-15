@@ -58,7 +58,7 @@ export function AddSeatsModal({
           size="sm"
           variant="outline"
           onClick={() => setOpen(true)}
-          className="h-7 gap-1 text-xs"
+          className="gap-1"
         >
           <Plus className="h-3 w-3" />
           Add Seats
@@ -103,9 +103,9 @@ export function AddSeatsModal({
                       key={cnt}
                       role="radio"
                       aria-checked={quantity === cnt}
-                      variant={quantity === cnt ? "default" : "outline"}
-                      size="sm"
-                      className="h-8 px-3 text-xs"
+                      variant={quantity === cnt ? "secondary" : "ghost"}
+                      size="md"
+                      className="px-3"
                       onClick={() => setQuantity(cnt)}
                     >
                       +{cnt} seat{cnt > 1 ? "s" : ""}
@@ -139,7 +139,7 @@ export function AddSeatsModal({
             <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button size="sm" onClick={handleAddSeats} disabled={loading}>
+            <Button variant="brand" size="sm" onClick={handleAddSeats} disabled={loading}>
               {loading
                 ? "Redirecting..."
                 : `Confirm +${quantity} Seat ($${price}/mo)`}

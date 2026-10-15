@@ -153,7 +153,7 @@ export function AgentConversationNav({
           onClick={onNewChat}
           size="icon"
           variant="outline"
-          className="size-9 rounded-xl border-border/80 shadow-2xs text-primary"
+          className="size-9 rounded-xl border-border/80 shadow-2xs"
           title="New Chat"
         >
           <Plus className="size-4" />
@@ -196,9 +196,9 @@ export function AgentConversationNav({
       <div className="px-3 pt-3 pb-2 space-y-2 shrink-0">
         <Button
           onClick={onNewChat}
-          size="sm"
+          size="md"
           variant="outline"
-          className="w-full justify-start gap-2 h-8.5 text-xs font-medium border-border/80 bg-background hover:bg-muted/60 transition-all rounded-lg shadow-2xs"
+          className="w-full justify-start gap-2 border-border/80 bg-background hover:bg-muted/60 transition-all rounded-lg shadow-2xs"
         >
           <Plus className="size-3.5 text-primary" />
           <span>New chat</span>

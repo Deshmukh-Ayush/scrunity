@@ -54,8 +54,7 @@ function MessageCard({ msg }: { msg: MailboxMessage }) {
                   msg.isOutbound
                     ? "border-primary/30 bg-primary/5 text-primary"
                     : "border-primary/30 bg-primary/5 text-primary"
-                )}
-              >
+                )}>
                 {msg.isOutbound
                   ? "Outbound Sent Email"
                   : "Prospect Inbound Reply"}
@@ -119,7 +118,7 @@ function ReplyComposer({ contactName }: { contactName: string }) {
           disabled
           variant="secondary"
           size="sm"
-          className="gap-1.5 text-xs"
+          className="gap-1.5"
           title="Direct manual response sending routes through background Stage 7 dispatch queue"
         >
           <Send className="size-3.5" />
@@ -159,9 +158,8 @@ export function ThreadDetail({ thread }: { thread: MailboxThread | null }) {
             </h2>
             {thread.isBounced && (
               <Badge
-                variant="destructive"
-                className="gap-1 border-danger-border bg-danger-tint text-[11px] font-semibold text-danger"
-              >
+                variant="danger"
+                className="gap-1">
                 <AlertTriangle className="size-3" /> Delivery Bounced
               </Badge>
             )}

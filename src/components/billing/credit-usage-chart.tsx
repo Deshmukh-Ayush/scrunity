@@ -132,25 +132,22 @@ export function CreditUsageChart({
         {/* Filter buttons: Daily, Weekly, Monthly */}
         <div className="flex shrink-0 flex-wrap items-center gap-1 rounded-lg border border-border/50 bg-muted/60 p-1">
           <Button
-            variant={range === "daily" ? "default" : "ghost"}
+            variant={range === "daily" ? "secondary" : "ghost"}
             size="sm"
-            className="h-7 px-2.5 text-xs"
             onClick={() => setRange("daily")}
           >
             Daily (14d)
           </Button>
           <Button
-            variant={range === "weekly" ? "default" : "ghost"}
+            variant={range === "weekly" ? "secondary" : "ghost"}
             size="sm"
-            className="h-7 px-2.5 text-xs"
             onClick={() => setRange("weekly")}
           >
             Weekly (8w)
           </Button>
           <Button
-            variant={range === "monthly" ? "default" : "ghost"}
+            variant={range === "monthly" ? "secondary" : "ghost"}
             size="sm"
-            className="h-7 px-2.5 text-xs"
             onClick={() => setRange("monthly")}
           >
             Monthly (6m)
@@ -296,19 +293,17 @@ export function CreditUsageChart({
                     const badge = isDebit ? (
                       <Badge
                         variant="outline"
-                        className="h-4 text-[10px] text-muted-foreground"
-                      >
+                        className="h-4 text-muted-foreground">
                         Debit
                       </Badge>
                     ) : isTopup ? (
-                      <Badge className="h-4 border-success-border bg-success-tint text-[10px] font-medium text-success">
+                      <Badge variant="success" className="h-4">
                         {isGrant ? "Granted" : "Top-Up"}
                       </Badge>
                     ) : (
                       <Badge
-                        variant="secondary"
-                        className="h-4 text-[10px] font-medium"
-                      >
+                        variant="neutral"
+                        className="h-4">
                         Period Reset
                       </Badge>
                     )

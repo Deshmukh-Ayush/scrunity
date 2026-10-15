@@ -39,7 +39,7 @@ export function MailboxHeader({
               Mailbox
             </h1>
             {unreadCount > 0 && (
-              <Badge className="bg-primary px-1.5 py-0 text-[10px] font-medium text-white">
+              <Badge className="bg-primary px-1.5 py-0">
                 {unreadCount} unread
               </Badge>
             )}
@@ -79,7 +79,7 @@ export function MailboxHeader({
           size="sm"
           onClick={onRefresh}
           disabled={isRefreshing}
-          className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          className="gap-1.5 text-muted-foreground hover:text-foreground"
         >
           <RefreshCw
             className={cn(

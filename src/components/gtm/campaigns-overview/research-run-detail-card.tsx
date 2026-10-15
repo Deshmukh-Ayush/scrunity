@@ -102,7 +102,7 @@ export function ResearchRunDetailCard({
                       size="sm"
                       disabled={startingSegmentId === seg.id}
                       onClick={() => onStartCampaign(seg.id)}
-                      className="h-7 gap-1.5 text-xs"
+                      className="gap-1.5"
                     >
                       {startingSegmentId === seg.id ? (
                         <Loader2 className="size-3 animate-spin" />
@@ -124,8 +124,7 @@ export function ResearchRunDetailCard({
                           <Badge
                             key={i}
                             variant="outline"
-                            className="py-0 text-[10px]"
-                          >
+                            className="py-0">
                             {cr}
                           </Badge>
                         ))}

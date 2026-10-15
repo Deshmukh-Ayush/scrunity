@@ -75,15 +75,13 @@ function ThreadRow({
         <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
           <Badge
             variant="outline"
-            className="max-w-[140px] truncate border-border/80 px-1.5 py-0 text-[9px] text-muted-foreground"
-          >
+            className="max-w-[140px] truncate border-border/80 px-1.5 py-0 text-muted-foreground">
             {thread.campaign.name}
           </Badge>
           {thread.isBounced && (
             <Badge
-              variant="destructive"
-              className="gap-1 border-danger-border bg-danger-tint px-1.5 py-0 text-[9px] font-medium text-danger"
-            >
+              variant="danger"
+              className="gap-1 px-1.5 py-0">
               <AlertTriangle className="size-2.5" />
               Bounced
             </Badge>

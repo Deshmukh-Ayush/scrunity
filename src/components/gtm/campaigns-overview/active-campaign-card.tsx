@@ -41,14 +41,12 @@ export function ActiveCampaignCard({ campaign, researchRun }: CampaignItem) {
       <CardHeader className="p-4 pb-2">
         <div className="flex items-center justify-between">
           <Badge
-            variant={isAwaitingApproval ? "default" : "outline"}
+            variant={isAwaitingApproval ? "neutral" : "outline"}
             className={cn(
               "text-xs capitalize",
               staleness.isStalled &&
-                "border-warning-border bg-warning-tint font-medium text-warning",
-              isAwaitingApproval && "bg-warning text-white hover:bg-warning"
-            )}
-          >
+                "border-warning-border bg-warning-tint font-medium text-warning"
+            )}>
             {staleness.isStalled
               ? `Stalled (${stageLabel})`
               : isAwaitingApproval
@@ -72,10 +70,9 @@ export function ActiveCampaignCard({ campaign, researchRun }: CampaignItem) {
           className={cn(
             buttonVariants({
               size: "sm",
-              variant: isAwaitingApproval ? "default" : "secondary",
+              variant: "secondary",
             }),
-            "gap-1 text-xs",
-            isAwaitingApproval && "bg-warning text-white hover:bg-warning"
+            "gap-1 text-xs"
           )}
         >
           {isAwaitingApproval ? "Review Drafts" : "View Pipeline"}

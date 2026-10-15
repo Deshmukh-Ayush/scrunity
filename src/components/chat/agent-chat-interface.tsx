@@ -50,8 +50,7 @@ export function AgentChatInterface({
           {chat.linkedCampaign && (
             <Badge
               variant="outline"
-              className="shrink-0 border-primary/30 bg-primary/10 px-2 py-0 font-mono text-[10px] text-primary capitalize"
-            >
+              className="shrink-0 px-2 py-0 font-mono text-primary capitalize">
               {chat.linkedCampaign.currentStage.replace(/_/g, " ")}
             </Badge>
           )}
@@ -64,7 +63,7 @@ export function AgentChatInterface({
               setInputValue("")
               chat.startNewChat()
             }}
-            className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+            className="gap-1.5 text-muted-foreground hover:text-foreground"
           >
             <RotateCcw className="size-3" />
             Reset
@@ -131,7 +130,7 @@ export function AgentChatInterface({
                     size="sm"
                     disabled={!inputValue.trim()}
                     onClick={() => send()}
-                    className="size-8 rounded-full p-0 shadow-xs disabled:opacity-30"
+                    className="size-8 rounded-full p-0 disabled:opacity-30"
                     title="Send message"
                     aria-label="Send message"
                   >

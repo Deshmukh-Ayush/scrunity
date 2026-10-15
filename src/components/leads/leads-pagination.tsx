@@ -34,10 +34,10 @@ export function LeadsPagination({
       <div className="flex items-center gap-2">
         <Button
           variant="outline"
-          size="sm"
+          size="md"
           onClick={() => onPageChange(Math.max(1, page - 1))}
           disabled={page <= 1 || disabled}
-          className="h-8 gap-1 px-2.5 text-xs"
+          className="gap-1"
         >
           <ChevronLeft className="size-3.5" />
           Previous
@@ -47,10 +47,10 @@ export function LeadsPagination({
         </span>
         <Button
           variant="outline"
-          size="sm"
+          size="md"
           onClick={() => onPageChange(Math.min(totalPages, page + 1))}
           disabled={page >= totalPages || disabled}
-          className="h-8 gap-1 px-2.5 text-xs"
+          className="gap-1"
         >
           Next
           <ChevronRight className="size-3.5" />

@@ -53,15 +53,14 @@ function PlanOption({
       )}
     >
       {config.isPopular && (
-        <Badge className="absolute -top-2.5 right-3 h-5 bg-primary text-[10px] font-semibold text-primary-foreground">
+        <Badge className="absolute -top-2.5 right-3 h-5 bg-primary text-primary-foreground">
           Most Popular
         </Badge>
       )}
       {isCurrent && (
         <Badge
-          variant="secondary"
-          className="absolute -top-2.5 left-3 h-5 text-[10px] font-medium"
-        >
+          variant="neutral"
+          className="absolute -top-2.5 left-3 h-5">
           Current Plan
         </Badge>
       )}
@@ -102,11 +101,11 @@ function PlanOption({
 
       <div className="mt-4 border-t border-border/40 pt-3">
         <Button
-          size="sm"
+          size="md"
           variant={
-            isCurrent ? "outline" : config.isPopular ? "default" : "secondary"
+            isCurrent ? "ghost" : config.isPopular ? "brand" : "secondary"
           }
-          className="h-8 w-full text-xs"
+          className="w-full"
           disabled={isCurrent || disabled}
           onClick={(e) => {
             e.stopPropagation()
@@ -159,7 +158,7 @@ export function UpgradePlanModal({
           size="sm"
           variant="outline"
           onClick={() => setOpen(true)}
-          className="gap-1.5 text-xs"
+          className="gap-1.5"
         >
           <Sparkles className="h-3.5 w-3.5 text-primary" />
           Change Plan

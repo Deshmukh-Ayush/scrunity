@@ -121,11 +121,11 @@ export function SegmentDigestCard({
               Segment Performance Digest
             </CardTitle>
             <Button
-              size="sm"
+              size="md"
               variant="outline"
               onClick={handleGenerate}
               disabled={isGenerating}
-              className="gap-1.5 text-xs h-8"
+              className="gap-1.5"
             >
               <RefreshCw
                 className={`size-3.5 ${isGenerating ? "animate-spin" : ""}`}
@@ -154,11 +154,11 @@ export function SegmentDigestCard({
                 Performance & Learning Digest
               </CardTitle>
               {digest ? (
-                <Badge variant="outline" className="text-[10px] py-0">
+                <Badge variant="outline" className="py-0">
                   Stored Digest
                 </Badge>
               ) : (
-                <Badge variant="secondary" className="text-[10px] py-0">
+                <Badge variant="neutral" className="py-0">
                   Live Snapshot
                 </Badge>
               )}
@@ -174,11 +174,11 @@ export function SegmentDigestCard({
           </div>
 
           <Button
-            size="sm"
+            size="md"
             variant="outline"
             onClick={handleGenerate}
             disabled={isGenerating}
-            className="gap-1.5 text-xs h-8"
+            className="gap-1.5"
           >
             <RefreshCw
               className={`size-3.5 ${isGenerating ? "animate-spin" : ""}`}
@@ -272,33 +272,28 @@ export function SegmentDigestCard({
           </span>
           <div className="flex flex-wrap gap-2 pt-0.5">
             <Badge
-              variant="outline"
-              className="text-xs gap-1 border-success-border text-success bg-success-tint"
-            >
+              variant="success"
+              className="gap-1">
               Interested: {metrics.replyBreakdown?.interested ?? 0}
             </Badge>
             <Badge
               variant="outline"
-              className="text-xs gap-1 border-primary/40 text-primary bg-primary/10"
-            >
+              className="gap-1 text-primary">
               Questions: {metrics.replyBreakdown?.question ?? 0}
             </Badge>
             <Badge
               variant="outline"
-              className="text-xs gap-1 text-muted-foreground bg-muted/30"
-            >
+              className="gap-1 text-muted-foreground bg-muted/30">
               Auto-replies: {metrics.replyBreakdown?.autoReply ?? 0}
             </Badge>
             <Badge
-              variant="outline"
-              className="text-xs gap-1 border-danger-border text-danger bg-danger-tint"
-            >
+              variant="danger"
+              className="gap-1">
               Not interested: {metrics.replyBreakdown?.notInterested ?? 0}
             </Badge>
             <Badge
               variant="outline"
-              className="text-xs gap-1 text-muted-foreground"
-            >
+              className="gap-1 text-muted-foreground">
               Unclear: {metrics.replyBreakdown?.unclear ?? 0}
             </Badge>
           </div>

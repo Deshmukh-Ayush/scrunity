@@ -102,9 +102,8 @@ export function CampaignsListClient({
     if (isStalled(campaign)) {
       return (
         <Badge
-          variant="outline"
-          className="gap-1 border-warning-border bg-warning-tint text-xs font-medium text-warning"
-        >
+          variant="warning"
+          className="gap-1">
           <AlertCircle className="size-3 text-warning" /> Stalled (
           {campaign.currentStage.replace(/_/g, " ")})
         </Badge>
@@ -114,34 +113,33 @@ export function CampaignsListClient({
     switch (campaign.currentStage) {
       case "find_companies":
         return (
-          <Badge variant="secondary" className="gap-1 text-xs">
+          <Badge variant="neutral" className="gap-1">
             <Building2 className="size-3" /> Finding Companies
           </Badge>
         )
       case "awaiting_company_selection":
         return (
-          <Badge variant="outline" className="gap-1 border-warning-border text-xs text-warning">
+          <Badge variant="warning" className="gap-1">
             <AlertCircle className="size-3" /> Choose Companies
           </Badge>
         )
       case "find_contacts":
         return (
-          <Badge variant="secondary" className="gap-1 text-xs">
+          <Badge variant="neutral" className="gap-1">
             <Target className="size-3" /> Finding Contacts
           </Badge>
         )
       case "write_emails":
         return (
-          <Badge variant="secondary" className="gap-1 text-xs">
+          <Badge variant="neutral" className="gap-1">
             <Sparkles className="size-3" /> Drafting Emails
           </Badge>
         )
       case "awaiting_approval":
         return (
           <Badge
-            variant="default"
-            className="gap-1 bg-warning text-xs font-medium text-white hover:bg-warning"
-          >
+            variant="warning"
+            className="gap-1">
             <AlertCircle className="size-3" /> Awaiting Review
           </Badge>
         )
@@ -149,8 +147,7 @@ export function CampaignsListClient({
         return (
           <Badge
             variant="outline"
-            className="gap-1 border-primary/30 bg-primary/10 text-xs text-primary"
-          >
+            className="gap-1 text-primary">
             <Send className="size-3" /> Sending Emails
           </Badge>
         )
@@ -158,15 +155,14 @@ export function CampaignsListClient({
       case "done_for_now":
         return (
           <Badge
-            variant="outline"
-            className="gap-1 border-success-border text-xs text-success"
-          >
+            variant="success"
+            className="gap-1">
             <CheckCircle2 className="size-3" /> Completed
           </Badge>
         )
       default:
         return (
-          <Badge variant="outline" className="text-xs capitalize">
+          <Badge variant="outline" className="capitalize">
             {campaign.currentStage.replace(/_/g, " ")}
           </Badge>
         )
@@ -228,7 +224,7 @@ export function CampaignsListClient({
             </div>
             <Link
               href="/dashboard/campaigns/new"
-              className={cn(buttonVariants({ size: "default" }), "mt-2 gap-2")}
+              className={cn(buttonVariants({ size: "md" }), "mt-2 gap-2")}
             >
               <Plus className="size-4" />
               Create First Campaign
@@ -269,13 +265,12 @@ export function CampaignsListClient({
                     <TableCell>
                       {isStalled(campaign) ? (
                         <Badge
-                          variant="outline"
-                          className="border-warning-border bg-warning-tint text-xs font-medium text-warning capitalize"
-                        >
+                          variant="warning"
+                          className="capitalize">
                           stalled
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-xs capitalize">
+                        <Badge variant="outline" className="capitalize">
                           {campaign.status}
                         </Badge>
                       )}
@@ -297,9 +292,8 @@ export function CampaignsListClient({
                           className={cn(
                             buttonVariants({
                               size: "sm",
-                              variant: "default",
                             }),
-                            "gap-1 bg-warning text-xs font-medium text-white hover:bg-warning"
+                            "gap-1"
                           )}
                         >
                           Review Drafts (Stage 6)

@@ -14,13 +14,13 @@ export function EmailSourceBadge({ source }: { source: string }) {
   switch (source) {
     case "verified":
       return (
-        <Badge variant="default" className="gap-1 bg-success text-[10px]">
+        <Badge variant="success" className="gap-1">
           <ShieldCheck className="size-3" /> Verified
         </Badge>
       )
     case "found_on_site":
       return (
-        <Badge variant="default" className="gap-1 bg-success text-[10px]">
+        <Badge variant="success" className="gap-1">
           <ShieldCheck className="size-3" /> Found on Site
         </Badge>
       )
@@ -28,17 +28,15 @@ export function EmailSourceBadge({ source }: { source: string }) {
       return (
         <Badge
           variant="outline"
-          className="gap-1 border-primary/40 bg-primary/10 text-[10px] text-primary"
-        >
+          className="gap-1 text-primary">
           <ShieldCheck className="size-3" /> Pattern Guessed (MX Valid)
         </Badge>
       )
     case "pattern_guessed_unverified":
       return (
         <Badge
-          variant="outline"
-          className="gap-1 border-warning-border text-[10px] text-warning"
-        >
+          variant="warning"
+          className="gap-1">
           <AlertCircle className="size-3" /> Pattern Guessed (Unverified)
         </Badge>
       )
@@ -46,14 +44,13 @@ export function EmailSourceBadge({ source }: { source: string }) {
       return (
         <Badge
           variant="outline"
-          className="gap-1 text-[10px] text-muted-foreground"
-        >
+          className="gap-1 text-muted-foreground">
           <HelpCircle className="size-3" /> Company Fallback
         </Badge>
       )
     default:
       return (
-        <Badge variant="secondary" className="text-[10px]">
+        <Badge variant="neutral">
           No Email Found
         </Badge>
       )
@@ -82,9 +79,8 @@ export function DraftStatusBadge({
   if (isBouncedDraft(errorMessage, hasBounced)) {
     return (
       <Badge
-        variant="destructive"
-        className="gap-1 border-danger-border bg-danger-tint text-xs text-danger capitalize"
-      >
+        variant="danger"
+        className="gap-1 capitalize">
         <AlertTriangle className="size-3" /> Bounced
       </Badge>
     )
@@ -93,34 +89,33 @@ export function DraftStatusBadge({
   switch (status) {
     case "sent":
       return (
-        <Badge className="gap-1 bg-success text-xs text-white capitalize hover:bg-success">
+        <Badge variant="success" className="gap-1 capitalize">
           <Check className="size-3" /> Sent
         </Badge>
       )
     case "failed":
       return (
-        <Badge variant="destructive" className="gap-1 text-xs capitalize">
+        <Badge variant="danger" className="gap-1 capitalize">
           <XCircle className="size-3" /> Failed
         </Badge>
       )
     case "approved":
       return (
         <Badge
-          variant="default"
-          className="border-success-border bg-success-tint text-xs text-success capitalize"
-        >
+          variant="success"
+          className="capitalize">
           Approved
         </Badge>
       )
     case "rejected":
       return (
-        <Badge variant="destructive" className="text-xs capitalize">
+        <Badge variant="danger" className="capitalize">
           Rejected
         </Badge>
       )
     default:
       return (
-        <Badge variant="outline" className="text-xs capitalize">
+        <Badge variant="outline" className="capitalize">
           Draft
         </Badge>
       )

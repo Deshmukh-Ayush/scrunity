@@ -139,7 +139,6 @@ export function DraftCard({ draft }: { draft: Draft }) {
                 size="sm"
                 variant="ghost"
                 onClick={() => setIsEditing(false)}
-                className="h-7 text-xs"
               >
                 Cancel
               </Button>
@@ -147,7 +146,6 @@ export function DraftCard({ draft }: { draft: Draft }) {
                 size="sm"
                 disabled={isUpdating}
                 onClick={saveAndApprove}
-                className="h-7 text-xs"
               >
                 Save & Approve
               </Button>
@@ -169,7 +167,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-7 gap-1 text-xs text-muted-foreground"
+                  className="gap-1 text-muted-foreground"
                   onClick={startEditing}
                 >
                   <Edit2 className="size-3" />
@@ -182,7 +180,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
                     variant="outline"
                     disabled={isUpdating}
                     onClick={() => reviewDraft(draft.id, "reject")}
-                    className="h-7 gap-1 text-xs text-danger hover:text-danger"
+                    className="gap-1"
                   >
                     <XCircle className="size-3" />
                     Reject
@@ -191,7 +189,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
                     size="sm"
                     disabled={isUpdating || draft.status === "approved"}
                     onClick={() => reviewDraft(draft.id, "approve")}
-                    className="h-7 gap-1 bg-success text-xs text-white hover:bg-success"
+                    className="gap-1"
                   >
                     <CheckCircle2 className="size-3" />
                     Approve

@@ -46,7 +46,7 @@ export default function DesignSystemPage() {
           </Link>
           <div className="h-4 w-px bg-border/80" />
           <span className="text-sm font-semibold tracking-tight text-foreground">Scrunity Design System</span>
-          <Badge variant="outline" className="border-primary/40 text-primary bg-primary/5 text-[10px] font-mono">
+          <Badge variant="outline" className="text-primary font-mono">
             docs/design-system.md
           </Badge>
         </div>
@@ -88,7 +88,7 @@ export default function DesignSystemPage() {
                 <h3 className="text-sm font-semibold text-foreground">Primary Brand Blue (<code className="font-mono text-primary">#00aff9</code>)</h3>
                 <p className="text-xs text-muted-foreground">Replaces Firecrawl heat orange in the signature brand role across fixed opacity steps.</p>
               </div>
-              <Badge className="bg-primary text-white text-[11px] font-mono">--color-primary</Badge>
+              <Badge className="bg-primary font-mono">--color-primary</Badge>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {primarySteps.map((step) => (
@@ -117,7 +117,7 @@ export default function DesignSystemPage() {
                   The Firecrawl orange adopted as Scrunity’s operational tertiary token, replacing legacy blue info accents.
                 </p>
               </div>
-              <Badge className="bg-[#fa5d19] text-white text-[11px] font-mono">--color-tertiary</Badge>
+              <Badge className="bg-[#fa5d19] font-mono">--color-tertiary</Badge>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {tertiarySteps.map((step) => (

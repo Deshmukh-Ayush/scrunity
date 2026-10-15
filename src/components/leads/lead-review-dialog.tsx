@@ -276,10 +276,10 @@ export function LeadReviewDialog({
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                size="md"
                 onClick={reject}
                 disabled={isPending}
-                className="h-8 w-full gap-1.5 border-danger-border text-xs text-danger hover:bg-danger-tint hover:text-danger sm:w-auto"
+                className="w-full gap-1.5 sm:w-auto"
               >
                 <XCircle className="size-3.5" />
                 Reject Draft
@@ -289,10 +289,10 @@ export function LeadReviewDialog({
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
+                  size="md"
                   onClick={approve}
                   disabled={isPending}
-                  className="h-8 gap-1.5 border-success-border text-xs text-success hover:bg-success-tint hover:text-success"
+                  className="gap-1.5"
                 >
                   <CheckCircle2 className="size-3.5" />
                   Save & Approve
@@ -305,14 +305,14 @@ export function LeadReviewDialog({
                   <VerificationBadge status={lead.verificationStatus} />
                 </div>
 
-                <Button
+                <Button variant="brand"
                   type="button"
-                  size="sm"
+                  size="md"
                   onClick={send}
                   disabled={
                     isPending || !lead.email || !nameValid || !gate.qualified
                   }
-                  className="h-8 gap-1.5 text-xs shadow-sm"
+                  className="gap-1.5"
                   title={
                     !nameValid
                       ? "Sending blocked: Contact name is invalid (pending re-discovery)"

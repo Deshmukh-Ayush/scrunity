@@ -26,7 +26,7 @@ export default function GlobalError({
         We apologize for the inconvenience. An unexpected error occurred.
       </p>
       <div className="flex gap-4">
-        <Button onClick={() => reset()} variant="default">
+        <Button onClick={() => reset()}>
           Try again
         </Button>
         <Link href="/dashboard">

@@ -130,8 +130,7 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
       return (
         <Badge
           variant="outline"
-          className="text-[10px] h-4.5 px-1.5 border-destructive/30 bg-destructive/10 text-destructive gap-1"
-        >
+          className="h-4.5 px-1.5 border-destructive/30 bg-destructive/10 text-destructive gap-1">
           <AlertCircle className="size-2.5" />
           Failed
         </Badge>
@@ -143,9 +142,8 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
       const count = (output as any)?.count ?? (Array.isArray(camps) ? camps.length : 0);
       return (
         <Badge
-          variant="outline"
-          className="text-[10px] h-4.5 px-1.5 border-success-border bg-success-tint text-success"
-        >
+          variant="success"
+          className="h-4.5 px-1.5">
           {count > 0 ? `${count} campaigns found` : "No active campaigns"}
         </Badge>
       );
@@ -156,9 +154,8 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
       const count = (output as any)?.count ?? (Array.isArray(results) ? results.length : 0);
       return (
         <Badge
-          variant="outline"
-          className="text-[10px] h-4.5 px-1.5 border-success-border bg-success-tint text-success"
-        >
+          variant="success"
+          className="h-4.5 px-1.5">
           {count > 0 ? `${count} companies found` : "0 prospects found"}
         </Badge>
       );
@@ -166,9 +163,8 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
 
     return (
       <Badge
-        variant="outline"
-        className="text-[10px] h-4.5 px-1.5 border-success-border bg-success-tint text-success gap-1"
-      >
+        variant="success"
+        className="h-4.5 px-1.5 gap-1">
         <CheckCircle2 className="size-2.5" />
         Completed
       </Badge>
@@ -316,8 +312,7 @@ function CampaignOverviewRenderer({ output }: { output?: Record<string, unknown>
                   : camp.status === "done"
                   ? "border-success-border bg-success-tint text-success"
                   : "border-border text-muted-foreground"
-              )}
-            >
+              )}>
               {camp.status.replace(/_/g, " ")}
             </Badge>
           </div>
@@ -394,17 +389,15 @@ function ProspectsRenderer({ output }: { output?: Record<string, unknown> }) {
                     </span>
                     {contact.verified ? (
                       <Badge
-                        variant="outline"
-                        className="text-[9px] px-1 py-0 border-success-border bg-success-tint text-success gap-0.5"
-                      >
+                        variant="success"
+                        className="px-1 py-0 gap-0.5">
                         <BadgeCheck className="size-2.5" />
                         Verified
                       </Badge>
                     ) : (
                       <Badge
-                        variant="outline"
-                        className="text-[9px] px-1 py-0 border-warning-border bg-warning-tint text-warning"
-                      >
+                        variant="warning"
+                        className="px-1 py-0">
                         Guessed
                       </Badge>
                     )}

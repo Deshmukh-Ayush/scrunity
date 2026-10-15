@@ -60,11 +60,11 @@ function RecoveryButton({
   return (
     <Button
       variant="outline"
-      size="sm"
+      size="md"
       onClick={onClick}
       disabled={isRestarting}
       data-tone={tone}
-      className="h-8 gap-1.5 text-xs data-[tone=warning]:border-warning-border data-[tone=warning]:text-warning data-[tone=warning]:hover:bg-warning-tint"
+      className="gap-1.5 data-[tone=warning]:border-warning-border data-[tone=warning]:text-warning data-[tone=warning]:hover:bg-warning-tint"
     >
       {isRestarting ? (
         <Loader2 className="size-3.5 animate-spin" />
@@ -98,16 +98,13 @@ export function PipelineStatusBanner() {
               <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-foreground">
                 <span>Autonomous Pipeline Stalled:</span>
                 <Badge
-                  variant="outline"
-                  className="border-warning-border bg-warning-tint text-[11px] font-medium text-warning capitalize"
-                >
+                  variant="warning"
+                  className="capitalize">
                   {stageLabel} (Stalled)
                 </Badge>
                 {inngestOffline && (
                   <Badge
-                    variant="outline"
-                    className="border-warning-border bg-warning-tint text-[10px] text-warning"
-                  >
+                    variant="warning">
                     Inngest Offline
                   </Badge>
                 )}
@@ -147,8 +144,7 @@ export function PipelineStatusBanner() {
                 <span>Autonomous Pipeline In Progress:</span>
                 <Badge
                   variant="outline"
-                  className="border-primary/40 bg-primary/10 text-[11px] font-medium text-primary capitalize"
-                >
+                  className="text-primary capitalize">
                   {stageLabel}
                 </Badge>
               </div>
@@ -179,9 +175,8 @@ export function PipelineStatusBanner() {
               <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
                 <span>Autonomous Pipeline Halted:</span>
                 <Badge
-                  variant="destructive"
-                  className="text-[11px] font-medium capitalize"
-                >
+                  variant="danger"
+                  className="capitalize">
                   Failed
                 </Badge>
               </div>

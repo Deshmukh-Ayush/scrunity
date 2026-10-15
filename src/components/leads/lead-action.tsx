@@ -99,7 +99,7 @@ export function LeadAction({
         variant="outline"
         size="sm"
         disabled
-        className="h-7 cursor-not-allowed gap-1.5 border-warning-border bg-warning-tint px-2.5 text-xs text-warning opacity-60"
+        className="cursor-not-allowed gap-1.5 opacity-60"
         title="Contact name is a job title — pending re-discovery"
       >
         <AlertCircle className="size-3 text-warning" />
@@ -150,7 +150,7 @@ export function LeadAction({
         variant="outline"
         size="sm"
         onClick={() => onReview(lead)}
-        className="h-7 gap-1.5 border-success-border px-2.5 text-xs font-medium text-success hover:bg-success-tint hover:text-success"
+        className="gap-1.5"
       >
         <Send className="size-3" />
         Review & Send
@@ -175,7 +175,7 @@ export function LeadAction({
           size="sm"
           onClick={() => onDraft(lead)}
           disabled={isDrafting}
-          className="h-7 gap-1 px-2 text-xs text-danger hover:bg-danger-tint hover:text-danger"
+          className="gap-1"
           title="Retry drafting"
         >
           {isDrafting ? (
@@ -195,7 +195,7 @@ export function LeadAction({
       size="sm"
       onClick={() => onDraft(lead)}
       disabled={isDrafting}
-      className="h-7 gap-1.5 border-primary/40 px-2.5 text-xs font-medium text-primary hover:bg-primary/10 hover:text-primary"
+      className="gap-1.5"
     >
       {isDrafting ? (
         <Loader2 className="size-3 animate-spin" />

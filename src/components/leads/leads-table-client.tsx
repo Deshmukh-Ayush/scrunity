@@ -206,9 +206,8 @@ export function LeadsTableClient({
               Leads
             </h1>
             <Badge
-              variant="secondary"
-              className="px-2 py-0.5 text-xs font-semibold"
-            >
+              variant="neutral"
+              className="px-2 py-0.5">
               {total} {total === 1 ? "lead" : "leads"}
             </Badge>
           </div>
@@ -223,10 +222,10 @@ export function LeadsTableClient({
         </div>
         <Button
           variant="outline"
-          size="sm"
+          size="md"
           onClick={() => fetchLeads()}
           disabled={isLoading}
-          className="h-8 gap-1.5 text-xs"
+          className="gap-1.5"
         >
           <RefreshCw className={cn("size-3.5", isLoading && "animate-spin")} />
           Refresh
@@ -310,7 +309,7 @@ export function LeadsTableClient({
                         variant="outline"
                         size="sm"
                         onClick={handleClearFilters}
-                        className="mt-2 h-7 text-xs"
+                        className="mt-2"
                       >
                         Clear filters
                       </Button>

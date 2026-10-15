@@ -47,7 +47,7 @@ export function MagicLinkForm({ next }: { next?: string }) {
         onChange={(e) => setEmail(e.target.value)}
         className="h-9 text-sm"
       />
-      <Button type="submit" variant="outline" disabled={state === "sending"} className="h-9 text-sm">
+      <Button type="submit" variant="outline" disabled={state === "sending"} className="text-sm">
         {state === "sending" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Email me a sign-in link
       </Button>

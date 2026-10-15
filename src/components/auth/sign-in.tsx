@@ -58,7 +58,7 @@ export const SignInComp = ({ error, next }: { error?: string; next?: string }) =
             type="button"
             disabled={isLoading}
             onClick={handleGoogleSignIn}
-            className="group relative h-9 overflow-hidden text-sm shadow-sm transition-transform hover:shadow active:scale-[0.96]"
+            className="group relative overflow-hidden text-sm transition-transform hover:shadow active:scale-[0.96]"
           >
             {isLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

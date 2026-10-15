@@ -27,8 +27,7 @@ export function MailboxStatusBar() {
         <a
           href="/api/gtm/mailbox/connect"
           className={cn(
-            buttonVariants({ size: "sm" }),
-            "shrink-0 bg-warning text-xs text-white hover:bg-warning"
+            buttonVariants({ size: "sm" }), "shrink-0"
           )}
         >
           Connect Gmail Account
@@ -41,9 +40,8 @@ export function MailboxStatusBar() {
     <div className="flex items-center justify-between px-1 text-xs text-muted-foreground">
       <div className="flex items-center gap-2">
         <Badge
-          variant="outline"
-          className="gap-1 border-success-border text-[11px] text-success"
-        >
+          variant="success"
+          className="gap-1">
           <span className="size-1.5 rounded-full bg-success" />
           Connected: {mailbox.email}
         </Badge>

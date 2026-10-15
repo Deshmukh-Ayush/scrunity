@@ -289,17 +289,16 @@ export function ImapSmtpForm({
         <Button
           type="button"
           variant="ghost"
-          size="sm"
+          size="md"
           onClick={onCancel}
-          className="h-8 text-xs"
         >
           Cancel
         </Button>
         <Button
           type="submit"
-          size="sm"
+          size="md"
           disabled={isSubmitting}
-          className="h-8 gap-1.5 text-xs"
+          className="gap-1.5"
         >
           {isSubmitting ? (
             <>

@@ -72,9 +72,7 @@ function ConnectedMailboxCard({
             <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
               <span>{mailbox.email}</span>
               <Badge
-                variant="outline"
-                className="border-success-border text-[10px] font-medium text-success"
-              >
+                variant="success">
                 {providerLabel(mailbox.provider)}
               </Badge>
             </div>
@@ -84,10 +82,9 @@ function ConnectedMailboxCard({
           </div>
         </div>
         <Button
-          variant="destructive"
-          size="sm"
+          variant="danger"
+          size="md"
           onClick={onDisconnect}
-          className="h-8 text-xs"
         >
           Disconnect Mailbox
         </Button>
@@ -173,9 +170,8 @@ function ProviderOptions({ onConnected }: { onConnected: () => void }) {
                 M
               </div>
               <Badge
-                variant="secondary"
-                className="border border-border/60 bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
-              >
+                variant="neutral"
+                className="border-border/60 bg-muted px-2 py-0.5 text-muted-foreground">
                 Coming Soon
               </Badge>
             </div>
@@ -192,7 +188,7 @@ function ProviderOptions({ onConnected }: { onConnected: () => void }) {
           <Button
             disabled
             variant="outline"
-            className="h-9 w-full border-dashed border-border/80 bg-muted/30 text-xs text-muted-foreground"
+            className="w-full border-dashed border-border/80 bg-muted/30 text-muted-foreground"
           >
             <Clock className="mr-1 size-3.5" />
             Coming Soon
@@ -216,7 +212,7 @@ function ProviderOptions({ onConnected }: { onConnected: () => void }) {
             variant="outline"
             onClick={() => setShowImapSmtpForm((open) => !open)}
             aria-expanded={showImapSmtpForm}
-            className="h-9 w-full border-border/80 text-xs hover:bg-muted"
+            className="w-full border-border/80 hover:bg-muted"
           >
             <Server className="mr-1 size-3.5" />
             {showImapSmtpForm ? "Close Form" : "Configure IMAP / SMTP"}

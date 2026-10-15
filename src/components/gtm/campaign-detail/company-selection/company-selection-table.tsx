@@ -101,7 +101,6 @@ export function CompanySelectionToolbar() {
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs"
               onClick={selectAll}
             >
               Select all
@@ -109,7 +108,6 @@ export function CompanySelectionToolbar() {
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs"
               onClick={clear}
             >
               Clear
@@ -313,11 +311,11 @@ export function CompanySelectionFooter() {
         )}
       </p>
       {isEditable && (
-        <Button
-          size="sm"
+        <Button variant="brand"
+          size="md"
           onClick={confirm}
           disabled={selectedIds.size === 0 || isConfirming}
-          className="h-8 gap-1.5 self-end text-xs sm:self-auto"
+          className="gap-1.5 self-end sm:self-auto"
         >
           {isConfirming ? (
             <Loader2 className="size-3.5 animate-spin" />
