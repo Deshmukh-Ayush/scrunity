@@ -1,13 +1,7 @@
-import { and, asc, eq, inArray } from "drizzle-orm"
+import crypto from "crypto"
+import { eq } from "drizzle-orm"
 import { db } from "@/utils/db"
-import {
-  gtmContact,
-  gtmIcpSegment,
-  gtmOutreachCampaign,
-  gtmProspectCompany,
-  gtmResearchRun,
-  type LeadSearchOutcome,
-} from "@/db/schema"
+import { gtmContact, gtmOutreachCampaign, type LeadSearchCampaignState } from "@/db/schema"
 import { deriveTargetJobFunction } from "@/lib/gtm-ai"
 import { countryNameFromCode } from "@/lib/geo/countries"
 import { checkLinkedInProfileGate } from "@/lib/gtm-qualification-gates"
@@ -16,341 +10,395 @@ import { checkSuppression } from "@/lib/gtm-suppression"
 import { isAggregatorOrReviewDomain } from "@/lib/firecrawl"
 import { RETRY_PASS_COOLDOWN_MS } from "@/inngest/functions/find-contacts-lookup"
 import { getEmailEnrichmentProvider, getLeadSearchPeopleProvider } from "@/lib/providers/registry"
-import type {
-  EmailEnrichmentProvider,
-  NormalizedPerson,
-  PeopleDiscoveryProvider,
-} from "@/lib/providers/types"
-import { LeadSearchStop, ledgerVendor, lookupContactEmail } from "./email-lookup"
-import { leadSearchBudget, type LeadSearchBudget, type LeadSearchStopReason } from "./lead-search-budget"
-import { touchCampaignProgress } from "./stage-state"
-import { getCampaignVendorCredits } from "@/lib/providers/vendor-usage"
-
-type Company = typeof gtmProspectCompany.$inferSelect
-type Contact = typeof gtmContact.$inferSelect
+import type { EmailEnrichmentProvider, PeopleDiscoveryProvider } from "@/lib/providers/types"
+import { LeadSearchStop, pollEmailLookup, startEmailLookup, type LookupMetadata } from "./email-lookup"
+import {
+  leadSearchBudget,
+  WEB_PEOPLE_CALLS_PER_COMPANY,
+  type LeadSearchBudget,
+  type LeadSearchStopReason,
+} from "./lead-search-budget"
+import {
+  candidateName,
+  companyState,
+  countsAsLookup,
+  finishLeadSearch,
+  firecrawlCallsLeft,
+  hasOpenLookup,
+  isCompanyNameNotPerson,
+  isSettled,
+  loadCompaniesAndContacts,
+  loadSearchContext,
+  recordStop,
+  saveCampaignSearchState,
+  saveCompanyState,
+  setCompanyStatus,
+  wasExamined,
+  type Company,
+  type Contact,
+} from "./lead-search-state"
+import { touchCampaignAttempt } from "./stage-state"
 
 /** Injectable for scripts: stub providers, fixed titles, short polling. */
 export interface LeadSearchDeps {
   people?: PeopleDiscoveryProvider
   email?: EmailEnrichmentProvider
   titles?: string[]
-  budget?: Partial<LeadSearchBudget> & { pollIntervalMs?: number }
-  /** Skip the one-minute cooldown before retrying rate-limited people lookups. */
+  budget?: Partial<LeadSearchBudget>
+  /** Wait before retrying a company whose people search was rate-limited. */
   retryCooldownMs?: number
   log?: (line: string) => void
 }
 
-/**
- * Stage 5: find up to N leads whose email a vendor verified at mailbox level.
- *
- * Companies are taken in Stage 4 order (best fit first). For each, decision
- * makers come from the people provider, best title match first; each gets at
- * most one email lookup. A verified address is accepted and counted; otherwise
- * the next person is tried (up to GTM_MAX_CANDIDATES_PER_COMPANY), then the next
- * company. The search stops at the target or at the first exhausted budget,
- * keeping what it found, and never invents or guesses an address.
- *
- * Restart-safe: every person tried is stored before their lookup, with the
- * vendor job ref saved before polling, so a restart, retry or second trigger
- * resumes those jobs and never looks anyone up (or pays) twice. Companies
- * already settled keep their decisionMakerStatus and are skipped.
- */
-export async function executeVerifiedLeadSearch(campaignId: string, deps: LeadSearchDeps = {}) {
-  const startedAt = Date.now()
-  const log = deps.log ?? ((line: string) => console.log(`[Lead search ${campaignId}] ${line}`))
-  const [ctx] = await db
-    .select({ campaign: gtmOutreachCampaign, segment: gtmIcpSegment, researchRun: gtmResearchRun })
-    .from(gtmOutreachCampaign)
-    .innerJoin(gtmIcpSegment, eq(gtmOutreachCampaign.icpSegmentId, gtmIcpSegment.id))
-    .innerJoin(gtmResearchRun, eq(gtmOutreachCampaign.researchRunId, gtmResearchRun.id))
-    .where(eq(gtmOutreachCampaign.id, campaignId))
-  if (!ctx) throw new Error(`Outreach campaign ${campaignId} not found`)
-  const { campaign, segment, researchRun } = ctx
+export type LeadSearchStepResult = {
+  status: "continue" | "waiting" | "done" | "superseded"
+  /** Sleep before the next step (status "waiting"). */
+  waitMs: number
+  ms: number
+  polled: number
+  started: number
+  searched: number
+}
 
+/**
+ * No new company starts after this much time in one step; the step returns
+ * "continue" and the next step starts at once. A company search already
+ * started finishes in its step: under the 8/min Firecrawl limiter that adds
+ * up to ~25 s (3 calls), so steps measured 30-40 s with a 25 s limit.
+ */
+const STEP_SOFT_LIMIT_MS = 15_000
+
+class Superseded extends Error {}
+
+/**
+ * Stage 5, one step: find leads whose email a vendor verified at mailbox level.
+ *
+ * Companies are taken best fit first. For each, decision makers come from the
+ * people provider (stored on the company), best title match first; each gets at
+ * most one email lookup, started in one step and polled in later ones (the wait
+ * between steps is an Inngest step sleep, or a plain sleep in-process). A
+ * verified address is accepted; otherwise the next person is tried (up to
+ * GTM_MAX_CANDIDATES_PER_COMPANY), then the next company. The attempt stops at
+ * the target or the first exhausted budget, keeping what it found, and never
+ * invents or guesses an address.
+ *
+ * Every step reloads its state from the database and checks that its attempt
+ * still owns the stage (stage_attempt_id), so a restart or a second trigger
+ * makes an older attempt stop. Every person is stored before their lookup and
+ * the vendor job ref is saved before polling, so nobody is looked up (or paid
+ * for) twice.
+ */
+export async function runLeadSearchStep(
+  campaignId: string,
+  attemptId: string,
+  deps: LeadSearchDeps = {}
+): Promise<LeadSearchStepResult> {
+  const stepStart = Date.now()
+  const stats = { polled: 0, started: 0, searched: 0, settled: 0 }
+  const result = (status: LeadSearchStepResult["status"], waitMs = 0): LeadSearchStepResult => ({
+    status, waitMs, ms: Date.now() - stepStart, polled: stats.polled, started: stats.started, searched: stats.searched,
+  })
+  const log = deps.log ?? ((line: string) => console.log(`[Lead search ${campaignId}] ${line}`))
+  const heartbeat = async () => {
+    if (!(await touchCampaignAttempt(campaignId, "find_contacts", attemptId))) throw new Superseded()
+  }
+  try {
+    await heartbeat()
+  } catch {
+    return result("superseded")
+  }
+
+  const { campaign, segment, researchRun } = await loadSearchContext(campaignId)
   // Both fail the stage with a plain reason before any spend; no guessing fallback.
   const email = deps.email ?? getEmailEnrichmentProvider()
   const people = deps.people ?? getLeadSearchPeopleProvider()
-  const budget = leadSearchBudget(campaign.targetVerifiedLeads, startedAt, deps.budget)
+  const attemptStart = campaign.stageAttemptStartedAt?.getTime() ?? stepStart
+  const budget = leadSearchBudget(campaign.targetVerifiedLeads, attemptStart, deps.budget)
   const spend = { organizationId: researchRun.organizationId, researchRunId: researchRun.id, campaignId }
-  const heartbeat = () => touchCampaignProgress(campaignId)
-  await heartbeat()
 
-  const titles =
-    deps.titles ??
-    (await deriveTargetJobFunction({
-      segmentName: segment.name,
-      painPoint: segment.painPoint,
-      criteria: segment.criteria,
-    })).jobFunctions.filter(Boolean)
+  // Target titles: derived once (one LLM call) and kept across steps and attempts.
+  let state: LeadSearchCampaignState = campaign.leadSearchState ?? { attemptId: null, titles: [] }
+  if (state.attemptId !== attemptId) {
+    const titles =
+      deps.titles ??
+      (state.titles.length > 0
+        ? state.titles
+        : (await deriveTargetJobFunction({ segmentName: segment.name, painPoint: segment.painPoint, criteria: segment.criteria })).jobFunctions.filter(Boolean))
+    state = { attemptId, titles, stopReason: null }
+    await saveCampaignSearchState(campaignId, state)
+  }
+  const titles = deps.titles ?? state.titles
   const countryCode = campaign.targetCountryCode ?? researchRun.targetCountryCode
   const country = countryNameFromCode(countryCode) ?? ""
   const region = campaign.targetCountryCode ? campaign.targetRegion : researchRun.targetRegion
 
-  const companies = await db
-    .select()
-    .from(gtmProspectCompany)
-    .where(and(eq(gtmProspectCompany.outreachCampaignId, campaignId), eq(gtmProspectCompany.selectionStatus, "selected")))
-    .orderBy(asc(gtmProspectCompany.createdAt))
-  const loadContacts = async (): Promise<Contact[]> =>
-    companies.length
-      ? db.select().from(gtmContact).where(inArray(gtmContact.prospectCompanyId, companies.map((c) => c.id)))
-      : []
-  let existing = await loadContacts()
-
-  const state = {
-    verified: existing.filter((c) => c.emailStatus === "verified").length,
-    lookups: existing.filter((c) => c.emailLookupRef || (c.emailStatus && c.emailStatus !== "not_looked_up")).length,
-    examined: companies.filter((c) => c.decisionMakerStatus).length,
-    stop: null as LeadSearchStopReason | null,
+  let { companies, contacts } = await loadCompaniesAndContacts(campaignId)
+  const meta = (c: Contact) => (c.enrichMetadata ?? null) as LookupMetadata | null
+  const pollable = (c: Contact) => hasOpenLookup(c) && meta(c)?.gaveUpAttemptId !== attemptId
+  const verifiedCount = () => contacts.filter((c) => c.emailStatus === "verified").length
+  const stopped = () => Boolean(state.stopReason) || verifiedCount() >= budget.target
+  let lookups = contacts.filter(countsAsLookup).length
+  const stop = async (reason: LeadSearchStopReason, detail = "") => {
+    if (!state.stopReason) log(`stopping: ${reason}${detail ? ` (${detail})` : ""}`)
+    await recordStop(campaignId, state, reason)
   }
-  const lookupOf = (contact: Contact, company: Company) => ({
-    contactId: contact.id,
-    input: {
-      firstName: contact.name.split(/\s+/)[0],
-      lastName: contact.name.split(/\s+/).slice(1).join(" "),
-      domain: company.domain,
-      companyName: company.name,
-      linkedinUrl: contact.linkedinUrl,
-    },
-    provider: email,
-    spend,
-    timing: budget.timing,
-    heartbeat,
-  })
-  const onStop = (err: unknown) => {
+  const onStop = async (err: unknown) => {
     if (!(err instanceof LeadSearchStop)) throw err
-    state.stop ??= err.stopReason as LeadSearchStopReason
-    log(`stopping: ${err.stopReason} (${err.message})`)
+    await stop(err.stopReason as LeadSearchStopReason, err.message)
   }
+  const inputOf = (contact: Contact, company: Company) => ({
+    firstName: contact.name.split(/\s+/)[0],
+    lastName: contact.name.split(/\s+/).slice(1).join(" "),
+    domain: company.domain,
+    companyName: company.name,
+    linkedinUrl: contact.linkedinUrl,
+  })
+  const companyOf = (contact: Contact) => companies.find((c) => c.id === contact.prospectCompanyId)!
 
-  /**
-   * Finishes lookups an earlier pass or attempt left open: a started vendor job
-   * is polled again (already paid for, polling is free); a lookup that was
-   * rate-limited before it was submitted is submitted now, within budget.
-   */
-  async function resumeOpenLookups(contacts: Contact[]) {
-    const open = contacts.filter(
-      (c) =>
-        (c.emailLookupRef && (!c.emailStatus || c.emailStatus === "not_looked_up")) ||
-        (!c.emailLookupRef && c.lookupStatus === "lookup_incomplete")
-    )
-    for (const contact of open) {
-      if (state.stop || state.verified >= budget.target || Date.now() >= budget.timing.deadline) break
-      const company = companies.find((c) => c.id === contact.prospectCompanyId)!
-      if (!contact.emailLookupRef) {
-        if (state.lookups >= budget.maxEmailLookups) {
-          state.stop ??= "email_run_budget"
-          break
-        }
-        state.lookups++
-      }
-      log(`resuming lookup for ${contact.name} (${company.domain})`)
+  try {
+    // 1. Collect results of lookups already running (each polled once per step).
+    for (const contact of contacts.filter(pollable)) {
+      const company = companyOf(contact)
+      stats.polled++
       try {
-        const outcome = await lookupContactEmail({
-          ...lookupOf(contact, company),
-          existing: contact.emailLookupRef
-            ? { ref: contact.emailLookupRef, metadata: contact.enrichMetadata as never }
-            : undefined,
+        const outcome = await pollEmailLookup({
+          contactId: contact.id, ref: contact.emailLookupRef!, metadata: meta(contact),
+          input: inputOf(contact, company), provider: email, attemptId, maxWaitMs: budget.maxWaitMs,
         })
-        if (outcome.kind === "done" && outcome.result.status === "verified") {
-          state.verified++
-          await setCompanyStatus(company.id, "found")
+        if (outcome.kind === "done") {
+          const r = outcome.result
+          log(`${contact.name} (${company.domain}): ${r.status}${r.note ? ` (${r.note})` : ""}, ${r.creditsUsed} credit(s)`)
+          if (r.status === "verified") await setCompanyStatus(company, "found")
+        } else if (outcome.kind === "incomplete") {
+          log(`${contact.name} (${company.domain}): no result after the maximum wait, left open`)
         }
       } catch (err) {
-        onStop(err)
+        await onStop(err)
       }
     }
-  }
+    if (stats.polled > 0) ({ companies, contacts } = await loadCompaniesAndContacts(campaignId))
 
-  // 1. Lookups a previous attempt (restart, retry, crash) left open.
-  await resumeOpenLookups(existing)
-  existing = await loadContacts()
+    /** Starts the next person's lookup at a company that has candidates, or settles it. */
+    async function advanceCompany(company: Company) {
+      const mine = contacts.filter((c) => c.prospectCompanyId === company.id)
+      if (mine.some((c) => c.emailStatus === "verified")) return setCompanyStatus(company, "found")
+      if (mine.some(pollable)) return // its lookup is still running
+      if (stopped()) return
+      const failedHere = (c: Contact) => meta(c)?.startFailedAttemptId === attemptId
+      let lookupsHere = mine.filter(
+        (c) => c.emailLookupRef || c.emailStatus === "not_found" || c.emailStatus === "unverified" || failedHere(c)
+      ).length
 
-  // 2. Companies in fit order, a few at a time. Each company yields at most one
-  // verified lead, and no more companies run than leads still needed, so the
-  // search never pays for leads beyond the target.
-  const deferred: Company[] = []
-  const pending = companies.filter((c) => !c.decisionMakerStatus)
-
-  async function processCompany(company: Company, patient = false) {
-    await heartbeat()
-    const tried = existing.filter((c) => c.prospectCompanyId === company.id)
-    if (tried.some((c) => c.emailStatus === "verified")) return setCompanyStatus(company.id, "found")
-    // Directories and review sites: their "people" work elsewhere. No search, no lookup.
-    if (isAggregatorOrReviewDomain(company.domain)) {
-      log(`${company.domain}: aggregator or review site, skipped`)
-      return setCompanyStatus(company.id, "no_decision_maker_found")
+      // A person stored earlier whose job was never submitted (cap or rate limit): submit it first.
+      const unstarted = mine.find((c) => !c.emailLookupRef && c.lookupStatus === "lookup_incomplete" && !failedHere(c))
+      if (unstarted && lookupsHere < budget.maxCandidatesPerCompany) {
+        if (!(await lookupAllowed())) return
+        await heartbeat()
+        lookupsHere++
+        if (await startLookup(unstarted, company)) return
+        if (stopped()) return
+      }
+      const domainBlocked = await checkSuppression({ domain: company.domain })
+      for (const candidate of companyState(company).candidates ?? []) {
+        if (lookupsHere >= budget.maxCandidatesPerCompany) break
+        const name = candidateName(candidate)
+        if (mine.some((c) => c.providerPersonId === candidate.providerPersonId || c.name.toLowerCase() === name.toLowerCase())) continue
+        // Checks that need no lookup, so no credit is spent on someone who could never qualify.
+        const skipReason = !isValidPersonName(name)
+          ? "Not a person's name"
+          : !checkLinkedInProfileGate({ linkedinUrl: candidate.linkedinUrl }).passed
+            ? "No LinkedIn profile found"
+            : domainBlocked
+              ? "Company cannot be contacted"
+              : null
+        if (!skipReason && !(await lookupAllowed())) return
+        await heartbeat() // ownership re-checked right before anything is stored or spent
+        const [contact] = await db
+          .insert(gtmContact)
+          .values({
+            prospectCompanyId: company.id, name, title: candidate.title ?? "", linkedinUrl: candidate.linkedinUrl,
+            email: null, emailSource: "none", verificationStatus: "unverified", geo: candidate.location,
+            source: candidate.source, providerPersonId: candidate.providerPersonId, emailStatus: "not_looked_up", skipReason,
+          })
+          .returning()
+        mine.push(contact)
+        contacts.push(contact)
+        if (skipReason) {
+          log(`${name} (${company.domain}): skipped, ${skipReason}`)
+          continue
+        }
+        lookupsHere++
+        if (await startLookup(contact, company)) return
+        if (stopped()) return
+      }
+      if (stopped()) return
+      stats.settled++
+      await setCompanyStatus(company, lookupsHere > 0 ? "no_verified_email" : "no_decision_maker_found")
     }
-    let found: { people: NormalizedPerson[]; incomplete?: boolean }
-    try {
-      found = await people.findDecisionMakers(
-        {
-          company: { name: company.name, domain: company.domain, providerId: company.providerId },
-          titles,
-          country,
-          state: region,
-          limit: budget.maxCandidatesPerCompany * 2,
-          patient,
-        },
-        spend
-      )
-    } catch (err) {
-      const reason = (err as { failureReason?: string }).failureReason
-      if (reason?.startsWith("firecrawl_") || reason === "paused_firecrawl_allotment_exhausted") {
-        throw new LeadSearchStop("people_search_failed", (err as Error).message)
+
+    async function lookupAllowed() {
+      if (lookups >= budget.maxEmailLookups) {
+        await stop("email_run_budget")
+        return false
       }
-      throw err
-    }
-    if (found.people.length === 0) {
-      if (found.incomplete && !patient) return void deferred.push(company)
-      if (found.incomplete) {
-        // Still rate-limited after the patient retry: unknown, not "nobody".
-        // Left unsettled, so a restart searches this company again.
-        log(`${company.domain}: people lookup still rate-limited, left for a later attempt`)
-        return
+      if (Date.now() >= budget.deadline) {
+        await stop("wall_clock_budget")
+        return false
       }
-      log(`${company.domain}: nobody found`)
-      return setCompanyStatus(company.id, "no_decision_maker_found")
+      return true
     }
 
-    const ranked = [...found.people].sort(
-      (a, b) => scoreTitleMatch(b.title ?? "", titles).score - scoreTitleMatch(a.title ?? "", titles).score
-    )
-    let lookupsHere = tried.filter((c) => c.emailLookupRef || c.emailStatus === "not_found" || c.emailStatus === "unverified").length
-    const domainBlocked = await checkSuppression({ domain: company.domain })
-
-    for (const person of ranked) {
-      if (state.stop || state.verified >= budget.target || lookupsHere >= budget.maxCandidatesPerCompany) break
-      const name = `${person.firstName} ${person.lastName}`.trim()
-      if (tried.some((c) => c.providerPersonId === person.providerPersonId || c.name.toLowerCase() === name.toLowerCase())) continue
-
-      // Checks that need no lookup, so no credit is spent on someone who could never qualify.
-      const skipReason = !isValidPersonName(name)
-        ? "Not a person's name"
-        : !checkLinkedInProfileGate({ linkedinUrl: person.linkedinUrl }).passed
-          ? "No LinkedIn profile found"
-          : domainBlocked
-            ? "Company cannot be contacted"
-            : null
-      if (!skipReason && state.lookups >= budget.maxEmailLookups) {
-        state.stop ??= "email_run_budget"
-        break
-      }
-      if (!skipReason && Date.now() >= budget.timing.deadline) {
-        state.stop ??= "wall_clock_budget"
-        break
-      }
-      if (!skipReason) state.lookups++ // counted before any await, so concurrent companies can't overshoot
-
-      const [contact] = await db
-        .insert(gtmContact)
-        .values({
-          prospectCompanyId: company.id,
-          name,
-          title: person.title ?? "",
-          linkedinUrl: person.linkedinUrl,
-          email: null,
-          emailSource: "none",
-          verificationStatus: "unverified",
-          geo: person.location,
-          source: person.source,
-          providerPersonId: person.providerPersonId,
-          emailStatus: "not_looked_up",
-          skipReason,
+    /** Starts one stored person's lookup; true when the job is running. */
+    async function startLookup(contact: Contact, company: Company) {
+      if (!countsAsLookup(contact)) lookups++
+      try {
+        const outcome = await startEmailLookup({
+          contactId: contact.id, input: inputOf(contact, company), provider: email, spend, attemptId, previous: meta(contact),
         })
-        .returning()
-      tried.push(contact)
-      if (skipReason) {
-        log(`${name} (${company.domain}): skipped, ${skipReason}`)
-        continue
+        stats.started++
+        log(`${contact.name} (${company.domain}): lookup ${outcome.kind === "pending" ? "started" : "not started, will try the next person"}`)
+        return outcome.kind === "pending"
+      } catch (err) {
+        await onStop(err)
+        return false
       }
+    }
 
-      lookupsHere++
-      const outcome = await lookupContactEmail(lookupOf(contact, company))
-      log(
-        `${name} (${company.domain}): ${outcome.kind === "done" ? `${outcome.result.status}${outcome.result.note ? ` (${outcome.result.note})` : ""}, ${outcome.result.creditsUsed} credit(s)` : `incomplete (${outcome.reason})`}`
+    /** People search for one company (Firecrawl for the web provider), then its first lookup. */
+    async function searchCompany(company: Company, patient: boolean) {
+      await heartbeat()
+      stats.searched++
+      if (isAggregatorOrReviewDomain(company.domain)) {
+        log(`${company.domain}: aggregator or review site, skipped`)
+        return setCompanyStatus(company, "no_decision_maker_found")
+      }
+      let found: Awaited<ReturnType<PeopleDiscoveryProvider["findDecisionMakers"]>>
+      try {
+        found = await people.findDecisionMakers(
+          {
+            company: { name: company.name, domain: company.domain, providerId: company.providerId },
+            titles, country, state: region, limit: budget.maxCandidatesPerCompany * 2, patient,
+          },
+          spend
+        )
+      } catch (err) {
+        const reason = (err as { failureReason?: string }).failureReason
+        if (reason?.startsWith("firecrawl_") || reason === "paused_firecrawl_allotment_exhausted") {
+          return stop("web_search_budget", (err as Error).message)
+        }
+        throw err
+      }
+      const previous = companyState(company)
+      if (found.people.length === 0) {
+        if (found.incomplete && !patient) {
+          log(`${company.domain}: people search rate-limited, retrying later`)
+          return saveCompanyState(company, { ...previous, deferredUntil: new Date(Date.now() + (deps.retryCooldownMs ?? RETRY_PASS_COOLDOWN_MS)).toISOString() })
+        }
+        if (found.incomplete) {
+          // Still rate-limited after the patient retry: unknown, not "nobody".
+          log(`${company.domain}: people search still rate-limited, left for a later attempt`)
+          return saveCompanyState(company, { ...previous, gaveUpAttemptId: attemptId })
+        }
+        log(`${company.domain}: nobody found`)
+        return setCompanyStatus(company, "no_decision_maker_found")
+      }
+      const ranked = [...found.people].sort(
+        (a, b) => scoreTitleMatch(b.title ?? "", titles).score - scoreTitleMatch(a.title ?? "", titles).score
       )
-      if (outcome.kind === "done" && outcome.result.status === "verified") {
-        state.verified++
-        return setCompanyStatus(company.id, "found")
-      }
+      const candidates = ranked.filter((p) => {
+        const isCompany = isCompanyNameNotPerson(`${p.firstName} ${p.lastName}`, company)
+        if (isCompany) log(`${p.firstName} ${p.lastName} (${company.domain}): the company's own name, not a person; skipped`)
+        return !isCompany
+      })
+      await saveCompanyState(company, { candidates, deferredUntil: null, gaveUpAttemptId: null })
+      await advanceCompany(company)
     }
-    const allTried = !state.stop && state.verified < budget.target
-    if (allTried && lookupsHere > 0) await setCompanyStatus(company.id, "no_verified_email")
-    else if (allTried) await setCompanyStatus(company.id, "no_decision_maker_found")
-  }
 
-  const running = new Set<Promise<void>>()
-  let next = 0
-  let fatal: unknown = null
-  for (;;) {
-    while (
-      !state.stop &&
-      next < pending.length &&
-      running.size < budget.concurrency &&
-      state.verified + running.size < budget.target
-    ) {
-      if (state.examined >= budget.maxCompaniesExamined) {
-        state.stop = "companies_examined_budget"
+    // 2. Companies with people found: next person, or settle.
+    for (const company of companies.filter((c) => !isSettled(c) && companyState(c).candidates)) {
+      await advanceCompany(company)
+    }
+
+    // 3. New companies, best fit first, while leads are still needed and slots are free.
+    const active = () => companies.filter((c) => !isSettled(c) && companyState(c).candidates).length
+    for (;;) {
+      if (stopped() || Date.now() - stepStart >= STEP_SOFT_LIMIT_MS) break
+      if (verifiedCount() + active() >= budget.target || active() >= budget.concurrency) break
+      const unsettled = companies.filter((c) => !isSettled(c) && !companyState(c).candidates)
+      const pending = unsettled.find((c) => !companyState(c).deferredUntil)
+      const ready = unsettled.find((c) => {
+        const s = companyState(c)
+        return s.deferredUntil && Date.parse(s.deferredUntil) <= Date.now() && s.gaveUpAttemptId !== attemptId
+      })
+      const next = pending ?? ready
+      if (!next) break
+      if (pending && companies.filter(wasExamined).length >= budget.maxCompaniesExamined) {
+        await stop("companies_examined_budget")
         break
       }
-      if (Date.now() >= budget.timing.deadline) {
-        state.stop = "wall_clock_budget"
+      if (Date.now() >= budget.deadline) {
+        await stop("wall_clock_budget")
         break
       }
-      state.examined++
-      const task: Promise<void> = processCompany(pending[next++])
-        .catch((err) => {
-          if (err instanceof LeadSearchStop) return onStop(err)
-          // Let the companies already running finish (and record what they paid for).
-          fatal ??= err
-          state.stop ??= "people_search_failed"
-        })
-        .finally(() => running.delete(task))
-      running.add(task)
+      if (people.key === "web" && (await firecrawlCallsLeft(campaignId)) < WEB_PEOPLE_CALLS_PER_COMPANY) {
+        await stop("web_search_budget", `fewer than ${WEB_PEOPLE_CALLS_PER_COMPANY} web search calls left in this attempt`)
+        break
+      }
+      await searchCompany(next, !pending)
     }
-    if (running.size === 0) break
-    await Promise.race(running)
-  }
-  if (fatal) throw fatal
-
-  // 3. Companies whose people lookup was still rate-limited: one patient retry,
-  // after the existing cooldown, while leads are still needed and time remains.
-  if (deferred.length && !state.stop && state.verified < budget.target) {
-    log(`retrying ${deferred.length} rate-limited compan${deferred.length === 1 ? "y" : "ies"}`)
-    await heartbeat()
-    await new Promise((r) => setTimeout(r, deps.retryCooldownMs ?? RETRY_PASS_COOLDOWN_MS))
-    for (const company of deferred) {
-      if (state.stop || state.verified >= budget.target || Date.now() >= budget.timing.deadline) break
-      await processCompany(company, true).catch(onStop)
-    }
+  } catch (err) {
+    if (err instanceof Superseded) return result("superseded")
+    throw err
   }
 
-  // 4. One more chance for lookups left open in this attempt (timeouts, rate limits).
-  if (!state.stop && state.verified < budget.target) await resumeOpenLookups(await loadContacts())
+  // 4. What next: wait for running lookups, keep going, or finish.
+  ;({ companies, contacts } = await loadCompaniesAndContacts(campaignId))
+  const finished = stopped() || Date.now() >= budget.deadline
+  const unsettled = companies.filter((c) => !isSettled(c))
+  const activeNow = unsettled.filter((c) => companyState(c).candidates).length
+  const slots = verifiedCount() + activeNow < budget.target && activeNow < budget.concurrency
+  const progressed = stats.polled + stats.started + stats.searched + stats.settled > 0
+  const pendingLeft = unsettled.some((c) => !companyState(c).candidates && !companyState(c).deferredUntil)
+  // More companies can start right now (this step ran out of time): no sleep.
+  if (!finished && slots && pendingLeft && progressed) return result("continue")
+  // Lookups already paid for are always collected, even after a stop.
+  if (contacts.some(pollable)) return result("waiting", budget.pollIntervalMs)
+  if (finished || pendingLeft) return result("done")
+  const deferred = unsettled
+    .map((c) => companyState(c))
+    .filter((s) => !s.candidates && s.deferredUntil && s.gaveUpAttemptId !== attemptId)
+    .map((s) => Date.parse(s.deferredUntil!))
+  if (slots && deferred.length > 0) return result("waiting", Math.max(1000, Math.min(...deferred) - Date.now()))
+  return result("done")
+}
 
-  const outcome: LeadSearchOutcome = {
-    result:
-      state.verified >= budget.target ? "reached_target" : state.stop ? "budget_reached" : "out_of_companies",
-    target: budget.target,
-    verified: state.verified,
-    peopleReviewed: await countReviewed(companies.map((c) => c.id)),
-    companiesExamined: state.examined,
-    stopReason: state.verified >= budget.target ? null : state.stop,
-    emailCreditsUsed: await getCampaignVendorCredits(ledgerVendor(email), campaignId),
-    finishedAt: new Date().toISOString(),
+/**
+ * The in-process executor's Stage 5: the same steps in sequence, with plain
+ * sleeps between them, then the outcome. Returns null when another attempt
+ * took the stage over (nothing is finished or advanced then).
+ */
+export async function executeVerifiedLeadSearch(campaignId: string, deps: LeadSearchDeps = {}) {
+  const [row] = await db
+    .select({ attemptId: gtmOutreachCampaign.stageAttemptId })
+    .from(gtmOutreachCampaign)
+    .where(eq(gtmOutreachCampaign.id, campaignId))
+  let attemptId = row?.attemptId
+  if (!attemptId) {
+    // Called without a claim (scripts): take ownership for this run.
+    attemptId = crypto.randomUUID()
+    await db
+      .update(gtmOutreachCampaign)
+      .set({ stageAttemptId: attemptId, stageAttemptStartedAt: new Date() })
+      .where(eq(gtmOutreachCampaign.id, campaignId))
   }
-  await db.update(gtmOutreachCampaign).set({ leadSearchOutcome: outcome }).where(eq(gtmOutreachCampaign.id, campaignId))
-  log(`done: ${JSON.stringify(outcome)} in ${Math.round((Date.now() - startedAt) / 1000)}s`)
+  for (let step = 0; ; step++) {
+    const r = await runLeadSearchStep(campaignId, attemptId, deps)
+    ;(deps.log ?? console.log)(`[Lead search ${campaignId}] step ${step}: ${r.status} in ${r.ms} ms (polled ${r.polled}, started ${r.started}, searched ${r.searched})`)
+    if (r.status === "superseded") return null
+    if (r.status === "done") break
+    if (r.waitMs > 0) await new Promise((resolve) => setTimeout(resolve, r.waitMs))
+  }
+  const outcome = await finishLeadSearch(campaignId, deps.email ?? getEmailEnrichmentProvider())
+  ;(deps.log ?? console.log)(`[Lead search ${campaignId}] done: ${JSON.stringify(outcome)}`)
   return outcome
-}
-
-async function setCompanyStatus(companyId: string, status: "found" | "no_decision_maker_found" | "no_verified_email") {
-  await db.update(gtmProspectCompany).set({ decisionMakerStatus: status }).where(eq(gtmProspectCompany.id, companyId))
-}
-
-async function countReviewed(companyIds: string[]) {
-  if (companyIds.length === 0) return 0
-  const rows = await db.select({ id: gtmContact.id }).from(gtmContact).where(inArray(gtmContact.prospectCompanyId, companyIds))
-  return rows.length
 }

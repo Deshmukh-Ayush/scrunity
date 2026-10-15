@@ -9,13 +9,13 @@ import {
   getProviderMode,
   getTargetVerifiedLeads,
 } from "@/lib/providers/config"
-import type { LookupTiming } from "./email-lookup"
 
 /**
- * Hard budgets of one verified-lead search. Every one of them stops the search
- * cleanly with the leads found so far kept. Firecrawl budgets are not here:
- * the web people provider goes through the existing per-attempt cap and
- * limiter, which this search never raises or bypasses.
+ * Hard budgets of one verified-lead search attempt. Every one of them stops
+ * the search cleanly with the leads found so far kept. The Firecrawl caps
+ * themselves live in lib/firecrawl-spend.ts; the search only checks, before
+ * starting a company, that the attempt can still afford that company's worst
+ * case (WEB_PEOPLE_CALLS_PER_COMPANY), so it never stops halfway through one.
  */
 export interface LeadSearchBudget {
   target: number
@@ -23,31 +23,39 @@ export interface LeadSearchBudget {
   maxCompaniesExamined: number
   /** Email lookups for this campaign across all attempts (each costs at most 1 credit). */
   maxEmailLookups: number
+  /** Companies searched at the same time (each still tries its people one by one). */
   concurrency: number
-  timing: LookupTiming
+  /** Longest wait for one lookup's result within an attempt. */
+  maxWaitMs: number
+  /** Wait before polling started lookups again (an Inngest step sleep). */
+  pollIntervalMs: number
+  /** Absolute wall-clock limit of the attempt (across all its steps). */
+  deadline: number
 }
+
+/**
+ * Worst-case Firecrawl calls the web people provider makes for one company in
+ * one pass: LinkedIn search, then (only when it found nobody usable) a
+ * team-page search and that page's scrape.
+ */
+export const WEB_PEOPLE_CALLS_PER_COMPANY = 3
 
 export function leadSearchBudget(
   campaignTarget: number | null | undefined,
-  startedAt = Date.now(),
-  overrides: Partial<LeadSearchBudget> & { pollIntervalMs?: number } = {}
+  attemptStartedAt: number = Date.now(),
+  overrides: Partial<LeadSearchBudget> = {}
 ): LeadSearchBudget {
   // Fixture jobs answer at once; live FullEnrich jobs typically take 30-90 s.
   const fixture = getProviderMode() === "fixture"
-  const pollIntervalMs = overrides.pollIntervalMs ?? (fixture ? 5 : getEmailPollIntervalMs())
   return {
     target: getTargetVerifiedLeads(campaignTarget),
     maxCandidatesPerCompany: getMaxCandidatesPerCompany(),
     maxCompaniesExamined: getMaxCompaniesExamined(),
     maxEmailLookups: getEmailLookupsPerCampaign(),
     concurrency: getLeadSearchConcurrency(),
-    timing: {
-      maxWaitMs: getEmailLookupMaxWaitMs(),
-      // The first poll waits a little longer: almost no job finishes sooner.
-      firstPollMs: Math.round(pollIntervalMs * (fixture ? 1 : 4 / 3)),
-      pollIntervalMs,
-      deadline: startedAt + getLeadSearchMaxMs(),
-    },
+    maxWaitMs: getEmailLookupMaxWaitMs(),
+    pollIntervalMs: fixture && !process.env.GTM_EMAIL_POLL_INTERVAL_MS ? 5 : getEmailPollIntervalMs(),
+    deadline: attemptStartedAt + getLeadSearchMaxMs(),
     ...overrides,
   }
 }
@@ -60,6 +68,6 @@ export type LeadSearchStopReason =
   | "email_credit_cap_reached"
   | "email_credits_exhausted"
   | "email_provider_unavailable"
-  | "people_search_failed"
+  | "web_search_budget"
 
 export { leadSearchMessage } from "@/lib/lead-search-message"

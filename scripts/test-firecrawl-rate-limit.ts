@@ -310,8 +310,8 @@ async function main() {
       console.log(`   campaign ${i + 1}: ${KINDS.map((k) => `${k}=${c[k]?.lookupStatus}/${c[k]?.name}`).join(" | ")} | firecrawl calls this attempt ${camp.attempt}`)
       check(`c${i + 1}: normal company: decision maker found and email verified`, c.ok?.name === "Jane Doe" && c.ok?.emailStatus === "verified")
       check(`c${i + 1}: (b) rate-limited company recovered in the retry pass`, c["rl-recover"]?.name === "Jane Doe" && c["rl-recover"]?.emailStatus === "verified" && Boolean(c["rl-recover"]?.linkedinUrl))
-      check(`c${i + 1}: still rate-limited after retries -> left open (no person, no outcome stored)`,
-        !c["rl-forever"] && (await companyStatus(id, "rl-forever")) === null)
+      check(`c${i + 1}: still rate-limited after retries -> no person, marked "not reached" (picked up again by a restart)`,
+        !c["rl-forever"] && (await companyStatus(id, "rl-forever")) === "not_reached")
       check(`c${i + 1}: genuinely nothing found -> settled as no decision maker`, !c.none && (await companyStatus(id, "none")) === "no_decision_maker_found")
       check(`c${i + 1}: call cap unchanged and respected (<= 35 this attempt)`, camp.attempt <= 35, `${camp.attempt}`)
     }

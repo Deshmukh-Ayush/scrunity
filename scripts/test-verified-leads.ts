@@ -19,7 +19,7 @@ import { asc, eq, inArray, sql } from "drizzle-orm"
 import { db } from "../src/utils/db"
 import { gtmContact, gtmEmailDraft, gtmOutreachCampaign, gtmProspectCompany } from "../src/db/schema"
 import { runCampaignPipeline, runCampaignStage } from "../src/lib/pipeline/runner"
-import { claimCampaignStage } from "../src/lib/pipeline/stage-state"
+import { claimCampaignStage, stageTimingAttempts } from "../src/lib/pipeline/stage-state"
 import { confirmCompanySelection } from "../src/lib/pipeline/company-selection"
 import { executeFindContacts } from "../src/inngest/functions/find-contacts"
 import { leadSearchMessage } from "../src/lib/lead-search-message"
@@ -88,7 +88,9 @@ const readCampaign = async (cid: string) => (await db.select().from(gtmOutreachC
 /** Stage 5 directly (fixed titles, no LLM), after claiming it like the runner does. */
 async function searchOnly(cid: string) {
   if (!(await claimCampaignStage(cid, "find_contacts"))) throw new Error("could not claim")
-  return executeFindContacts(cid, { titles: TITLES, log: (l) => console.log(`    ${l}`) })
+  const outcome = await executeFindContacts(cid, { titles: TITLES, log: (l) => console.log(`    ${l}`) })
+  if (outcome === "superseded") throw new Error("search was superseded")
+  return outcome
 }
 
 async function full() {
@@ -119,7 +121,7 @@ async function full() {
   check("ledger credits equal the credits the (fixture) vendor charged", l.credits === charged, `ledger ${l.credits}, results ${charged}, ${l.n} lookups`)
   check("zero vendor network calls", vendorCalls() === 0, JSON.stringify(Object.fromEntries(callsByHost)))
   check("stage timings recorded for find_companies, find_contacts, write_emails",
-    ["find_companies", "find_contacts", "write_emails"].every((s) => after.stageTimings?.[s]?.ms !== undefined))
+    ["find_companies", "find_contacts", "write_emails"].every((s) => stageTimingAttempts(after.stageTimings, s).length === 1))
 }
 
 async function budgets() {

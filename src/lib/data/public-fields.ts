@@ -21,6 +21,9 @@ const FAILURE_CODES: Record<string, string> = {
   email_run_budget: "email_lookup_run_limit",
   companies_examined_budget: "companies_examined_limit",
   wall_clock_budget: "time_limit",
+  web_search_budget: "web_search_attempt_limit",
+  people_search_failed: "web_search_attempt_limit",
+  company_provider_unavailable: "company_search_unavailable",
 }
 
 const GENERIC_FAILURE = "This step failed. Retry it, or contact support if it keeps failing."
@@ -46,7 +49,15 @@ export function toPublicEmailStatus<T extends string | null | undefined>(
   return value
 }
 
-const HIDDEN_RUN_FIELDS = ["firecrawlCallCount", "firecrawlAttemptCallCount", "stageTimings"]
+const HIDDEN_RUN_FIELDS = [
+  "firecrawlCallCount",
+  "firecrawlAttemptCallCount",
+  "stageTimings",
+  // Internal search bookkeeping (attempt tokens, stop codes, derived titles).
+  "stageAttemptId",
+  "stageAttemptStartedAt",
+  "leadSearchState",
+]
 const HIDDEN_CONTACT_FIELDS = ["source", "providerId", "providerPersonId", "enrichMetadata", "emailLookupRef"]
 
 function omit<T extends object>(row: T, keys: string[]) {
@@ -68,7 +79,15 @@ export function publicPipelineRow<T extends { failureReason?: string | null }>(r
     failureReason: toPublicFailureReason(row.failureReason),
   }
   if ("leadSearchOutcome" in out) out.leadSearchOutcome = publicLeadSearchOutcome(out.leadSearchOutcome)
-  return out as Omit<T, "firecrawlCallCount" | "firecrawlAttemptCallCount" | "stageTimings">
+  return out as Omit<
+    T,
+    | "firecrawlCallCount"
+    | "firecrawlAttemptCallCount"
+    | "stageTimings"
+    | "stageAttemptId"
+    | "stageAttemptStartedAt"
+    | "leadSearchState"
+  >
 }
 
 /** A contact or company row: no provider ids, no vendor payload, neutral email status. */

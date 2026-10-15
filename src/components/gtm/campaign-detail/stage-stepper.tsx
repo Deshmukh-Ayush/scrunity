@@ -27,7 +27,7 @@ const STAGE_ORDER = [
 
 const STEPS = [
   { id: "find_companies", label: "1. Find Companies", icon: Building2 },
-  { id: "find_contacts", label: "2. Contacts & MX", icon: Users },
+  { id: "find_contacts", label: "2. Verified Contacts", icon: Users },
   { id: "write_emails", label: "3. Write Emails", icon: Mail },
   { id: "awaiting_approval", label: "4. Human Review", icon: CheckCircle2 },
   { id: "send_emails", label: "5. Throttled Sending", icon: Send },

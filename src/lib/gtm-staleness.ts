@@ -6,7 +6,7 @@ export const STAGE_STALENESS_THRESHOLDS_MS: Record<string, number> = {
 
   // Stages 4-7: Campaign stages
   find_companies: 3 * 60 * 1000, // 3 minutes
-  find_contacts: 4 * 60 * 1000, // 4 minutes (multiple external lookups + MX checks)
+  find_contacts: 4 * 60 * 1000, // 4 minutes (every search step heartbeats; waits between steps are under 1 minute)
   write_emails: 3 * 60 * 1000, // 3 minutes
   send_emails: 5 * 60 * 1000, // 5 minutes (supports 30-90s throttled delay per draft)
 

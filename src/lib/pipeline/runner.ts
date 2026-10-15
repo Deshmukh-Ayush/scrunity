@@ -5,11 +5,11 @@ import { executeResearchCompany } from "@/inngest/functions/research-company"
 import { executeExploreCompetitors } from "@/inngest/functions/explore-competitors"
 import { executeDefineSegments } from "@/inngest/functions/define-segments"
 import { executeFindCompanies } from "@/inngest/functions/find-companies"
-import { executeFindContacts } from "@/inngest/functions/find-contacts"
+import { executeFindContacts, STAGE_SUPERSEDED } from "@/inngest/functions/find-contacts"
 import { executeWriteEmails } from "@/inngest/functions/write-emails"
 import { executeQualifyCampaignContacts } from "@/lib/gtm-stage-5-5"
 import {
-  claimCampaignStage,
+  claimCampaignStageAttempt,
   claimResearchStage,
   failCampaign,
   failResearchRun,
@@ -106,7 +106,11 @@ async function executeClaimed({
   fail: (reason: string) => Promise<void>
 }): Promise<StageOutcome> {
   try {
-    await execute()
+    if ((await execute()) === STAGE_SUPERSEDED) {
+      // A restart or another executor took the stage over: leave the row to it.
+      console.warn(`[Pipeline Guard] ${label} ${id}: stage "${stage}" was taken over by a newer attempt. Stopping.`)
+      return "skipped"
+    }
   } catch (err) {
     const reason = reasonOf(err)
     console.error(`[Pipeline] ${label} ${id}: stage "${stage}" failed:`, err)
@@ -151,11 +155,15 @@ export function runResearchStage(researchRunId: string, stage: ResearchStage) {
 
 /** Runs one campaign stage if this caller can claim it. */
 export function runCampaignStage(campaignId: string, stage: CampaignStage) {
+  let attemptId: string | undefined
   return runClaimedStage({
     label: "Campaign",
     id: campaignId,
     stage,
-    claim: () => claimCampaignStage(campaignId, stage),
+    claim: async () => {
+      attemptId = (await claimCampaignStageAttempt(campaignId, stage))?.attemptId
+      return Boolean(attemptId)
+    },
     execute: () => CAMPAIGN_STAGES[stage].run(campaignId),
     readState: async () =>
       (
@@ -167,7 +175,8 @@ export function runCampaignStage(campaignId: string, stage: CampaignStage) {
           .from(gtmOutreachCampaign)
           .where(eq(gtmOutreachCampaign.id, campaignId))
       )[0],
-    fail: (reason) => failCampaign(campaignId, stage, reason),
+    // Only while this attempt owns the stage: never fail a newer attempt's row.
+    fail: (reason) => failCampaign(campaignId, stage, reason, attemptId),
     recordTiming: (startedAt, outcome) => recordStageTiming("campaign", campaignId, stage, startedAt, outcome),
   })
 }

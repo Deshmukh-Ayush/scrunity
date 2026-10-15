@@ -6,6 +6,11 @@ import {
   type ResearchStage,
 } from "@/lib/pipeline/runner"
 import { CAMPAIGN_STAGE_EVENTS, RESEARCH_STAGE_EVENTS } from "@/lib/pipeline/events"
+import {
+  claimLeadSearch,
+  finishLeadSearchStage,
+  leadSearchStep,
+} from "@/lib/pipeline/lead-search-steps"
 import { type InngestStep } from "./shared"
 
 /**
@@ -68,11 +73,63 @@ function campaignStageFunction(stage: CampaignStage, next: CampaignStage | null)
   )
 }
 
+/** Upper bound on search steps per attempt; the wall-clock budget ends it long before. */
+const MAX_LEAD_SEARCH_STEPS = 300
+
+/**
+ * Stage 5 (verified-lead search) as many short steps instead of one long one:
+ * a claim, then search steps (each well under a minute: people searches, lookup
+ * starts, one poll per running lookup) with `step.sleep` while vendor jobs run,
+ * then a finish step. No single step comes near the route's maxDuration.
+ * Same function id as before, so no new function appears in Inngest Cloud.
+ */
+function leadSearchStageFunction() {
+  return inngest.createFunction(
+    {
+      id: "gtm-campaign-stage-find-contacts",
+      name: "GTM Campaign Stage: find_contacts",
+      retries: 0,
+      triggers: [{ event: CAMPAIGN_STAGE_EVENTS.find_contacts }],
+    },
+    async ({
+      event,
+      step,
+    }: {
+      event: { data: { outreachCampaignId: string } }
+      step: InngestStep
+    }) => {
+      const { outreachCampaignId } = event.data
+      const attempt = await step.run("claim", () => claimLeadSearch(outreachCampaignId))
+      if (!attempt) return { stage: "find_contacts", outcome: "skipped" }
+
+      let status = "continue"
+      for (let i = 0; i < MAX_LEAD_SEARCH_STEPS && (status === "continue" || status === "waiting"); i++) {
+        const result = await step.run(`search-${i}`, () => leadSearchStep(outreachCampaignId, attempt))
+        status = result.status
+        if (result.status === "waiting" && result.waitMs > 0) {
+          await step.sleep(`wait-${i}`, Math.max(1000, result.waitMs))
+        }
+      }
+      if (status === "failed" || status === "superseded") {
+        return { stage: "find_contacts", outcome: status === "failed" ? "failed" : "skipped" }
+      }
+      const outcome = await step.run("finish", () => finishLeadSearchStage(outreachCampaignId, attempt))
+      if (outcome === "completed") {
+        await step.sendEvent("trigger-write_emails", {
+          name: CAMPAIGN_STAGE_EVENTS.write_emails,
+          data: { outreachCampaignId },
+        })
+      }
+      return { stage: "find_contacts", outcome }
+    }
+  )
+}
+
 export const pipelineStageFunctions = [
   researchStageFunction("research_company", "research_competitors"),
   researchStageFunction("research_competitors", "define_segments"),
   researchStageFunction("define_segments", null),
   campaignStageFunction("find_companies", "find_contacts"),
-  campaignStageFunction("find_contacts", "write_emails"),
+  leadSearchStageFunction(),
   campaignStageFunction("write_emails", null),
 ]

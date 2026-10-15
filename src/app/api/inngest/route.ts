@@ -3,6 +3,13 @@ import { serve } from "inngest/next";
 import { inngest, isDev } from "@/inngest/client";
 import { gtmFunctions } from "@/inngest/functions";
 
+/**
+ * Longest one Inngest step (one HTTP call to this route) may run, in seconds:
+ * 300 is the Vercel Hobby ceiling. Stages are split so no single step comes
+ * near it (Stage 5's search steps stop starting work after 25 s); see CLAUDE.md.
+ */
+export const maxDuration = 300;
+
 const handlers = serve({
   client: inngest,
   functions: gtmFunctions,

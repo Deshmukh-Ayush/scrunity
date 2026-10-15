@@ -1,6 +1,12 @@
 import { and, eq, isNull, lt, ne, or, sql, type AnyColumn } from "drizzle-orm"
 import { db } from "@/utils/db"
-import { gtmOutreachCampaign, gtmResearchRun } from "@/db/schema"
+import crypto from "crypto"
+import {
+  gtmOutreachCampaign,
+  gtmResearchRun,
+  type StageTimingAttempt,
+  type StageTimings,
+} from "@/db/schema"
 
 export type ResearchRunStage = typeof gtmResearchRun.$inferSelect.currentStage
 export type CampaignStageValue = typeof gtmOutreachCampaign.$inferSelect.currentStage
@@ -103,12 +109,31 @@ export async function failResearchRun(
 // Outreach campaigns (stages 4-6)
 // ---------------------------------------------------------------------------
 
-/** Campaign equivalent of claimResearchStage. */
-export async function claimCampaignStage(campaignId: string, stage: CampaignStageValue) {
+export interface StageAttempt {
+  attemptId: string
+  /** ISO time the attempt claimed the stage. */
+  startedAt: string
+}
+
+/**
+ * Campaign equivalent of claimResearchStage. Also stamps a new attempt id on
+ * the row, so work split across several steps (Stage 5) can tell when a
+ * restart or another executor has taken the stage over.
+ */
+export async function claimCampaignStageAttempt(
+  campaignId: string,
+  stage: CampaignStageValue
+): Promise<StageAttempt | null> {
   const now = new Date()
+  const attemptId = crypto.randomUUID()
   const claimed = await db
     .update(gtmOutreachCampaign)
-    .set({ lastProgressAt: now, firecrawlAttemptCallCount: 0 })
+    .set({
+      lastProgressAt: now,
+      firecrawlAttemptCallCount: 0,
+      stageAttemptId: attemptId,
+      stageAttemptStartedAt: now,
+    })
     .where(
       and(
         eq(gtmOutreachCampaign.id, campaignId),
@@ -118,7 +143,36 @@ export async function claimCampaignStage(campaignId: string, stage: CampaignStag
       )
     )
     .returning({ id: gtmOutreachCampaign.id })
-  return claimed.length > 0
+  return claimed.length > 0 ? { attemptId, startedAt: now.toISOString() } : null
+}
+
+export async function claimCampaignStage(campaignId: string, stage: CampaignStageValue) {
+  return (await claimCampaignStageAttempt(campaignId, stage)) !== null
+}
+
+/**
+ * Heartbeat that only lands while `attemptId` still owns the stage. Returns
+ * false when the attempt was superseded (restart, failure, stage moved on):
+ * the caller must stop without writing anything else.
+ */
+export async function touchCampaignAttempt(
+  campaignId: string,
+  stage: CampaignStageValue,
+  attemptId: string
+): Promise<boolean> {
+  const touched = await db
+    .update(gtmOutreachCampaign)
+    .set({ lastProgressAt: new Date() })
+    .where(
+      and(
+        eq(gtmOutreachCampaign.id, campaignId),
+        eq(gtmOutreachCampaign.currentStage, stage),
+        eq(gtmOutreachCampaign.status, "in_progress"),
+        eq(gtmOutreachCampaign.stageAttemptId, attemptId)
+      )
+    )
+    .returning({ id: gtmOutreachCampaign.id })
+  return touched.length > 0
 }
 
 /** Campaign equivalent of advanceResearchRun. */
@@ -137,16 +191,27 @@ export async function advanceCampaign(
   return updated.length > 0
 }
 
-/** Marks a campaign failed at `stage` (no-op if it already moved on). */
+/**
+ * Marks a campaign failed at `stage` (no-op if it already moved on). With
+ * `attemptId`, only while that attempt still owns the stage, so a superseded
+ * attempt can never fail the attempt that replaced it.
+ */
 export async function failCampaign(
   campaignId: string,
   stage: CampaignStageValue,
-  failureReason: string
+  failureReason: string,
+  attemptId?: string
 ) {
   await db
     .update(gtmOutreachCampaign)
     .set({ status: "failed", failureReason })
-    .where(and(eq(gtmOutreachCampaign.id, campaignId), eq(gtmOutreachCampaign.currentStage, stage)))
+    .where(
+      and(
+        eq(gtmOutreachCampaign.id, campaignId),
+        eq(gtmOutreachCampaign.currentStage, stage),
+        attemptId ? eq(gtmOutreachCampaign.stageAttemptId, attemptId) : undefined
+      )
+    )
 }
 
 /** Heartbeat for long campaign loops that make no Firecrawl calls (LLM drafting, enrichment). */
@@ -157,7 +222,11 @@ export async function touchCampaignProgress(campaignId: string) {
     .where(eq(gtmOutreachCampaign.id, campaignId))
 }
 
-/** One stage attempt's wall-clock span, merged into the row's stage_timings. */
+/**
+ * One stage attempt's wall-clock span, appended to the stage's list in
+ * stage_timings (every attempt is kept). A value written before attempts were
+ * kept (a single object) becomes the first element of the list.
+ */
 export async function recordStageTiming(
   table: "campaign" | "research_run",
   id: string,
@@ -167,16 +236,31 @@ export async function recordStageTiming(
 ) {
   const endedAt = new Date()
   const entry = JSON.stringify({
-    [stage]: {
-      startedAt: startedAt.toISOString(),
-      endedAt: endedAt.toISOString(),
-      ms: endedAt.getTime() - startedAt.getTime(),
-      outcome,
-    },
+    startedAt: startedAt.toISOString(),
+    endedAt: endedAt.toISOString(),
+    ms: endedAt.getTime() - startedAt.getTime(),
+    outcome,
   })
   const target = table === "campaign" ? gtmOutreachCampaign : gtmResearchRun
+  const timings = sql`coalesce(${target.stageTimings}, '{}'::jsonb)`
+  const previous = sql`${timings} -> ${stage}::text`
   await db
     .update(target)
-    .set({ stageTimings: sql`coalesce(${target.stageTimings}, '{}'::jsonb) || ${entry}::jsonb` })
+    .set({
+      stageTimings: sql`jsonb_set(${timings}, array[${stage}::text], (
+        CASE jsonb_typeof(${previous})
+          WHEN 'array' THEN ${previous}
+          WHEN 'object' THEN jsonb_build_array(${previous})
+          ELSE '[]'::jsonb
+        END
+      ) || jsonb_build_array(${entry}::jsonb))`,
+    })
     .where(eq(target.id, id))
+}
+
+/** Every recorded attempt of a stage, oldest first (handles the old single-object form). */
+export function stageTimingAttempts(timings: StageTimings | null | undefined, stage: string): StageTimingAttempt[] {
+  const value = timings?.[stage]
+  if (!value) return []
+  return Array.isArray(value) ? value : [value]
 }
