@@ -32,7 +32,7 @@ export function FeedRow({
       title={title}
       data-force={dataForce}
       className={cn(
-        "group/feed-row flex min-h-14 items-center gap-3 rounded-lg border border-transparent bg-surface px-3 py-2.5 shadow-surface outline-none",
+        "group/feed-row flex min-h-14 min-w-0 items-center gap-3 rounded-lg border border-transparent bg-surface px-3 py-2.5 shadow-surface outline-none",
         "transition-[box-shadow,translate,border-color,background-color] duration-(--motion-fast) ease-out motion-reduce:transition-none",
         "ui-hover:shadow-floating motion-safe:ui-hover:-translate-y-px ui-focus:focus-ring",
         className

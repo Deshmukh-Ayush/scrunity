@@ -27,7 +27,7 @@ export function AppShell({
     <div className="grid h-dvh grid-cols-1 grid-rows-[48px_minmax(0,1fr)] bg-canvas md:grid-cols-[240px_minmax(0,1fr)]">
       <a
         href="#main"
-        className="sr-only rounded-md bg-surface px-3 py-1.5 text-body font-medium text-fg-strong shadow-floating focus:not-sr-only focus:fixed focus:start-3 focus:top-2 focus:z-50"
+        className="sr-only focus:not-sr-only focus:fixed focus:start-3 focus:top-2 focus:z-50 focus:rounded-md focus:border focus:border-transparent focus:bg-surface focus:px-3 focus:py-1.5 focus:text-body focus:font-medium focus:text-fg-strong focus:shadow-floating ui-focus:focus-ring"
       >
         Skip to content
       </a>

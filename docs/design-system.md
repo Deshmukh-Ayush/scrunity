@@ -253,6 +253,62 @@ Hugeicons free set (`@hugeicons/core-free-icons`, MIT; Stroke Rounded), imported
 - Decorative icons are `aria-hidden` (the default). Icon-only buttons need an `aria-label`.
 - Icons are neutral: they take the text color around them, never brand.
 
+## App shell
+
+`src/components/shell/`, mounted once by `app/dashboard/layout.tsx`. Every authenticated route renders inside it; no
+page draws its own sidebar or top bar.
+
+- **Layout:** a CSS grid. Fixed 240px sidebar column, 48px top bar, and the main region (`<main id="main">`), which is
+  the only part that scrolls. Sidebar and main both sit on the canvas (`bg-canvas`), split by one single-side divider
+  (`border-e`). Cards inside main are white surfaces with shadow tokens.
+- **Sidebar, top to bottom:** workspace menu (Settings, Billing, Sign out), main nav, the collapsible **Chats** group
+  (recent chats and a "New chat" link to Home), credits pill pinned at the bottom (links to Billing).
+- **Nav config rule:** the nav is the `NAV_ITEMS` array in `shell/nav-config.ts`. Only routes that exist and work
+  today go in it: no placeholders, no "coming soon", no dead links. A new section (Inbox, Tasks, Companies, People,
+  Deals, Lists) is one new line once its route ships. Settings and Billing live in the workspace menu.
+- **Rows** (`SidebarItem`): 32px, 6px radius, 16px icon, `text-body` medium. Hover fills with `--muted-fill`; the
+  current page is a white chip (`bg-surface shadow-raised`) and carries `aria-current="page"`. Section labels are
+  `text-meta` muted.
+- **Collapsible groups** (`SidebarGroup`): the trigger is a button with `aria-expanded`/`aria-controls`; a closed body
+  is `inert`. Open/closed is remembered per user in localStorage (every access in try/catch; renders with the default
+  without it). The body uses the transitions.dev accordion and animates only after the first toggle, so a remembered
+  state restored on load does not play. No motion under reduced motion.
+- **Top bar:** breadcrumb on the left (current page, plus a linked parent where one exists, from `breadcrumbsFor`).
+  The right side stays empty: no Help or search control without a real destination.
+- **Below 768px:** the sidebar becomes a drawer (Base UI Dialog) opened from the top bar's menu button. Focus is
+  trapped, Escape closes, focus returns to the trigger, and following a link closes it. Panel-reveal timing (400ms
+  in, 350ms out); opacity only under reduced motion.
+- **Keyboard:** a "Skip to content" link is the first focusable element; tab order is sidebar → top bar → main.
+
+## Home
+
+`/dashboard` (`components/home/`). Container `prose`, top to bottom with 64px between blocks:
+
+1. **Greeting** (`text-title`): "Good morning, Ayush." The time of day comes from the viewer's clock after mount; the
+   line's height is reserved, so nothing moves and hydration matches. First name from the session, or no name.
+2. **Agent composer** (`components/chat/agent-composer.tsx`): white card, `shadow-floating`, radius 12, 12px padding.
+   Auto-growing textarea, 1 to 8 lines, `text-composer` (16px on phones so iOS does not zoom). Enter sends,
+   Shift+Enter adds a line, Enter while an IME is composing never sends. Round brand send button (icon only,
+   `aria-label="Send"`), disabled while empty, `loading` while sending. The whole card takes the focus ring while the
+   textarea has focus. This is Home's one brand button.
+3. **Needs you**: campaigns waiting on the user (stopped, emails to approve, approved emails to send, companies to
+   choose). At most 5 rows; "View all" goes to Campaigns when there are more.
+4. **Today**: sends (grouped per campaign), replies and booked meetings on the viewer's local day. Rendered after
+   hydration because "today" depends on the viewer's timezone; it sits last, so nothing above it shifts.
+5. **Empty sections disappear.** No empty-state blocks for Needs you or Today.
+6. **First run** (nothing in either section and no chats): three starter prompts under the composer. Choosing one fills
+   the composer; it never sends.
+
+Rows are `FeedRow`: a compact white card that is itself the link (icon, one-line title, one-line context, trailing
+action or time). Sections are `FeedSection` with a `text-section` header and a muted count or date. Only real data
+sources feed them (`lib/data/home.ts`); never placeholder rows.
+
+**Home → chat.** Sending creates a chat (`POST /api/gtm/chat/conversations`), hands the prompt to the chat page
+(`chat-events.ts`) and navigates to `/dashboard/chat?id=…`, where the existing agent flow sends it. Both composers are
+a React `<ViewTransition name="agent-composer">`, so the card moves to its chat position (250ms, smooth-out) while
+the rest of the page cross-fades (150ms out, 250ms in). Reduced motion: instant swap. The chat page has no Suspense
+boundary on purpose: the pair only forms when the new page commits with the navigation.
+
 ## Interface rules
 
 **Accessibility**
