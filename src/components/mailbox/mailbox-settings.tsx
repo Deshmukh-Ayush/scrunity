@@ -25,8 +25,8 @@ function Notice({
       data-tone={tone}
       className={cn(
         "flex items-start gap-3 rounded-xl border p-4",
-        "data-[tone=success]:border-emerald-500/30 data-[tone=success]:bg-emerald-500/10 data-[tone=success]:text-emerald-800 dark:data-[tone=success]:text-emerald-200",
-        "data-[tone=error]:border-rose-500/30 data-[tone=error]:bg-rose-500/10 data-[tone=error]:text-rose-800 dark:data-[tone=error]:text-rose-200"
+        "data-[tone=success]:border-success-border data-[tone=success]:bg-success-tint data-[tone=success]:text-success",
+        "data-[tone=error]:border-danger-border data-[tone=error]:bg-danger-tint data-[tone=error]:text-danger"
       )}
     >
       <Icon className="mt-0.5 size-5 shrink-0 opacity-80" />
@@ -65,7 +65,7 @@ function ConnectedMailboxCard({
     <div className="space-y-4 rounded-xl border border-border/80 bg-muted/20 p-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="rounded-full border border-emerald-500/20 bg-emerald-500/10 p-2.5 text-emerald-600 dark:text-emerald-400">
+          <div className="rounded-full border border-success-border bg-success-tint p-2.5 text-success">
             <CheckCircle2 className="size-5" />
           </div>
           <div>
@@ -73,7 +73,7 @@ function ConnectedMailboxCard({
               <span>{mailbox.email}</span>
               <Badge
                 variant="outline"
-                className="border-emerald-500/40 text-[10px] font-medium text-emerald-600 dark:text-emerald-400"
+                className="border-success-border text-[10px] font-medium text-success"
               >
                 {providerLabel(mailbox.provider)}
               </Badge>
@@ -106,7 +106,7 @@ function ConnectedMailboxCard({
           <dt className="block text-[11px] text-muted-foreground">
             Reply Classification
           </dt>
-          <dd className="mt-0.5 block text-xs font-medium text-emerald-600 dark:text-emerald-400">
+          <dd className="mt-0.5 block text-xs font-medium text-success">
             Autonomous Stage 8 Polling Active
           </dd>
         </div>
@@ -142,7 +142,7 @@ function ProviderOptions({ onConnected }: { onConnected: () => void }) {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="flex flex-col justify-between space-y-4 rounded-xl border border-border/80 bg-card/40 p-5 transition-all hover:border-primary/50">
           <div className="space-y-2">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-red-500/10 text-sm font-semibold text-red-600 dark:text-red-400">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-danger-tint text-sm font-semibold text-danger">
               G
             </div>
             <h5 className="text-xs font-semibold text-foreground">
@@ -201,7 +201,7 @@ function ProviderOptions({ onConnected }: { onConnected: () => void }) {
 
         <div className="flex flex-col justify-between space-y-4 rounded-xl border border-border/80 bg-card/40 p-5 transition-all hover:border-primary/50">
           <div className="space-y-2">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-emerald-500/10 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+            <div className="flex size-9 items-center justify-center rounded-lg bg-success-tint text-sm font-semibold text-success">
               <Server className="size-4" />
             </div>
             <h5 className="text-xs font-semibold text-foreground">

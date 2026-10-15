@@ -32,9 +32,9 @@ export function LeadStatusBadge({
       <Badge
         variant="outline"
         title="Web lookups for this contact were rate-limited. It was not disqualified."
-        className="inline-flex items-center gap-1 border-amber-500/40 bg-amber-500/10 text-[11px] font-medium text-amber-600 dark:text-amber-400"
+        className="inline-flex items-center gap-1 border-warning-border bg-warning-tint text-[11px] font-medium text-warning"
       >
-        <AlertTriangle className="size-3 shrink-0 text-amber-500" />
+        <AlertTriangle className="size-3 shrink-0 text-warning" />
         Lookup Incomplete
       </Badge>
     )
@@ -49,9 +49,9 @@ export function LeadStatusBadge({
     return (
       <Badge
         variant="outline"
-        className="inline-flex items-center gap-1 border-amber-500/40 bg-amber-500/10 text-[11px] font-medium text-amber-600 dark:text-amber-400"
+        className="inline-flex items-center gap-1 border-warning-border bg-warning-tint text-[11px] font-medium text-warning"
       >
-        <AlertTriangle className="size-3 shrink-0 text-amber-500" />
+        <AlertTriangle className="size-3 shrink-0 text-warning" />
         Pending Re-discovery
       </Badge>
     )
@@ -68,9 +68,9 @@ export function LeadStatusBadge({
       return (
         <Badge
           variant="outline"
-          className="inline-flex items-center gap-1 border-rose-500/40 bg-rose-500/10 text-[11px] font-medium text-rose-600 dark:text-rose-400"
+          className="inline-flex items-center gap-1 border-danger-border bg-danger-tint text-[11px] font-medium text-danger"
         >
-          <AlertTriangle className="size-3 shrink-0 text-rose-500" />
+          <AlertTriangle className="size-3 shrink-0 text-danger" />
           Bounced
         </Badge>
       )
@@ -102,7 +102,7 @@ export function VerificationBadge({ status }: { status: string }) {
       return (
         <Badge
           variant="outline"
-          className="border-emerald-500/40 text-[10px] text-emerald-600"
+          className="border-success-border text-[10px] text-success"
         >
           MX Valid
         </Badge>

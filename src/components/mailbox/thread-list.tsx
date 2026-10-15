@@ -42,7 +42,7 @@ function ThreadRow({
           <div className="flex min-w-0 items-center gap-1.5">
             {thread.isUnread && (
               <span
-                className="size-2 shrink-0 rounded-full bg-tertiary"
+                className="size-2 shrink-0 rounded-full bg-primary"
                 title="Unread response"
               />
             )}
@@ -82,7 +82,7 @@ function ThreadRow({
           {thread.isBounced && (
             <Badge
               variant="destructive"
-              className="gap-1 border-rose-500/30 bg-rose-500/10 px-1.5 py-0 text-[9px] font-medium text-rose-600"
+              className="gap-1 border-danger-border bg-danger-tint px-1.5 py-0 text-[9px] font-medium text-danger"
             >
               <AlertTriangle className="size-2.5" />
               Bounced

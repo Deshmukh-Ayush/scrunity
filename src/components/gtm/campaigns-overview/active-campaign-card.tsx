@@ -34,8 +34,8 @@ export function ActiveCampaignCard({ campaign, researchRun }: CampaignItem) {
       data-awaiting-review={isAwaitingApproval || undefined}
       className={cn(
         "transition-all hover:border-foreground/20",
-        "data-[stalled]:border-amber-500/50 data-[stalled]:bg-amber-500/5",
-        "data-[awaiting-review]:border-amber-500/40"
+        "data-[stalled]:border-warning-border data-[stalled]:bg-warning-tint",
+        "data-[awaiting-review]:border-warning-border"
       )}
     >
       <CardHeader className="p-4 pb-2">
@@ -45,8 +45,8 @@ export function ActiveCampaignCard({ campaign, researchRun }: CampaignItem) {
             className={cn(
               "text-xs capitalize",
               staleness.isStalled &&
-                "border-amber-500/50 bg-amber-500/10 font-medium text-amber-600 dark:text-amber-400",
-              isAwaitingApproval && "bg-amber-600 text-white hover:bg-amber-700"
+                "border-warning-border bg-warning-tint font-medium text-warning",
+              isAwaitingApproval && "bg-warning text-white hover:bg-warning"
             )}
           >
             {staleness.isStalled
@@ -75,7 +75,7 @@ export function ActiveCampaignCard({ campaign, researchRun }: CampaignItem) {
               variant: isAwaitingApproval ? "default" : "secondary",
             }),
             "gap-1 text-xs",
-            isAwaitingApproval && "bg-amber-600 text-white hover:bg-amber-700"
+            isAwaitingApproval && "bg-warning text-white hover:bg-warning"
           )}
         >
           {isAwaitingApproval ? "Review Drafts" : "View Pipeline"}

@@ -16,7 +16,7 @@ export function IntentBadge({
           variant="success"
           className="shrink-0 gap-1 px-2 py-0.5 text-[10px] font-semibold"
         >
-          <span className="size-1.5 rounded-full bg-emerald-500" />
+          <span className="size-1.5 rounded-full bg-success" />
           Interested
         </Badge>
       )
@@ -26,7 +26,7 @@ export function IntentBadge({
           variant="tertiary"
           className="shrink-0 gap-1 px-2 py-0.5 text-[10px] font-semibold"
         >
-          <span className="size-1.5 rounded-full bg-tertiary" />
+          <span className="size-1.5 rounded-full bg-primary" />
           Question
         </Badge>
       )

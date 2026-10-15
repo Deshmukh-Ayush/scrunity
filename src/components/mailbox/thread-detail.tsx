@@ -27,7 +27,7 @@ function MessageCard({ msg }: { msg: MailboxMessage }) {
       className={cn(
         "space-y-3 rounded-xl border p-4.5 shadow-2xs transition-all",
         "data-[direction=outbound]:border-border/80 data-[direction=outbound]:bg-card",
-        "data-[direction=inbound]:border-tertiary/30 data-[direction=inbound]:bg-tertiary/5 dark:data-[direction=inbound]:bg-tertiary/10"
+        "data-[direction=inbound]:border-primary/30 data-[direction=inbound]:bg-primary/5 dark:data-[direction=inbound]:bg-primary/10"
       )}
     >
       <div className="flex items-center justify-between gap-3 border-b border-border/50 pb-2.5">
@@ -37,7 +37,7 @@ function MessageCard({ msg }: { msg: MailboxMessage }) {
               "flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
               msg.isOutbound
                 ? "border-primary/20 bg-primary/10 text-primary"
-                : "border-tertiary/30 bg-tertiary/10 text-tertiary"
+                : "border-primary/30 bg-primary/10 text-primary"
             )}
           >
             {msg.fromName.slice(0, 1).toUpperCase()}
@@ -53,7 +53,7 @@ function MessageCard({ msg }: { msg: MailboxMessage }) {
                   "px-1 py-0 text-[9px] font-medium",
                   msg.isOutbound
                     ? "border-primary/30 bg-primary/5 text-primary"
-                    : "border-tertiary/30 bg-tertiary/5 text-tertiary"
+                    : "border-primary/30 bg-primary/5 text-primary"
                 )}
               >
                 {msg.isOutbound
@@ -160,7 +160,7 @@ export function ThreadDetail({ thread }: { thread: MailboxThread | null }) {
             {thread.isBounced && (
               <Badge
                 variant="destructive"
-                className="gap-1 border-rose-500/30 bg-rose-500/15 text-[11px] font-semibold text-rose-700 dark:text-rose-300"
+                className="gap-1 border-danger-border bg-danger-tint text-[11px] font-semibold text-danger"
               >
                 <AlertTriangle className="size-3" /> Delivery Bounced
               </Badge>
@@ -205,9 +205,9 @@ export function ThreadDetail({ thread }: { thread: MailboxThread | null }) {
       {thread.isBounced && (
         <div
           role="alert"
-          className="mx-4 mt-3 flex items-start gap-2.5 rounded-lg border border-rose-500/25 bg-rose-500/10 p-3 text-xs text-rose-700 dark:text-rose-300"
+          className="mx-4 mt-3 flex items-start gap-2.5 rounded-lg border border-danger-border bg-danger-tint p-3 text-xs text-danger"
         >
-          <AlertCircle className="mt-0.5 size-4 shrink-0 text-rose-500" />
+          <AlertCircle className="mt-0.5 size-4 shrink-0 text-danger" />
           <div className="space-y-0.5">
             <p className="font-semibold">Email Delivery Failed (Bounced)</p>
             <p className="text-[11px] text-muted-foreground">

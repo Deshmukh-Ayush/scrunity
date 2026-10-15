@@ -191,12 +191,12 @@ export function SegmentDigestCard({
       <CardContent className="p-4 pt-3 space-y-4">
         {/* Small Sample Warning Alert */}
         {isSmallSample && (
-          <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200 py-2.5">
-            <AlertCircle className="size-4 text-amber-600 dark:text-amber-400" />
+          <Alert className="border-warning-border bg-warning-tint text-warning py-2.5">
+            <AlertCircle className="size-4 text-warning" />
             <AlertTitle className="text-xs font-semibold">
               Small Sample Size ({metrics.sentCount} emails sent)
             </AlertTitle>
-            <AlertDescription className="text-xs text-amber-800/90 dark:text-amber-300/90">
+            <AlertDescription className="text-xs text-warning">
               {metrics.sampleSizeWarning ||
                 "Under 20 sent emails. Conversion and booking rates are early directional indicators only and not statistically significant yet."}
             </AlertDescription>
@@ -229,10 +229,10 @@ export function SegmentDigestCard({
           </div>
 
           <div className="border rounded-md p-2.5 bg-muted/20">
-            <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+            <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1 text-success">
               <CheckCircle2 className="size-3" /> Interested
             </span>
-            <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-baseline gap-1.5">
+            <div className="text-lg font-bold text-success mt-0.5 flex items-baseline gap-1.5">
               <span>{metrics.replyBreakdown?.interested ?? 0}</span>
               <span className="text-xs font-normal text-muted-foreground">
                 ({metrics.interestedReplyRate}%)
@@ -273,13 +273,13 @@ export function SegmentDigestCard({
           <div className="flex flex-wrap gap-2 pt-0.5">
             <Badge
               variant="outline"
-              className="text-xs gap-1 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
+              className="text-xs gap-1 border-success-border text-success bg-success-tint"
             >
               Interested: {metrics.replyBreakdown?.interested ?? 0}
             </Badge>
             <Badge
               variant="outline"
-              className="text-xs gap-1 border-tertiary/40 text-tertiary bg-tertiary/10"
+              className="text-xs gap-1 border-primary/40 text-primary bg-primary/10"
             >
               Questions: {metrics.replyBreakdown?.question ?? 0}
             </Badge>
@@ -291,7 +291,7 @@ export function SegmentDigestCard({
             </Badge>
             <Badge
               variant="outline"
-              className="text-xs gap-1 border-rose-500/30 text-rose-700 dark:text-rose-300 bg-rose-500/10"
+              className="text-xs gap-1 border-danger-border text-danger bg-danger-tint"
             >
               Not interested: {metrics.replyBreakdown?.notInterested ?? 0}
             </Badge>

@@ -13,10 +13,10 @@ export function MailboxStatusBar() {
 
   if (!mailbox) {
     return (
-      <Card className="flex flex-col justify-between gap-3 border-amber-500/30 bg-amber-500/5 p-4 sm:flex-row sm:items-center">
+      <Card className="flex flex-col justify-between gap-3 border-warning-border bg-warning-tint p-4 sm:flex-row sm:items-center">
         <div className="space-y-0.5">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-900 dark:text-amber-200">
-            <Mail className="size-4 text-amber-600" />
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-warning">
+            <Mail className="size-4 text-warning" />
             Gmail Mailbox Not Connected
           </div>
           <p className="text-xs text-muted-foreground">
@@ -28,7 +28,7 @@ export function MailboxStatusBar() {
           href="/api/gtm/mailbox/connect"
           className={cn(
             buttonVariants({ size: "sm" }),
-            "shrink-0 bg-amber-600 text-xs text-white hover:bg-amber-700"
+            "shrink-0 bg-warning text-xs text-white hover:bg-warning"
           )}
         >
           Connect Gmail Account
@@ -42,9 +42,9 @@ export function MailboxStatusBar() {
       <div className="flex items-center gap-2">
         <Badge
           variant="outline"
-          className="gap-1 border-emerald-500/40 text-[11px] text-emerald-600 dark:text-emerald-400"
+          className="gap-1 border-success-border text-[11px] text-success"
         >
-          <span className="size-1.5 rounded-full bg-emerald-500" />
+          <span className="size-1.5 rounded-full bg-success" />
           Connected: {mailbox.email}
         </Badge>
         <span className="text-[11px]">
@@ -54,7 +54,7 @@ export function MailboxStatusBar() {
       <button
         type="button"
         onClick={disconnectMailbox}
-        className="text-[11px] text-muted-foreground underline hover:text-rose-500"
+        className="text-[11px] text-muted-foreground underline hover:text-danger"
       >
         Disconnect Mailbox
       </button>

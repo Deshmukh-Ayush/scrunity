@@ -57,7 +57,7 @@ export interface RecentTx {
 const chartConfig: ChartConfig = {
   prospectsSent: {
     label: "Prospects Sent",
-    color: "var(--color-primary, #6366f1)",
+    color: "var(--chart-4)",
   },
 }
 
@@ -193,8 +193,8 @@ export function CreditUsageChart({
               >
                 <defs>
                   <linearGradient id="colorUsage" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
+                    <stop offset="5%" stopColor="var(--chart-4)" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="var(--chart-4)" stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid
@@ -208,14 +208,14 @@ export function CreditUsageChart({
                   axisLine={false}
                   tickMargin={8}
                   fontSize={11}
-                  stroke="#888888"
+                  stroke="var(--text-muted)"
                 />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
                   fontSize={11}
-                  stroke="#888888"
+                  stroke="var(--text-muted)"
                   allowDecimals={false}
                   width={36}
                 />
@@ -244,7 +244,7 @@ export function CreditUsageChart({
                 <Area
                   type="monotone"
                   dataKey="prospectsSent"
-                  stroke="#6366f1"
+                  stroke="var(--chart-4)"
                   strokeWidth={2}
                   fillOpacity={1}
                   fill="url(#colorUsage)"
@@ -301,7 +301,7 @@ export function CreditUsageChart({
                         Debit
                       </Badge>
                     ) : isTopup ? (
-                      <Badge className="h-4 border-emerald-500/20 bg-emerald-500/15 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                      <Badge className="h-4 border-success-border bg-success-tint text-[10px] font-medium text-success">
                         {isGrant ? "Granted" : "Top-Up"}
                       </Badge>
                     ) : (
@@ -342,9 +342,9 @@ export function CreditUsageChart({
                         </td>
                         <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">
                           {isDebit ? (
-                            <span className="text-red-500">-{tx.amount}</span>
+                            <span className="text-danger">-{tx.amount}</span>
                           ) : isTopup ? (
-                            <span className="text-emerald-500">
+                            <span className="text-success">
                               +{tx.amount}
                             </span>
                           ) : (

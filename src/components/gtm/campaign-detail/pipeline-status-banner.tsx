@@ -64,7 +64,7 @@ function RecoveryButton({
       onClick={onClick}
       disabled={isRestarting}
       data-tone={tone}
-      className="h-8 gap-1.5 text-xs data-[tone=warning]:border-amber-500/50 data-[tone=warning]:text-amber-700 data-[tone=warning]:hover:bg-amber-500/10 dark:data-[tone=warning]:text-amber-300"
+      className="h-8 gap-1.5 text-xs data-[tone=warning]:border-warning-border data-[tone=warning]:text-warning data-[tone=warning]:hover:bg-warning-tint"
     >
       {isRestarting ? (
         <Loader2 className="size-3.5 animate-spin" />
@@ -88,10 +88,10 @@ export function PipelineStatusBanner() {
 
   if (campaign.status === "in_progress" && staleness.isStalled) {
     return (
-      <Card className="border-amber-500/40 bg-amber-500/5 p-4">
+      <Card className="border-warning-border bg-warning-tint p-4">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 shrink-0 rounded-full bg-amber-500/10 p-2 text-amber-600 dark:text-amber-400">
+            <div className="mt-0.5 shrink-0 rounded-full bg-warning-tint p-2 text-warning">
               <AlertTriangle className="size-5" />
             </div>
             <div className="space-y-1">
@@ -99,14 +99,14 @@ export function PipelineStatusBanner() {
                 <span>Autonomous Pipeline Stalled:</span>
                 <Badge
                   variant="outline"
-                  className="border-amber-500/50 bg-amber-500/10 text-[11px] font-medium text-amber-600 capitalize dark:text-amber-400"
+                  className="border-warning-border bg-warning-tint text-[11px] font-medium text-warning capitalize"
                 >
                   {stageLabel} (Stalled)
                 </Badge>
                 {inngestOffline && (
                   <Badge
                     variant="outline"
-                    className="border-amber-500/40 bg-amber-500/10 text-[10px] text-amber-600 dark:text-amber-400"
+                    className="border-warning-border bg-warning-tint text-[10px] text-warning"
                   >
                     Inngest Offline
                   </Badge>
@@ -116,7 +116,7 @@ export function PipelineStatusBanner() {
                 {staleness.explanation}
               </p>
               {inngestOffline && (
-                <p className="mt-0.5 font-mono text-[11px] text-amber-700 dark:text-amber-300">
+                <p className="mt-0.5 font-mono text-[11px] text-warning">
                   Start the background runner with: npm run inngest:dev
                 </p>
               )}
@@ -136,10 +136,10 @@ export function PipelineStatusBanner() {
 
   if (campaign.status === "in_progress") {
     return (
-      <Card className="border-tertiary/30 bg-tertiary/5 p-4">
+      <Card className="border-primary/30 bg-primary/5 p-4">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 rounded-full bg-tertiary/10 p-2 text-tertiary">
+            <div className="mt-0.5 rounded-full bg-primary/10 p-2 text-primary">
               <Loader2 className="size-5 animate-spin" />
             </div>
             <div className="space-y-1">
@@ -147,7 +147,7 @@ export function PipelineStatusBanner() {
                 <span>Autonomous Pipeline In Progress:</span>
                 <Badge
                   variant="outline"
-                  className="border-tertiary/40 bg-tertiary/10 text-[11px] font-medium text-tertiary capitalize"
+                  className="border-primary/40 bg-primary/10 text-[11px] font-medium text-primary capitalize"
                 >
                   {stageLabel}
                 </Badge>

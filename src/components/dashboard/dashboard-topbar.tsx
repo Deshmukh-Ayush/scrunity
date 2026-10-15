@@ -112,9 +112,9 @@ export function DashboardTopbar({
           {org?.subscriptionStatus === "past_due" && (
             <Link
               href="/dashboard/billing"
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-medium hover:bg-amber-500/20 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-warning-tint border border-warning-border text-warning text-xs font-medium hover:bg-warning-tint transition-colors"
             >
-              <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              <span className="h-2 w-2 rounded-full bg-warning" />
               <span>Payment past due — update billing</span>
             </Link>
           )}

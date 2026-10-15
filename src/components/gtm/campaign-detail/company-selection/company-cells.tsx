@@ -40,22 +40,6 @@ export function locationText(company: Company) {
   )
 }
 
-/** Soft, non-brand tints; the same industry always gets the same tint. */
-const PILL_TINTS = [
-  "bg-violet-500/10 text-violet-700 dark:text-violet-300",
-  "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  "bg-amber-500/10 text-amber-800 dark:text-amber-300",
-  "bg-rose-500/10 text-rose-700 dark:text-rose-300",
-  "bg-teal-500/10 text-teal-700 dark:text-teal-300",
-  "bg-stone-500/10 text-stone-700 dark:text-stone-300",
-]
-
-function tintFor(label: string) {
-  let hash = 0
-  for (const ch of label) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0
-  return PILL_TINTS[hash % PILL_TINTS.length]
-}
-
 export function IndustryPill({
   industry,
 }: {
@@ -65,8 +49,7 @@ export function IndustryPill({
   return (
     <span
       className={cn(
-        "inline-flex h-5 items-center rounded-full px-2 text-[11px] font-medium whitespace-nowrap capitalize",
-        tintFor(industry)
+        "inline-flex h-5 items-center rounded-sm bg-muted px-1.5 text-meta whitespace-nowrap text-fg-default capitalize"
       )}
     >
       {industry}
@@ -102,8 +85,8 @@ export function StatusPill({
       data-tone={tone}
       className={cn(
         "inline-flex h-5 items-center rounded-full border px-2 text-[11px] font-medium whitespace-nowrap",
-        "data-[tone=found]:border-emerald-500/30 data-[tone=found]:bg-emerald-500/10 data-[tone=found]:text-emerald-700 dark:data-[tone=found]:text-emerald-300",
-        "data-[tone=missing]:border-amber-500/30 data-[tone=missing]:bg-amber-500/10 data-[tone=missing]:text-amber-800 dark:data-[tone=missing]:text-amber-300",
+        "data-[tone=found]:border-success-border data-[tone=found]:bg-success-tint data-[tone=found]:text-success",
+        "data-[tone=missing]:border-warning-border data-[tone=missing]:bg-warning-tint data-[tone=missing]:text-warning",
         "data-[tone=neutral]:border-border data-[tone=neutral]:text-muted-foreground"
       )}
     >

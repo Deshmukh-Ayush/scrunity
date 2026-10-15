@@ -108,14 +108,14 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
         <div className="flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2 min-w-0">
             <div className="size-6 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
-              <Sparkles className="size-3.5 animate-pulse text-primary" />
+              <Sparkles className="size-3.5 text-primary" />
             </div>
-            <span className="text-xs font-medium text-foreground tracking-tight animate-pulse truncate">
+            <span className="text-xs font-medium text-foreground tracking-tight truncate">
               {meta.inProgressLabel}
             </span>
           </div>
 
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/20 animate-pulse shrink-0">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/20 shrink-0">
             <Loader2 className="size-2.5 animate-spin" />
             Working…
           </span>
@@ -144,7 +144,7 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
       return (
         <Badge
           variant="outline"
-          className="text-[10px] h-4.5 px-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+          className="text-[10px] h-4.5 px-1.5 border-success-border bg-success-tint text-success"
         >
           {count > 0 ? `${count} campaigns found` : "No active campaigns"}
         </Badge>
@@ -157,7 +157,7 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
       return (
         <Badge
           variant="outline"
-          className="text-[10px] h-4.5 px-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+          className="text-[10px] h-4.5 px-1.5 border-success-border bg-success-tint text-success"
         >
           {count > 0 ? `${count} companies found` : "0 prospects found"}
         </Badge>
@@ -167,7 +167,7 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
     return (
       <Badge
         variant="outline"
-        className="text-[10px] h-4.5 px-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 gap-1"
+        className="text-[10px] h-4.5 px-1.5 border-success-border bg-success-tint text-success gap-1"
       >
         <CheckCircle2 className="size-2.5" />
         Completed
@@ -196,7 +196,7 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
                 "size-6 rounded-lg flex items-center justify-center shrink-0",
                 state === "output-error"
                   ? "bg-destructive/10 text-destructive"
-                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  : "bg-success-tint text-success"
               )}
             >
               {state === "output-error" ? (
@@ -312,9 +312,9 @@ function CampaignOverviewRenderer({ output }: { output?: Record<string, unknown>
               className={cn(
                 "text-[9px] px-1.5 py-0 capitalize font-mono shrink-0",
                 camp.status === "in_progress"
-                  ? "border-tertiary/30 bg-tertiary/10 text-tertiary"
+                  ? "border-primary/30 bg-primary/10 text-primary"
                   : camp.status === "done"
-                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  ? "border-success-border bg-success-tint text-success"
                   : "border-border text-muted-foreground"
               )}
             >
@@ -329,7 +329,7 @@ function CampaignOverviewRenderer({ output }: { output?: Record<string, unknown>
             <span>👥 {camp.prospectCount ?? 0} prospects</span>
             <span>✉️ {camp.draftCount ?? 0} drafts</span>
             {camp.pendingDrafts > 0 && (
-              <span className="text-amber-600 dark:text-amber-400 font-medium">
+              <span className="text-warning font-medium">
                 ⚠️ {camp.pendingDrafts} review needed
               </span>
             )}
@@ -395,7 +395,7 @@ function ProspectsRenderer({ output }: { output?: Record<string, unknown> }) {
                     {contact.verified ? (
                       <Badge
                         variant="outline"
-                        className="text-[9px] px-1 py-0 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 gap-0.5"
+                        className="text-[9px] px-1 py-0 border-success-border bg-success-tint text-success gap-0.5"
                       >
                         <BadgeCheck className="size-2.5" />
                         Verified
@@ -403,7 +403,7 @@ function ProspectsRenderer({ output }: { output?: Record<string, unknown> }) {
                     ) : (
                       <Badge
                         variant="outline"
-                        className="text-[9px] px-1 py-0 border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                        className="text-[9px] px-1 py-0 border-warning-border bg-warning-tint text-warning"
                       >
                         Guessed
                       </Badge>

@@ -41,7 +41,7 @@ export function ResearchRunCard({
       data-stalled={staleness.isStalled || undefined}
       className={cn(
         "cursor-pointer transition-all hover:border-foreground/25",
-        "data-[stalled]:border-amber-500/50 data-[stalled]:bg-amber-500/5"
+        "data-[stalled]:border-warning-border data-[stalled]:bg-warning-tint"
       )}
       onClick={() => onSelect(run.id)}
       onKeyDown={(e) => {
@@ -58,7 +58,7 @@ export function ResearchRunCard({
             className={cn(
               "text-xs capitalize",
               staleness.isStalled &&
-                "border-amber-500/50 bg-amber-500/10 font-medium text-amber-600 dark:text-amber-400"
+                "border-warning-border bg-warning-tint font-medium text-warning"
             )}
           >
             {staleness.isStalled

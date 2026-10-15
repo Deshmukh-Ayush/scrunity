@@ -196,7 +196,7 @@ export function CompanyDetailsForm({
                 </label>
               </div>
               {values.contextDoc && (
-                <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                <p className="text-[11px] text-success">
                   Loaded {values.contextDoc.length} characters of context for
                   the research prompt.
                 </p>

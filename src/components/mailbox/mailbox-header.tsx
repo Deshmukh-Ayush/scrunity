@@ -39,7 +39,7 @@ export function MailboxHeader({
               Mailbox
             </h1>
             {unreadCount > 0 && (
-              <Badge className="bg-tertiary px-1.5 py-0 text-[10px] font-medium text-white">
+              <Badge className="bg-primary px-1.5 py-0 text-[10px] font-medium text-white">
                 {unreadCount} unread
               </Badge>
             )}

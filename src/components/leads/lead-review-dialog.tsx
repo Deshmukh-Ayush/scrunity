@@ -279,7 +279,7 @@ export function LeadReviewDialog({
                 size="sm"
                 onClick={reject}
                 disabled={isPending}
-                className="h-8 w-full gap-1.5 border-rose-500/30 text-xs text-rose-600 hover:bg-rose-500/10 hover:text-rose-700 sm:w-auto"
+                className="h-8 w-full gap-1.5 border-danger-border text-xs text-danger hover:bg-danger-tint hover:text-danger sm:w-auto"
               >
                 <XCircle className="size-3.5" />
                 Reject Draft
@@ -292,7 +292,7 @@ export function LeadReviewDialog({
                   size="sm"
                   onClick={approve}
                   disabled={isPending}
-                  className="h-8 gap-1.5 border-emerald-500/40 text-xs text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
+                  className="h-8 gap-1.5 border-success-border text-xs text-success hover:bg-success-tint hover:text-success"
                 >
                   <CheckCircle2 className="size-3.5" />
                   Save & Approve

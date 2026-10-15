@@ -174,7 +174,7 @@ export function ResearchProgress({
                       className={cn(
                         "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors",
                         state === "complete" &&
-                          "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                          "border-success-border bg-success-tint text-success",
                         state === "active" &&
                           "border-primary/40 bg-primary/10 text-primary",
                         state === "pending" &&
@@ -195,7 +195,7 @@ export function ResearchProgress({
                         className={cn(
                           "absolute top-8 bottom-0 left-1/2 w-px -translate-x-1/2 border-l border-dashed transition-colors",
                           step.isComplete
-                            ? "border-emerald-500/40"
+                            ? "border-success-border"
                             : "border-border/60"
                         )}
                       />
@@ -217,7 +217,7 @@ export function ResearchProgress({
                           className={cn(
                             "py-0 text-[10px]",
                             staleness.isStalled &&
-                              "border-amber-500/50 bg-amber-500/10 font-medium text-amber-600 dark:text-amber-400"
+                              "border-warning-border bg-warning-tint font-medium text-warning"
                           )}
                         >
                           {staleness.isStalled ? "Stalled" : "In Progress"}
@@ -226,7 +226,7 @@ export function ResearchProgress({
                       {step.isComplete && (
                         <Badge
                           variant="outline"
-                          className="border-emerald-500/30 py-0 text-[10px] text-emerald-600 dark:text-emerald-400"
+                          className="border-success-border py-0 text-[10px] text-success"
                         >
                           Completed
                         </Badge>
@@ -266,9 +266,9 @@ export function ResearchProgress({
           </ol>
 
           {staleness.isStalled && !hasFailed && (
-            <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-center">
-              <div className="flex items-center gap-2 text-xs font-medium text-amber-800 dark:text-amber-200">
-                <AlertTriangle className="size-4 shrink-0 text-amber-500" />
+            <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-lg border border-warning-border bg-warning-tint p-4 text-center">
+              <div className="flex items-center gap-2 text-xs font-medium text-warning">
+                <AlertTriangle className="size-4 shrink-0 text-warning" />
                 <span>
                   Autonomous Pipeline Stalled: {staleness.explanation}
                 </span>

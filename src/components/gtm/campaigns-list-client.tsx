@@ -103,9 +103,9 @@ export function CampaignsListClient({
       return (
         <Badge
           variant="outline"
-          className="gap-1 border-amber-500/50 bg-amber-500/10 text-xs font-medium text-amber-600 dark:text-amber-400"
+          className="gap-1 border-warning-border bg-warning-tint text-xs font-medium text-warning"
         >
-          <AlertCircle className="size-3 text-amber-500" /> Stalled (
+          <AlertCircle className="size-3 text-warning" /> Stalled (
           {campaign.currentStage.replace(/_/g, " ")})
         </Badge>
       )
@@ -120,7 +120,7 @@ export function CampaignsListClient({
         )
       case "awaiting_company_selection":
         return (
-          <Badge variant="outline" className="gap-1 border-amber-500/40 text-xs text-amber-700 dark:text-amber-300">
+          <Badge variant="outline" className="gap-1 border-warning-border text-xs text-warning">
             <AlertCircle className="size-3" /> Choose Companies
           </Badge>
         )
@@ -140,7 +140,7 @@ export function CampaignsListClient({
         return (
           <Badge
             variant="default"
-            className="animate-pulse gap-1 bg-amber-600 text-xs font-medium text-white hover:bg-amber-700"
+            className="gap-1 bg-warning text-xs font-medium text-white hover:bg-warning"
           >
             <AlertCircle className="size-3" /> Awaiting Review
           </Badge>
@@ -149,7 +149,7 @@ export function CampaignsListClient({
         return (
           <Badge
             variant="outline"
-            className="gap-1 border-tertiary/30 bg-tertiary/10 text-xs text-tertiary"
+            className="gap-1 border-primary/30 bg-primary/10 text-xs text-primary"
           >
             <Send className="size-3" /> Sending Emails
           </Badge>
@@ -159,7 +159,7 @@ export function CampaignsListClient({
         return (
           <Badge
             variant="outline"
-            className="gap-1 border-emerald-500/30 text-xs text-emerald-600"
+            className="gap-1 border-success-border text-xs text-success"
           >
             <CheckCircle2 className="size-3" /> Completed
           </Badge>
@@ -270,7 +270,7 @@ export function CampaignsListClient({
                       {isStalled(campaign) ? (
                         <Badge
                           variant="outline"
-                          className="border-amber-500/50 bg-amber-500/10 text-xs font-medium text-amber-600 capitalize dark:text-amber-400"
+                          className="border-warning-border bg-warning-tint text-xs font-medium text-warning capitalize"
                         >
                           stalled
                         </Badge>
@@ -299,7 +299,7 @@ export function CampaignsListClient({
                               size: "sm",
                               variant: "default",
                             }),
-                            "gap-1 bg-amber-600 text-xs font-medium text-white hover:bg-amber-700"
+                            "gap-1 bg-warning text-xs font-medium text-white hover:bg-warning"
                           )}
                         >
                           Review Drafts (Stage 6)

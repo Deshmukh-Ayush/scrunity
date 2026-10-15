@@ -34,7 +34,7 @@ export function LeadRow({
               href={lead.linkedinUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex shrink-0 text-muted-foreground transition-colors hover:text-blue-500"
+              className="inline-flex shrink-0 text-muted-foreground transition-colors hover:text-foreground"
               title="Open LinkedIn profile"
               aria-label={`${lead.name} on LinkedIn`}
             >

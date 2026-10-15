@@ -76,7 +76,7 @@ export function CompanySelectionToolbar() {
       {discoveryNote && (
         <p
           role="status"
-          className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-foreground"
+          className="rounded-md border border-warning-border bg-warning-tint p-2.5 text-xs text-foreground"
         >
           {discoveryNote}
         </p>

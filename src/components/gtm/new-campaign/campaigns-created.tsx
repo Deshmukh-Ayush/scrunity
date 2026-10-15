@@ -8,7 +8,7 @@ export function CampaignsCreated({ campaignIds }: { campaignIds: string[] }) {
   return (
     <div className="mx-auto max-w-xl space-y-6 py-6 text-center">
       <div className="flex justify-center">
-        <div className="flex size-12 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+        <div className="flex size-12 items-center justify-center rounded-full border border-success-border bg-success-tint text-success">
           <CheckCircle2 className="size-7" />
         </div>
       </div>

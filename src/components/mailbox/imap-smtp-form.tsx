@@ -125,8 +125,8 @@ export function ImapSmtpForm({
         </div>
       </div>
 
-      <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/25 bg-amber-500/10 p-3.5 text-xs text-amber-900 dark:text-amber-200">
-        <Info className="mt-0.5 size-4 shrink-0 text-amber-600" />
+      <div className="flex items-start gap-2.5 rounded-lg border border-warning-border bg-warning-tint p-3.5 text-xs text-warning">
+        <Info className="mt-0.5 size-4 shrink-0 text-warning" />
         <div className="space-y-1 text-[11px] leading-relaxed">
           <p className="font-semibold">
             App-Specific Passwords Required for 2FA Accounts
@@ -143,9 +143,9 @@ export function ImapSmtpForm({
       {error && (
         <div
           role="alert"
-          className="flex items-start gap-2.5 rounded-lg border border-rose-500/25 bg-rose-500/10 p-3.5 text-xs text-rose-800 dark:text-rose-200"
+          className="flex items-start gap-2.5 rounded-lg border border-danger-border bg-danger-tint p-3.5 text-xs text-danger"
         >
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-rose-600" />
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-danger" />
           <div className="space-y-0.5 text-[11px]">
             <p className="font-semibold">Connection Verification Failed</p>
             <p className="text-muted-foreground">{error}</p>

@@ -79,7 +79,7 @@ function PlanOption({
 
         <div className="mt-3 space-y-2 border-t border-border/40 pt-3 text-[11px]">
           <div className="flex items-center gap-1.5 font-medium text-foreground">
-            <Zap className="h-3.5 w-3.5 shrink-0 fill-amber-400 text-amber-500" />
+            <Zap className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span>{config.aiCredits.toLocaleString("en-US")} AI credits</span>
           </div>
           <div className="flex items-center gap-1.5 text-muted-foreground">

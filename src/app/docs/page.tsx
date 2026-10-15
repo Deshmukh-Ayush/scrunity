@@ -33,7 +33,7 @@ export default async function DocsPage() {
   }
 
   return (
-    <div className="min-h-svh bg-background text-foreground antialiased font-sans selection:bg-brand/20">
+    <div className="min-h-svh bg-background text-foreground antialiased font-sans selection:bg-border-strong">
       <style dangerouslySetInnerHTML={{__html: `
         html {
           scroll-behavior: smooth;
@@ -44,7 +44,7 @@ export default async function DocsPage() {
       <nav className="sticky top-0 z-50 h-13 px-6 border-b border-border/40 bg-background/80 backdrop-blur-md flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <span className="text-[14px] font-bold tracking-tight text-foreground">Scrunity Skeleton</span>
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand/10 text-brand tracking-wider uppercase">
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-fg-default tracking-wider uppercase">
             Platform Developer Docs
           </span>
         </div>

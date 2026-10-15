@@ -14,13 +14,13 @@ export function EmailSourceBadge({ source }: { source: string }) {
   switch (source) {
     case "verified":
       return (
-        <Badge variant="default" className="gap-1 bg-emerald-600 text-[10px]">
+        <Badge variant="default" className="gap-1 bg-success text-[10px]">
           <ShieldCheck className="size-3" /> Verified
         </Badge>
       )
     case "found_on_site":
       return (
-        <Badge variant="default" className="gap-1 bg-emerald-600 text-[10px]">
+        <Badge variant="default" className="gap-1 bg-success text-[10px]">
           <ShieldCheck className="size-3" /> Found on Site
         </Badge>
       )
@@ -28,7 +28,7 @@ export function EmailSourceBadge({ source }: { source: string }) {
       return (
         <Badge
           variant="outline"
-          className="gap-1 border-tertiary/40 bg-tertiary/10 text-[10px] text-tertiary"
+          className="gap-1 border-primary/40 bg-primary/10 text-[10px] text-primary"
         >
           <ShieldCheck className="size-3" /> Pattern Guessed (MX Valid)
         </Badge>
@@ -37,7 +37,7 @@ export function EmailSourceBadge({ source }: { source: string }) {
       return (
         <Badge
           variant="outline"
-          className="gap-1 border-amber-500/50 text-[10px] text-amber-600 dark:text-amber-400"
+          className="gap-1 border-warning-border text-[10px] text-warning"
         >
           <AlertCircle className="size-3" /> Pattern Guessed (Unverified)
         </Badge>
@@ -83,7 +83,7 @@ export function DraftStatusBadge({
     return (
       <Badge
         variant="destructive"
-        className="gap-1 border-rose-500/30 bg-rose-500/15 text-xs text-rose-700 capitalize dark:text-rose-300"
+        className="gap-1 border-danger-border bg-danger-tint text-xs text-danger capitalize"
       >
         <AlertTriangle className="size-3" /> Bounced
       </Badge>
@@ -93,7 +93,7 @@ export function DraftStatusBadge({
   switch (status) {
     case "sent":
       return (
-        <Badge className="gap-1 bg-emerald-600 text-xs text-white capitalize hover:bg-emerald-700">
+        <Badge className="gap-1 bg-success text-xs text-white capitalize hover:bg-success">
           <Check className="size-3" /> Sent
         </Badge>
       )
@@ -107,7 +107,7 @@ export function DraftStatusBadge({
       return (
         <Badge
           variant="default"
-          className="border-emerald-500/30 bg-emerald-500/15 text-xs text-emerald-700 capitalize dark:text-emerald-300"
+          className="border-success-border bg-success-tint text-xs text-success capitalize"
         >
           Approved
         </Badge>

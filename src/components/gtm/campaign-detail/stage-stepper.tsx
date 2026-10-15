@@ -69,14 +69,14 @@ export function StageStepper() {
                 className={cn(
                   "flex flex-col items-center gap-1.5 rounded-lg border p-3 transition-all",
                   "data-[state=current]:border-primary data-[state=current]:bg-primary/5 data-[state=current]:font-medium data-[state=current]:text-primary data-[state=current]:ring-1 data-[state=current]:ring-primary/20",
-                  "data-[state=stalled]:border-amber-500/50 data-[state=stalled]:bg-amber-500/10 data-[state=stalled]:font-medium data-[state=stalled]:text-amber-600 data-[state=stalled]:ring-1 data-[state=stalled]:ring-amber-500/30 dark:data-[state=stalled]:text-amber-400",
+                  "data-[state=stalled]:border-warning-border data-[state=stalled]:bg-warning-tint data-[state=stalled]:font-medium data-[state=stalled]:text-warning data-[state=stalled]:ring-1 data-[state=stalled]:ring-warning-border",
                   "data-[state=past]:border-border data-[state=past]:bg-muted/30 data-[state=past]:text-foreground",
                   "data-[state=upcoming]:border-dashed data-[state=upcoming]:text-muted-foreground data-[state=upcoming]:opacity-60"
                 )}
               >
                 <div className="flex items-center gap-1.5">
                   {state === "stalled" && campaign.status === "in_progress" ? (
-                    <AlertCircle className="size-4 text-amber-500" />
+                    <AlertCircle className="size-4 text-warning" />
                   ) : isSpinning ? (
                     <Loader2 className="size-4 animate-spin text-primary" />
                   ) : (

@@ -53,7 +53,7 @@ export function BuyCreditsModal({ trigger }: { trigger?: React.ReactNode }) {
           onClick={() => setOpen(true)}
           className="gap-1.5 font-medium"
         >
-          <Zap className="h-4 w-4 fill-amber-400 text-amber-500" />
+          <Zap className="h-4 w-4 text-muted-foreground" />
           Buy Credits
         </Button>
       </ModalTrigger>
@@ -61,8 +61,8 @@ export function BuyCreditsModal({ trigger }: { trigger?: React.ReactNode }) {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-amber-500/10 p-2 text-amber-500">
-                <Zap className="h-5 w-5 fill-amber-500" />
+              <div className="rounded-lg bg-muted p-2 text-fg-default">
+                <Zap className="h-5 w-5" />
               </div>
               <div>
                 <DialogTitle className="text-base font-semibold">
@@ -131,14 +131,14 @@ export function BuyCreditsModal({ trigger }: { trigger?: React.ReactNode }) {
 
             <div className="space-y-1 text-[11px] text-muted-foreground">
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
                 <span>
                   Stages 1-3 (research, competitors, ICPs) remain free and
                   unlimited
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" />
                 <span>
                   Credits are available instantly upon successful payment
                 </span>

@@ -34,7 +34,7 @@ export function SidebarBrand({
       unoptimized
       width={28}
       height={28}
-      className="h-7 w-auto max-w-24 rounded-[3px] bg-gray-100 object-contain p-0.5 shadow-[0px_0px_0px_1px_rgba(0,0,0,0.08)] dark:bg-gray-200 dark:invert shrink-0"
+      className="h-7 w-auto max-w-24 rounded-[3px] bg-gray-100 object-contain p-0.5 shadow-surface dark:bg-gray-200 dark:invert shrink-0"
     />
   ) : (
     <Image

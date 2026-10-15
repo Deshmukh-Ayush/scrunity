@@ -95,11 +95,11 @@ export function Table({
 
 export function Callout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="my-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-[13px] leading-[1.6] text-amber-600 dark:text-amber-500">
-      <strong className="font-semibold text-amber-700 dark:text-amber-400">
+    <div className="my-3 rounded-lg border border-warning-border bg-warning-tint px-4 py-3 text-[13px] leading-[1.6] text-warning">
+      <strong className="font-semibold text-warning">
         Note:{" "}
       </strong>
-      <span className="text-amber-700/80 dark:text-amber-400/80">
+      <span className="text-warning">
         {children}
       </span>
     </div>

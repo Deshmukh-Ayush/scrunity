@@ -54,15 +54,15 @@ export function CampaignDetailHeader() {
             staleness.isStalled ? (
               <Badge
                 variant="outline"
-                className="gap-1.5 self-start border-amber-500/50 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-600 capitalize sm:self-auto dark:text-amber-400"
+                className="gap-1.5 self-start border-warning-border bg-warning-tint px-3 py-1 text-xs font-medium text-warning capitalize sm:self-auto"
               >
-                <AlertCircle className="size-3 text-amber-500" />
+                <AlertCircle className="size-3 text-warning" />
                 {stageLabel} (Stalled)
               </Badge>
             ) : (
               <Badge
                 variant="outline"
-                className="gap-1.5 self-start border-tertiary/40 bg-tertiary/10 px-3 py-1 text-xs text-tertiary capitalize sm:self-auto"
+                className="gap-1.5 self-start border-primary/40 bg-primary/10 px-3 py-1 text-xs text-primary capitalize sm:self-auto"
               >
                 <Loader2 className="size-3 animate-spin" />
                 {stageLabel} (Running)
@@ -85,10 +85,10 @@ export function CampaignDetailHeader() {
           {inngestOffline && (
             <Badge
               variant="outline"
-              className="gap-1 border-amber-500/40 bg-amber-500/5 text-xs text-amber-600 dark:text-amber-400"
+              className="gap-1 border-warning-border bg-warning-tint text-xs text-warning"
               title="Inngest dev server is not running on port 8288"
             >
-              <AlertCircle className="size-3 text-amber-500" />
+              <AlertCircle className="size-3 text-warning" />
               Inngest Offline
             </Badge>
           )}

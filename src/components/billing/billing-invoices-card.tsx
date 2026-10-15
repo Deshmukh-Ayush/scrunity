@@ -71,7 +71,7 @@ export async function BillingInvoicesCard() {
                         <td className="px-3 py-2.5 whitespace-nowrap">
                           <Badge
                             data-paid={isPaid || undefined}
-                            className="h-4 bg-muted text-[10px] font-medium text-muted-foreground data-[paid]:border-emerald-500/20 data-[paid]:bg-emerald-500/15 data-[paid]:text-emerald-600 dark:data-[paid]:text-emerald-400"
+                            className="h-4 bg-muted text-[10px] font-medium text-muted-foreground data-[paid]:border-success-border data-[paid]:bg-success-tint data-[paid]:text-success"
                           >
                             {inv.status}
                           </Badge>
