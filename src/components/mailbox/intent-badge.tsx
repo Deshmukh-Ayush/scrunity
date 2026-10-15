@@ -31,7 +31,7 @@ export function IntentBadge({
     case "not_interested":
       return (
         <Badge
-          variant="outline"
+          variant="neutral"
           className="shrink-0 gap-1 border-border/70 bg-muted/40 px-2 py-0.5 text-muted-foreground">
           <span className="size-1.5 rounded-full bg-muted-foreground/60" />
           Not Interested
@@ -40,7 +40,7 @@ export function IntentBadge({
     case "auto_reply":
       return (
         <Badge
-          variant="outline"
+          variant="neutral"
           className="shrink-0 gap-1 border-border/70 bg-muted/30 px-2 py-0.5 text-muted-foreground">
           Auto Reply
         </Badge>
@@ -49,7 +49,7 @@ export function IntentBadge({
     default:
       return (
         <Badge
-          variant="outline"
+          variant="neutral"
           className="shrink-0 border-border/70 bg-muted/20 px-2 py-0.5 text-muted-foreground">
           Unclear
         </Badge>

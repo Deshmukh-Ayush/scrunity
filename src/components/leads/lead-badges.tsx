@@ -78,9 +78,9 @@ export function LeadStatusBadge({
         </Badge>
       )
     case "approved":
-      return <Badge variant="outline">Approved</Badge>
+      return <Badge variant="neutral">Approved</Badge>
     case "drafted":
-      return <Badge variant="outline">Drafted</Badge>
+      return <Badge variant="neutral">Drafted</Badge>
     case "disqualified":
       return <Badge variant="danger">Disqualified</Badge>
     case "failed":
@@ -111,7 +111,7 @@ export function VerificationBadge({ status }: { status: string }) {
       )
     case "found_on_site":
       return (
-        <Badge variant="outline">
+        <Badge variant="neutral">
           Found on Site
         </Badge>
       )

@@ -16,7 +16,7 @@ function Fact({ label, value, source }: { label: string; value: string; source: 
     <span className="inline-flex items-center gap-1.5">
       <span className="text-muted-foreground">{label}:</span>
       <span className="font-medium text-foreground">{value}</span>
-      <Badge variant="outline" className="h-4 px-1.5 font-normal">
+      <Badge variant="neutral" className="h-4 px-1.5 font-normal">
         {source}
       </Badge>
     </span>

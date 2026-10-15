@@ -106,7 +106,7 @@ function FieldLabel({
     <Label
       data-slot="field-label"
       className={cn(
-        "group/field-label peer/field-label flex w-fit gap-2 leading-snug text-neutral-800 group-data-[disabled=true]/field:opacity-50 has-data-checked:border-(--brand-focus) has-data-checked:bg-[color-mix(in_oklch,var(--brand-focus),transparent_95%)] has-[>[data-slot=field]]:rounded-lg has-[>[data-slot=field]]:border has-[>[data-slot=field]]:not-has-[:disabled,[data-disabled]]:hover:bg-neutral-50 has-[>[data-slot=field]]:has-focus-visible:border-(--brand-focus) has-[>[data-slot=field]]:has-focus-visible:ring-3 has-[>[data-slot=field]]:has-focus-visible:ring-[color-mix(in_oklch,var(--brand-focus),transparent_50%)] *:data-[slot=field]:p-2.5",
+        "group/field-label peer/field-label flex w-fit gap-2 leading-snug text-neutral-800 group-data-[disabled=true]/field:opacity-50 has-data-checked:border-fg-strong has-data-checked:bg-canvas has-[>[data-slot=field]]:rounded-lg has-[>[data-slot=field]]:border has-[>[data-slot=field]]:not-has-[:disabled,[data-disabled]]:hover:bg-neutral-50 has-[>[data-slot=field]]:has-focus-visible:focus-ring *:data-[slot=field]:p-2.5",
         "has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col",
         className,
       )}

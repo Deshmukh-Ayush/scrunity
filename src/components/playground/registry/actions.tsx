@@ -92,7 +92,7 @@ export const badgeEntry: ShowcaseEntry = {
   render: () => (
     <div className="flex flex-wrap items-center gap-3">
       <Badge>Draft</Badge>
-      <Badge variant="outline">Stage 4</Badge>
+      <Badge variant="neutral">Stage 4</Badge>
       <Badge variant="success">
         <CheckCircle2 data-icon="inline-start" />
         Verified

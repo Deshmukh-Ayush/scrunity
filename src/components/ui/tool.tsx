@@ -129,7 +129,7 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
     if (state === "output-error") {
       return (
         <Badge
-          variant="outline"
+          variant="neutral"
           className="h-4.5 px-1.5 border-destructive/30 bg-danger-tint text-danger gap-1">
           <AlertCircle className="size-2.5" />
           Failed
@@ -304,7 +304,7 @@ function CampaignOverviewRenderer({ output }: { output?: Record<string, unknown>
             </div>
 
             <Badge
-              variant="outline"
+              variant="neutral"
               className={cn(
                 "text-[9px] px-1.5 py-0 capitalize font-mono shrink-0",
                 camp.status === "in_progress"

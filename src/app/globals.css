@@ -51,8 +51,10 @@
   --brand-top: color-mix(in srgb, var(--brand) 92%, white);
   --brand-bottom: color-mix(in srgb, var(--brand) 94%, black);
   --brand-edge: color-mix(in srgb, var(--brand) 80%, black);
-  /* Form-field focus border and ring: darker brand, 3.93:1 on white (passes the 3:1 non-text minimum). */
-  --brand-focus: #0088c6;
+  /* Focus: every focus-visible state is a --brand ring (2.59:1 on white; founder's accepted decision). */
+  --focus-ring-color: var(--brand);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
   /* BRAND_BUTTON_TEXT = white (founder's call; 2.59:1). For dark text use var(--text-strong) (7.63:1). */
   --brand-foreground: #ffffff;
 
@@ -106,7 +108,7 @@
   --destructive: var(--danger);
   --border: var(--border-default);
   --input: var(--border-default);
-  --ring: var(--text-strong);
+  --ring: var(--brand);
   --chart-1: #d4d4d4;
   --chart-2: #a3a3a3;
   --chart-3: #737373;
@@ -120,7 +122,7 @@
   --sidebar-accent: var(--muted-fill);
   --sidebar-accent-foreground: var(--text-strong);
   --sidebar-border: var(--border-default);
-  --sidebar-ring: var(--text-strong);
+  --sidebar-ring: var(--brand);
 }
 
 /* Tailwind theme: values, so call sites use names, not raw sizes. */
@@ -218,7 +220,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring;
   }
   html {
     @apply font-sans;
@@ -237,6 +239,33 @@
   button:not(:disabled), [role="button"]:not(:disabled) {
     cursor: pointer;
   }
+  /* Links use the shared brand focus ring (see @utility focus-ring below). */
+  a:focus-visible {
+    outline: var(--focus-ring-width) solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+  }
+  /* Icons (components/ui/icons.tsx and HugeiconsIcon in components/ui): the stroke is
+     drawn in rendered pixels, 1.5px next to regular text; medium-weight parents
+     (buttons, badges) set --icon-stroke: 2px. */
+  .ui-icon :is(path, circle, rect, line, polyline, polygon, ellipse) {
+    vector-effect: non-scaling-stroke;
+    stroke-width: var(--icon-stroke, 1.5px);
+  }
+}
+
+/*
+ * The one focus recipe. A 2px --brand outline, 2px outside the element; outline
+ * follows border-radius and, unlike box-shadow, survives forced-colors mode.
+ * focus-ring-inset is the same ring drawn inside, for items in scroll
+ * containers (menus, listboxes) where an outer ring would be clipped.
+ */
+@utility focus-ring {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+@utility focus-ring-inset {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: calc(var(--focus-ring-width) * -1);
 }
 
 /* Utility: hide scrollbar but keep scroll */
@@ -368,6 +397,7 @@
     scale   var(--tt-out-dur) var(--tt-out-ease);
 }
 
+/* Reduced motion: no scale; the opacity cross-fade stays (better-ui), 150ms. */
 @media (prefers-reduced-motion: reduce) {
   .t-tt-popup,
   .t-tt-popup[data-ending-style],
@@ -375,7 +405,11 @@
   .t-dropdown[data-ending-style],
   .t-modal,
   .t-modal[data-ending-style],
-  .t-modal-backdrop { transition: none !important; }
+  .t-modal-backdrop {
+    transition: opacity 150ms ease-out !important;
+    transform: none !important;
+    scale: none !important;
+  }
 }
 
 .t-shimmer {

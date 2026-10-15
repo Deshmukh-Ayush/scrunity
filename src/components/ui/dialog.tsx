@@ -54,7 +54,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed inset-0 z-50 m-auto grid h-fit w-full max-w-[calc(100%-2rem)] gap-4 rounded-xl bg-popover p-5 text-body text-popover-foreground shadow-floating outline-none sm:max-w-md t-modal",
+          "fixed inset-0 z-50 m-auto grid h-fit w-full max-w-[calc(100%-2rem)] gap-4 max-h-[calc(100svh-2rem)] overflow-y-auto overscroll-contain rounded-xl border border-transparent bg-popover p-5 text-body text-popover-foreground shadow-floating outline-none sm:max-w-md t-modal",
           className
         )}
         {...props}
@@ -71,7 +71,7 @@ function DialogContent({
               />
             }
           >
-            <HugeiconsIcon icon={Cancel01Icon} aria-hidden="true" />
+            <HugeiconsIcon icon={Cancel01Icon} aria-hidden="true" className="ui-icon" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}

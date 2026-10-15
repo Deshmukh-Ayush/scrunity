@@ -16,7 +16,6 @@ export const COLORS = {
   textSubtle: "#a3a3a3",
   divider: "#d4d4d4",
   brand: "#00aaf7",
-  brandFocus: "#0088c6",
   success: "#047857",
   successTint: "#ecfdf5",
   danger: "#b91c1c",
@@ -39,8 +38,11 @@ export const BRAND_STOPS = {
 
 const brandText = BRAND_BUTTON_TEXT === "white" ? COLORS.white : COLORS.textStrong
 
-/** "text" = 4.5:1, "ui" = 3:1 non-text, "info" = reported only, "avoid" = documented as not allowed. */
-export type ContrastRule = "text" | "ui" | "info" | "avoid"
+/**
+ * "text" = 4.5:1, "ui" = 3:1 non-text, "info" = reported only, "avoid" = documented as not allowed,
+ * "accepted" = below its threshold by the founder's explicit decision (reported, never a failure).
+ */
+export type ContrastRule = "text" | "ui" | "info" | "avoid" | "accepted"
 
 export interface ContrastPair {
   name: string
@@ -76,9 +78,8 @@ export const CONTRAST_PAIRS: ContrastPair[] = [
   { name: `brand button text (${BRAND_BUTTON_TEXT}) on gradient bottom`, fg: brandText, bg: BRAND_STOPS.bottom, rule: "info" },
   { name: "white on --brand", fg: C.white, bg: C.brand, rule: "info" },
   { name: "text-strong on --brand", fg: C.textStrong, bg: C.brand, rule: "info" },
-  { name: "button focus ring (text-strong) on canvas", fg: C.textStrong, bg: C.canvas, rule: "ui" },
-  { name: "field focus border (--brand-focus) on surface", fg: C.brandFocus, bg: C.surface, rule: "ui" },
-  { name: "field focus border (--brand-focus) on canvas", fg: C.brandFocus, bg: C.canvas, rule: "ui" },
+  { name: "focus ring (--brand) on surface", fg: C.brand, bg: C.surface, rule: "accepted" },
+  { name: "focus ring (--brand) on canvas", fg: C.brand, bg: C.canvas, rule: "accepted" },
 ]
 
 export function contrast(a: string, b: string): number {
@@ -95,6 +96,11 @@ export function contrastVerdict(rule: ContrastRule, ratio: number): { pass: bool
       return { pass: ratio >= 3, label: ratio >= 3 ? "pass (3:1)" : "FAIL (3:1)" }
     case "avoid":
       return { pass: true, label: ratio >= 4.5 ? "passes, still avoided" : "below 4.5: not allowed (documented)" }
+    case "accepted":
+      return {
+        pass: true,
+        label: ratio >= 3 ? "pass (3:1)" : "below 3:1, accepted (founder decision)",
+      }
     case "info":
       return {
         pass: true,

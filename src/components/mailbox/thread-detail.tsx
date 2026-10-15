@@ -48,7 +48,7 @@ function MessageCard({ msg }: { msg: MailboxMessage }) {
                 {msg.fromName}
               </span>
               <Badge
-                variant="outline"
+                variant="neutral"
                 className={cn(
                   "px-1 py-0 text-[9px] font-medium",
                   msg.isOutbound

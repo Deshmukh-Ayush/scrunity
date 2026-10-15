@@ -154,7 +154,7 @@ export function SegmentDigestCard({
                 Performance & Learning Digest
               </CardTitle>
               {digest ? (
-                <Badge variant="outline" className="py-0">
+                <Badge variant="neutral" className="py-0">
                   Stored Digest
                 </Badge>
               ) : (
@@ -277,12 +277,12 @@ export function SegmentDigestCard({
               Interested: {metrics.replyBreakdown?.interested ?? 0}
             </Badge>
             <Badge
-              variant="outline"
+              variant="neutral"
               className="gap-1 text-primary">
               Questions: {metrics.replyBreakdown?.question ?? 0}
             </Badge>
             <Badge
-              variant="outline"
+              variant="neutral"
               className="gap-1 text-muted-foreground bg-muted/30">
               Auto-replies: {metrics.replyBreakdown?.autoReply ?? 0}
             </Badge>
@@ -292,7 +292,7 @@ export function SegmentDigestCard({
               Not interested: {metrics.replyBreakdown?.notInterested ?? 0}
             </Badge>
             <Badge
-              variant="outline"
+              variant="neutral"
               className="gap-1 text-muted-foreground">
               Unclear: {metrics.replyBreakdown?.unclear ?? 0}
             </Badge>

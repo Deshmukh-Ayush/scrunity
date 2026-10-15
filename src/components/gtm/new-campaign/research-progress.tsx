@@ -142,7 +142,7 @@ export function ResearchProgress({
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center justify-between text-base">
             <span>Pipeline Execution Timeline</span>
-            <Badge variant="outline" className="gap-1 font-normal">
+            <Badge variant="neutral" className="gap-1 font-normal">
               <Loader2 className="size-3 animate-spin text-primary" />
               Live Inngest Pipeline
             </Badge>
@@ -212,7 +212,7 @@ export function ResearchProgress({
                       {step.isActive && (
                         <Badge
                           variant={
-                            staleness.isStalled ? "outline" : "neutral"
+                            staleness.isStalled ? "neutral" : "neutral"
                           }
                           className={cn(
                             "py-0 text-[10px]",
@@ -243,14 +243,14 @@ export function ResearchProgress({
                           {competitors.slice(0, 5).map((c) => (
                             <Badge
                               key={c.id}
-                              variant="outline"
+                              variant="neutral"
                               className="gap-1">
                               <Globe className="size-3 text-muted-foreground" />
                               {c.name}
                             </Badge>
                           ))}
                           {competitors.length > 5 && (
-                            <Badge variant="outline">
+                            <Badge variant="neutral">
                               +{competitors.length - 5} more
                             </Badge>
                           )}

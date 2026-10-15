@@ -43,7 +43,7 @@ function SelectTrigger({
       data-size={size}
       className={cn(
         fieldControlClassName,
-        "flex w-fit items-center justify-between gap-1.5 whitespace-nowrap data-placeholder:text-fg-subtle data-[size=default]:h-8 data-[size=sm]:h-7 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "flex w-fit items-center justify-between gap-1.5 pe-2 whitespace-nowrap data-placeholder:text-fg-subtle [&_svg]:translate-y-[0.5px] data-[size=default]:h-8 data-[size=sm]:h-7 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}
@@ -51,7 +51,7 @@ function SelectTrigger({
       {children}
       <SelectPrimitive.Icon
         render={
-          <HugeiconsIcon icon={UnfoldMoreIcon} aria-hidden="true" className="pointer-events-none size-4 text-fg-muted" />
+          <HugeiconsIcon icon={UnfoldMoreIcon} aria-hidden="true" className="ui-icon pointer-events-none size-4 text-fg-muted" />
         }
       />
     </SelectPrimitive.Trigger>
@@ -85,7 +85,7 @@ function SelectContent({
         <SelectPrimitive.Popup
           data-slot="select-content"
           data-align-trigger={alignItemWithTrigger}
-          className={cn("t-dropdown relative isolate z-50 max-h-(--available-height) w-(--anchor-width) min-w-32 overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-floating outline-none", className )}
+          className={cn("t-dropdown relative isolate z-50 max-h-(--available-height) w-(--anchor-width) min-w-32 overflow-x-hidden overflow-y-auto overscroll-contain rounded-lg border border-transparent bg-popover p-1 text-popover-foreground shadow-floating outline-none", className )}
           {...props}
         >
           <SelectScrollUpButton />
@@ -119,7 +119,7 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex min-h-7 w-full cursor-default items-center gap-2 rounded-sm py-1 pr-8 pl-2 text-body text-fg-default outline-hidden select-none data-highlighted:bg-muted data-highlighted:text-fg-strong data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+        "relative flex min-h-7 w-full cursor-default items-center gap-2 rounded-[5px] py-1 pr-8 pl-2 text-body text-fg-default outline-hidden select-none data-highlighted:bg-muted data-highlighted:text-fg-strong focus-visible:focus-ring-inset data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
         className
       )}
       {...props}
@@ -132,7 +132,7 @@ function SelectItem({
           <span className="pointer-events-none absolute right-2 flex items-center justify-center" />
         }
       >
-        <HugeiconsIcon icon={Tick02Icon} aria-hidden="true" className="pointer-events-none size-4" />
+        <HugeiconsIcon icon={Tick02Icon} aria-hidden="true" className="ui-icon pointer-events-none size-4" />
       </SelectPrimitive.ItemIndicator>
     </SelectPrimitive.Item>
   )
@@ -167,7 +167,7 @@ function SelectScrollUpButton({
       )}
       {...props}
     >
-      <HugeiconsIcon icon={ArrowUp01Icon} aria-hidden="true" />
+      <HugeiconsIcon icon={ArrowUp01Icon} aria-hidden="true" className="ui-icon" />
     </SelectPrimitive.ScrollUpArrow>
   )
 }
@@ -185,7 +185,7 @@ function SelectScrollDownButton({
       )}
       {...props}
     >
-      <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden="true" />
+      <HugeiconsIcon icon={ArrowDown01Icon} aria-hidden="true" className="ui-icon" />
     </SelectPrimitive.ScrollDownArrow>
   )
 }

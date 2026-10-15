@@ -36,7 +36,7 @@ export function EmailSourceBadge({ source }: { source: string }) {
     case "company_fallback":
       return (
         <Badge
-          variant="outline"
+          variant="neutral"
           className="gap-1 text-muted-foreground">
           <HelpCircle className="size-3" /> Company Fallback
         </Badge>
@@ -108,7 +108,7 @@ export function DraftStatusBadge({
       )
     default:
       return (
-        <Badge variant="outline" className="capitalize">
+        <Badge variant="neutral" className="capitalize">
           Draft
         </Badge>
       )

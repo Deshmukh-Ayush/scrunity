@@ -123,7 +123,7 @@ export function ResearchRunDetailCard({
                         {seg.criteria.map((cr, i) => (
                           <Badge
                             key={i}
-                            variant="outline"
+                            variant="neutral"
                             className="py-0">
                             {cr}
                           </Badge>

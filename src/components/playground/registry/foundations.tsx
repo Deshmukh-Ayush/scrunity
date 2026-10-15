@@ -11,8 +11,8 @@ const SWATCHES: { token: string; hex: string; purpose: string }[] = [
   { token: "--text-default", hex: COLORS.textDefault, purpose: "Labels, UI text" },
   { token: "--text-muted", hex: COLORS.textMuted, purpose: "Descriptions, secondary text" },
   { token: "--text-subtle", hex: COLORS.textSubtle, purpose: "Placeholders, disabled only" },
-  { token: "--brand", hex: COLORS.brand, purpose: "Brand button backgrounds" },
-  { token: "--brand-focus", hex: COLORS.brandFocus, purpose: "Form-field focus border and ring" },
+  { token: "--brand", hex: COLORS.brand, purpose: "Brand buttons and focus rings" },
+  { token: "--focus-ring-color", hex: COLORS.brand, purpose: "Every focus ring (= --brand)" },
   { token: "--success / -tint", hex: COLORS.success, purpose: `on ${COLORS.successTint}` },
   { token: "--warning / -tint", hex: COLORS.warning, purpose: `on ${COLORS.warningTint}` },
   { token: "--danger / -tint", hex: COLORS.danger, purpose: `on ${COLORS.dangerTint}` },
@@ -137,6 +137,18 @@ export function Foundations() {
         </div>
       </Section>
 
+      <Section title="Focus ring">
+        <div className="flex flex-wrap items-center gap-6">
+          <div className="focus-ring flex h-8 items-center rounded-md bg-surface px-3 text-body text-fg-default shadow-raised">
+            focus-ring
+          </div>
+          <span className="text-meta text-fg-muted">
+            2px --brand outline, 2px offset, follows the radius. 2.59:1 on white: accepted. focus-ring-inset draws it
+            inside, for menu and list items.
+          </span>
+        </div>
+      </Section>
+
       <Section title="Icon sizes">
         <div className="flex items-end gap-8 text-fg-default">
           {[
@@ -154,8 +166,7 @@ export function Foundations() {
 
       <Section title="Motion">
         <p className="text-body text-fg-muted">
-          fast 150ms · base 200ms · slow 300ms · enter easing cubic-bezier(0.23, 1, 0.32, 1). Overlays use the
-          transitions.dev dropdown (250ms in, 150ms out) and modal (250ms in, 150ms out, scale 0.96) values.
+          Micro-interactions: --motion-fast 150ms · base 200ms · slow 300ms; press scales to 0.96 over 150ms ease-out. Animations use the transitions.dev values: dropdown 250ms in / 150ms out, modal 250ms in / 150ms out from 0.96, tooltip 150ms in / 50ms out. Under reduced motion only a 150ms opacity fade remains.
         </p>
       </Section>
     </div>

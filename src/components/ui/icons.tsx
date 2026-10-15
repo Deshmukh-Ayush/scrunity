@@ -1,4 +1,5 @@
 import { HugeiconsIcon, type HugeiconsIconProps } from "@hugeicons/react"
+import { cn } from "@/lib/utils"
 import {
   Activity01Icon,
   AiChat02Icon,
@@ -75,22 +76,23 @@ import {
  * call sites did not change.
  *
  * Sizes: 16px default (size-4), 14px in dense rows (size-3.5), 20px large
- * (size-5). Stroke 2 on the 24px grid ≈ 1.3px at 16px, matching 14px body
- * text; pass strokeWidth={1.5} next to text-meta. Icons are decorative
- * (aria-hidden) unless given an aria-label; icon-only buttons need their
- * own aria-label.
+ * (size-5). Stroke is set in rendered pixels by the .ui-icon rule in
+ * globals.css (better-ui: 1.5px next to regular text, 2px next to medium or
+ * semibold text). Set --icon-stroke on a parent to change it; the strokeWidth
+ * prop is overridden. Icons are decorative (aria-hidden) unless given an
+ * aria-label; icon-only buttons need their own aria-label.
  */
 export type IconProps = Omit<HugeiconsIconProps, "icon">
 export type Icon = (props: IconProps) => React.JSX.Element
 
 function icon(svg: HugeiconsIconProps["icon"], name: string): Icon {
-  function IconComponent({ size = 16, strokeWidth = 2, ...props }: IconProps) {
+  function IconComponent({ size = 16, className, ...props }: IconProps) {
     const labelled = props["aria-label"] !== undefined || props["aria-labelledby"] !== undefined
     return (
       <HugeiconsIcon
         icon={svg}
         size={size}
-        strokeWidth={strokeWidth}
+        className={cn("ui-icon", className)}
         aria-hidden={labelled ? undefined : true}
         focusable={false}
         {...props}

@@ -143,7 +143,7 @@ export function PipelineStatusBanner() {
               <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
                 <span>Autonomous Pipeline In Progress:</span>
                 <Badge
-                  variant="outline"
+                  variant="neutral"
                   className="text-primary capitalize">
                   {stageLabel}
                 </Badge>

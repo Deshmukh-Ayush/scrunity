@@ -60,7 +60,7 @@ These take precedence over the Render Architecture Rules above wherever the two 
 Full reference: `docs/design-system.md`. Every component is shown at `/playground/components/document/testing` (platform admins only); register new showcase components in `src/components/playground/registry/`.
 
 - **Never use a raw hex value in a component.** Tailwind's `neutral` and `gray` scales are allowed; brand and status colors only through their variables (`bg-brand`, `text-success`, `bg-danger-tint`, …). Text colors are `text-fg-strong|default|muted|subtle`.
-- **Brand (`--brand`) is only for brand button backgrounds**; form-field focus uses the darker `--brand-focus`. At most one brand button per view, never inside repeated rows or lists; most views have none. `--primary` is neutral ink, not brand.
+- **Brand (`--brand`) is only for brand button backgrounds and focus rings** (one shared `focus-ring` recipe; 2.59:1 on white, accepted by the founder). Never text, icons, badges, selected states or decoration. At most one brand button per view, never inside repeated rows or lists; most views have none. `--primary` is neutral ink, not brand.
 - **Green is reserved for verified and completed states.** Other progress states (replied, sent) are neutral with an icon.
 - **Motion:** `--motion-*` tokens for micro-interactions (press, hover); the transitions skill's tokens for real animations.
 - **Surfaces use the three shadow tokens instead of borders:** `shadow-surface` (flat), `shadow-raised` (small controls), `shadow-floating` (popovers, menus, dialogs, composer). Real borders only on form fields, single-side dividers and dashed placeholders.

@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils"
 
 /**
  * Dropdown menu on Base UI Menu. Popup: 10px radius, shadow-floating and the
- * transitions.dev menu-dropdown motion (.t-dropdown, origin-aware). Items:
- * 6px radius inside 4px padding, so the radii stay concentric.
+ * transitions.dev menu-dropdown motion (.t-dropdown, origin-aware). Items are
+ * concentric: 10px popup − 4px padding − 1px transparent border = 5px.
  */
 const DropdownMenu = MenuPrimitive.Root
 
@@ -35,7 +35,7 @@ function DropdownMenuContent({
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
           className={cn(
-            "t-dropdown max-h-(--available-height) min-w-40 overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-floating outline-none",
+            "t-dropdown max-h-(--available-height) min-w-40 overflow-y-auto overscroll-contain rounded-lg border border-transparent bg-popover p-1 text-popover-foreground shadow-floating outline-none",
             className
           )}
           {...props}
@@ -55,10 +55,10 @@ function DropdownMenuItem({
       data-slot="dropdown-menu-item"
       data-variant={variant}
       className={cn(
-        "relative flex min-h-7 cursor-default items-center gap-2 rounded-sm px-2 py-1 text-body text-fg-default outline-none select-none",
-        "data-highlighted:bg-muted data-highlighted:text-fg-strong data-disabled:pointer-events-none data-disabled:opacity-50",
+        "relative flex min-h-7 cursor-default items-center gap-2 rounded-[5px] px-2 py-1 text-body text-fg-default outline-none select-none",
+        "data-highlighted:bg-muted data-highlighted:text-fg-strong focus-visible:focus-ring-inset data-disabled:pointer-events-none data-disabled:opacity-50",
         "data-[variant=danger]:text-danger data-[variant=danger]:data-highlighted:bg-danger-tint data-[variant=danger]:data-highlighted:text-danger",
-        "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:translate-y-[0.5px] [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}

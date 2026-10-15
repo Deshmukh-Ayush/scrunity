@@ -41,7 +41,7 @@ export function ActiveCampaignCard({ campaign, researchRun }: CampaignItem) {
       <CardHeader className="p-4 pb-2">
         <div className="flex items-center justify-between">
           <Badge
-            variant={isAwaitingApproval ? "neutral" : "outline"}
+            variant={isAwaitingApproval ? "neutral" : "neutral"}
             className={cn(
               "text-xs capitalize",
               staleness.isStalled &&

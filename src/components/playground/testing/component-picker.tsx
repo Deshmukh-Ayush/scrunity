@@ -84,7 +84,7 @@ export function ComponentPicker({
           onFocus={() => setOpen(true)}
           onBlur={() => setOpen(false)}
           onKeyDown={onKeyDown}
-          className="h-8 w-full rounded-md bg-surface pr-8 pl-8 text-base text-fg-strong shadow-raised outline-none placeholder:text-fg-default focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] md:text-sm"
+          className="h-8 w-full rounded-md bg-surface pr-8 pl-8 text-base text-fg-strong shadow-raised outline-none placeholder:text-fg-default focus-visible:focus-ring md:text-sm"
         />
         <ChevronDown className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-fg-muted" />
       </div>

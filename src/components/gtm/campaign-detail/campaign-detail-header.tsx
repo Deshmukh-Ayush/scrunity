@@ -60,7 +60,7 @@ export function CampaignDetailHeader() {
               </Badge>
             ) : (
               <Badge
-                variant="outline"
+                variant="neutral"
                 className="gap-1.5 self-start px-3 py-1 text-primary capitalize sm:self-auto">
                 <Loader2 className="size-3 animate-spin" />
                 {stageLabel} (Running)

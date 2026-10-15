@@ -43,16 +43,14 @@ shadcn components read `--background`, `--card`, `--popover`, `--primary`, `--se
   `bg-primary` therefore render near-black, never blue.
 - `--secondary` is the white surface with `--text-default`.
 - `--destructive` is `--danger`.
-- `--ring` is `--text-strong`: the neutral focus ring for buttons and other controls.
+- `--ring` is `--brand`: every focus ring (see Focus below).
 
 ### Brand
 
 `--brand: #00aaf7`, used as `var(--brand)` or `bg-brand`.
 
-- **Used for:** brand button backgrounds. Form-field focus uses the darker `--brand-focus: #0088c6` for the border and
-  the 2px ring (3.93:1 on white, 3.77:1 on the canvas: passes the 3:1 non-text minimum that `#00aaf7` at 2.59:1 fails).
-  The Field family also tints checked choice cards with brand.
-- **Never used for:** text, links, icons, badges, section backgrounds or decoration.
+- **Used for two things only:** brand button backgrounds, and focus rings (every focus-visible state).
+- **Never used for:** text, links, icons, badges, selected states, section backgrounds or decoration.
 - **Rule (Attio's approach):** brand appears only where attention is genuinely needed. At most one brand button per
   view. Most screens have none.
 - **Never a brand button inside repeated rows or lists** (table rows, cards in a grid, plan lists, draft lists). The
@@ -68,7 +66,7 @@ shadcn components read `--background`, `--card`, `--popover`, `--primary`, `--se
 - The brand button is drawn from `--brand` only: a top-to-bottom gradient from `--brand-top`
   (`color-mix(in srgb, var(--brand) 92%, white)` = `#14b1f8`) to `--brand-bottom` (`… 94%, black` = `#00a0e8`), a 1px
   inset white highlight at the top, a `--brand-edge` ring (`… 80%, black` = `#0088c6`) and a small drop shadow. Hover
-  brightens it 4%; press scales to 0.97 and fades the highlight.
+  brightens it 4%; press scales to 0.96 and fades the highlight.
 
 ### Status
 
@@ -133,8 +131,32 @@ Keep real borders in three places only:
 2. Single-side dividers between rows, list items and sections (a shadow cannot draw one side).
 3. Dashed placeholders.
 
+Every shadow-ring surface also has `border: 1px solid transparent` (`border border-transparent`): forced-colors mode
+drops box-shadow and paints that border, so the edge survives. Selected states may use a real border (better-ui).
+
 Why: a box-shadow ring takes no layout space, follows the border radius exactly and stacks with the lift, so surfaces
 look crisp without a heavy outlined look. No other shadows.
+
+## Focus
+
+One recipe for every focus-visible state (inputs, textarea, select, buttons, menu triggers, menu and select items,
+checkable cards, clickable cards, links), defined once in `globals.css`:
+
+| Token | Value |
+|---|---|
+| `--focus-ring-color` | `var(--brand)` (`#00aaf7`) |
+| `--focus-ring-width` | `2px` |
+| `--focus-ring-offset` | `2px` |
+
+- `focus-ring` utility: `outline: 2px solid var(--brand); outline-offset: 2px`. An outline follows the border radius
+  and, unlike a box-shadow, stays visible in forced-colors mode. Components apply it with `ui-focus:focus-ring` (so the
+  testing route can force it); links get it from a base rule.
+- `focus-ring-inset` draws the same ring inside (`outline-offset: -2px`) for items inside scroll containers (menu and
+  select items), where an outer ring would be clipped.
+- Form fields keep their border (default color) and add the ring; invalid fields keep the danger border and ring.
+- **Contrast: the brand ring measures 2.59:1 on white and 2.48:1 on the canvas, below the 3:1 non-text guideline. This
+  is the founder's accepted decision**; the contrast script reports it as `accepted`.
+- The better-ui skill assigns focus rings to `better-accessibility`, which is not installed, so this recipe is ours.
 
 ## Spacing
 
@@ -157,7 +179,11 @@ over generic choices.
   adapted to Base UI's `data-starting-style` / `data-ending-style` attributes. Tooltips use its tooltip transition
   (`.t-tt-popup`: 80ms appear delay via the TooltipProvider, 150ms fade + scale from 0.98 in, 50ms out) as a white
   floating bubble.
-- Buttons scale to 0.97 on press (`transition: scale 200ms ease-out`), only under `motion-safe`.
+- Buttons scale to **0.96** on press over **150ms ease-out** (better-ui), never while disabled, only under
+  `motion-safe`; `<Button static>` opts out.
+- Under reduced motion, overlays (menus, select, dialog, tooltip) keep a 150ms opacity cross-fade instead of
+  appearing instantly (better-ui); scale is removed.
+- Overlays that scroll (dialog, menus, select) use `overscroll-behavior: contain`.
 - Never `transition: all`; list the properties.
 - Hover styles only apply on devices that can hover (Tailwind's `hover:` and the `ui-hover:` variant both use
   `@media (hover: hover)`); animations run only under `prefers-reduced-motion: no-preference` (`motion-safe:`), and
@@ -173,17 +199,30 @@ Use them for interactive styles in `components/ui`.
 ## Components
 
 - **Button** (`components/ui/button.tsx`): variants `secondary` (default: white with `shadow-raised`), `outline`,
-  `ghost`, `brand`, `danger`; sizes `sm` 28px, `md` 32px (default), `lg` 36px, plus `icon-sm`, `icon`, `icon-lg`.
-  Padding scales with height and is slightly smaller on the icon side (`data-icon="inline-start|inline-end"`).
-  `loading` keeps width and color. Focus-visible is a 2px neutral ring offset from the button. Hit area is at least
-  24×24px.
-- **Badge**: `neutral` (default), `outline`, `success`, `warning`, `danger`; `text-meta`, 6px radius, no animation.
+  `ghost`, `brand`, `danger`; sizes `sm` 28px (padding 10px, icon side 8px), `md` 32px (12px / 10px, default), `lg`
+  36px (14px / 12px), plus `icon-sm`, `icon`, `icon-lg`. Mark icons with `data-icon="inline-start|inline-end"` to get
+  the 2px-smaller icon-side padding. Icons next to the label sit 0.5px low (a sentence-case Inter label reads below
+  its line box's center) with a 2px stroke (medium text). `loading` keeps width and color; `static` disables the
+  press scale. 8px radius; transparent 1px border under the shadow ring. Hit area is at least 24×24px.
+- **Badge**: one treatment, a tint fill with no ring: `neutral` (default), `success`, `warning`, `danger`. 20px tall,
+  `text-meta`, 6px radius, 6px text-side padding and 4px on a leading icon's side, icons always 14px with a 2px
+  stroke and nudged 0.5px down. No animation.
+- **Card**: 10px radius, `shadow-surface` over a transparent border, 16px padding (`size="sm"`: 12px) and 16px
+  between sections. `CardHeader` takes an optional `CardLeading` (32px logo or initials, 8px radius, 12px from the
+  text), `CardTitle` (`text-section`) and `CardDescription`, a quiet metadata row 2px below (separate items with
+  `CardMetaDot`). `CardFooter` holds actions under a 1px divider. Clickable cards use `interactive` and render as the
+  link (`render={<Link href=… />}`): hover lifts 1px and steps up to `shadow-floating` over 150ms ease-out; static
+  cards have no hover. Flush children (footer, full-bleed media) inherit the card corners; the leading visual is not
+  evenly inset, so it keeps its own 8px token.
+- **Menus and select popups**: 10px radius, 4px padding, transparent 1px border, so items are concentric at 5px.
 - **Form fields**: Input, Textarea and SelectTrigger share one recipe (`fieldControlClassName`) ported from the
-  landing page: 32px, 8px radius, cool-gray border, `--brand-focus` border and ring on focus, danger border and ring when
+  landing page: 32px, 8px radius, cool-gray border, the shared brand focus ring, danger border and ring when
   `aria-invalid`, muted fill when disabled, `text-base md:text-sm` (16px on phones so iOS does not zoom).
 - **Field family** (`components/ui/field.tsx`, the founder's file, used as-is): `FieldSet`, `FieldLegend`, `FieldGroup`, `Field` (vertical,
   horizontal, responsive), `FieldContent`, `FieldLabel`, `FieldTitle`, `FieldDescription`, `FieldSeparator`,
-  `FieldError` (`role="alert"`, de-duplicated messages).
+  `FieldError` (`role="alert"`, de-duplicated messages). Errors use `--danger`; a checked choice card gets a
+  `--text-strong` border on the canvas fill (a selected state, so not brand); links in descriptions turn strong and
+  underlined on hover.
 - **Primitives library:** Base UI (`@base-ui/react`). Do not add a second primitive library.
 
 ## Container
@@ -203,7 +242,8 @@ Hugeicons free set (`@hugeicons/core-free-icons`, MIT; Stroke Rounded), imported
 `src/components/ui/icons.tsx` (or `HugeiconsIcon` directly inside `components/ui`). Lucide and Phosphor are removed.
 
 - Sizes: 16px default (`size-4`), 14px in dense rows (`size-3.5`), 20px large (`size-5`).
-- Stroke 2 on the 24px grid (≈1.3px at 16px) matches 14px body text; use `strokeWidth={1.5}` next to `text-meta`.
+- Stroke is drawn in rendered pixels (`vector-effect: non-scaling-stroke`, the `.ui-icon` rule): **1.5px** next to
+  regular text (400), **2px** next to medium or semibold text (buttons, badges set `--icon-stroke: 2px`), per better-ui.
 - Decorative icons are `aria-hidden` (the default). Icon-only buttons need an `aria-label`.
 - Icons are neutral: they take the text color around them, never brand.
 

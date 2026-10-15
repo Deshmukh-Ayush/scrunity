@@ -74,7 +74,7 @@ function ThreadRow({
 
         <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
           <Badge
-            variant="outline"
+            variant="neutral"
             className="max-w-[140px] truncate border-border/80 px-1.5 py-0 text-muted-foreground">
             {thread.campaign.name}
           </Badge>

@@ -49,7 +49,7 @@ export function AgentChatInterface({
           </span>
           {chat.linkedCampaign && (
             <Badge
-              variant="outline"
+              variant="neutral"
               className="shrink-0 px-2 py-0 font-mono text-primary capitalize">
               {chat.linkedCampaign.currentStage.replace(/_/g, " ")}
             </Badge>

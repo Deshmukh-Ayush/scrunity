@@ -7,6 +7,18 @@
       "skillPath": "skills/use-ai-sdk/SKILL.md",
       "computedHash": "12672e7c040c99b182ceb86517f36f6409e7e22e101178cf554767b0f5d9dd0a"
     },
+    "better-ui": {
+      "source": "jakubkrehel/skills",
+      "sourceType": "github",
+      "skillPath": "skills/better-ui/SKILL.md",
+      "computedHash": "74573763ba1906eb6cd2b35dc3747cb2a2afc940b398203672195f0509ce9bde"
+    },
+    "better-writing": {
+      "source": "jakubkrehel/skills",
+      "sourceType": "github",
+      "skillPath": "skills/better-writing/SKILL.md",
+      "computedHash": "c5f46c317ead56dd17a38279962ecb78ab4acb6b10edb2a5a7c13352729609a0"
+    },
     "building-components": {
       "source": "vercel/components.build",
       "sourceType": "github",

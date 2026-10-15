@@ -292,7 +292,7 @@ export function CreditUsageChart({
 
                     const badge = isDebit ? (
                       <Badge
-                        variant="outline"
+                        variant="neutral"
                         className="h-4 text-muted-foreground">
                         Debit
                       </Badge>

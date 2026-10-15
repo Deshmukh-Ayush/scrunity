@@ -146,7 +146,7 @@ export function CampaignsListClient({
       case "send_emails":
         return (
           <Badge
-            variant="outline"
+            variant="neutral"
             className="gap-1 text-primary">
             <Send className="size-3" /> Sending Emails
           </Badge>
@@ -162,7 +162,7 @@ export function CampaignsListClient({
         )
       default:
         return (
-          <Badge variant="outline" className="capitalize">
+          <Badge variant="neutral" className="capitalize">
             {campaign.currentStage.replace(/_/g, " ")}
           </Badge>
         )
@@ -270,7 +270,7 @@ export function CampaignsListClient({
                           stalled
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="capitalize">
+                        <Badge variant="neutral" className="capitalize">
                           {campaign.status}
                         </Badge>
                       )}

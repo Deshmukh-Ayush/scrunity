@@ -1,6 +1,15 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardLeading,
+  CardMetaDot,
+  CardTitle,
+} from "@/components/ui/card"
 import {
   Dialog,
   DialogClose,
@@ -21,7 +30,7 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ChevronDown, CheckCircle2, Copy, Edit2, MoreHorizontal, Trash2 } from "@/components/ui/icons"
+import { ChevronDown, CheckCircle2, Copy, Edit2, MailReply, MoreHorizontal, Trash2 } from "@/components/ui/icons"
 import type { ShowcaseEntry, StateName } from "./types"
 
 const TRIGGER_STATES: StateName[] = ["default", "hover", "focus-visible", "pressed", "disabled"]
@@ -30,24 +39,54 @@ export const cardEntry: ShowcaseEntry = {
   id: "card",
   name: "Card",
   group: "Display",
-  description: "A flat surface in the page: white, 10px radius, shadow-surface instead of a border.",
+  description:
+    "Static card: flat, no hover. Clickable card: the whole card is the link, lifts 1px and steps up to shadow-floating on hover.",
   render: () => (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle>Northwind Analytics</CardTitle>
-        <CardDescription>B2B analytics for logistics teams, 51–200 people.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex items-center gap-2">
-        <Badge variant="success">
-          <CheckCircle2 data-icon="inline-start" />
-          Verified
-        </Badge>
-        <span className="text-body text-fg-muted tabular-nums">3 decision makers</span>
-      </CardContent>
-      <CardFooter className="gap-2">
-        <Button size="sm">Open company</Button>
-      </CardFooter>
-    </Card>
+    <div className="grid w-full max-w-3xl gap-6 sm:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardLeading>NA</CardLeading>
+          <CardTitle>Northwind Analytics</CardTitle>
+          <CardDescription>
+            <span>Logistics</span>
+            <CardMetaDot />
+            <span>51–200 people</span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center gap-2">
+          <Badge variant="success">
+            <CheckCircle2 data-icon="inline-start" />
+            Verified
+          </Badge>
+          <span className="text-body text-fg-muted tabular-nums">3 decision makers</span>
+        </CardContent>
+        <CardFooter className="justify-end">
+          <Button size="sm" variant="ghost">
+            Skip
+          </Button>
+          <Button size="sm">Open company</Button>
+        </CardFooter>
+      </Card>
+
+      <Card interactive render={<a href="#card" />}>
+        <CardHeader>
+          <CardLeading>Q4</CardLeading>
+          <CardTitle>Q4 logistics outreach</CardTitle>
+          <CardDescription>
+            <span>Stage 6</span>
+            <CardMetaDot />
+            <span>Updated 2h ago</span>
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center gap-2">
+          <Badge>
+            <MailReply data-icon="inline-start" />
+            4 replied
+          </Badge>
+          <span className="text-body text-fg-muted tabular-nums">18 drafts to review</span>
+        </CardContent>
+      </Card>
+    </div>
   ),
 }
 
