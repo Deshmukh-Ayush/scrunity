@@ -16,6 +16,10 @@ const isAdminPath = (pathname: string) =>
   pathname === "/api/admin" ||
   pathname.startsWith("/api/admin/");
 
+// Internal component playground (/playground/*): platform admins only, 404 otherwise.
+const isPlaygroundPath = (pathname: string) =>
+  pathname === "/playground" || pathname.startsWith("/playground/");
+
 function adminNotFound(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith("/api/")) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -42,6 +46,11 @@ export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
     if (sessionlessPaths.has(pathname)) {
       return NextResponse.next();
+    }
+
+    if (isPlaygroundPath(pathname)) {
+      const session = await auth.api.getSession({ headers: request.headers });
+      return isPlatformAdminUser(session?.user) ? NextResponse.next() : adminNotFound(request);
     }
 
     const isSignIn = pathname === "/sign-in";
@@ -195,7 +204,7 @@ export async function proxy(request: NextRequest) {
     // who this is, so protected paths are refused; public paths stay public.
     console.error("proxy middleware error:", err);
     const { pathname } = request.nextUrl;
-    if (isAdminPath(pathname)) return adminNotFound(request);
+    if (isAdminPath(pathname) || isPlaygroundPath(pathname)) return adminNotFound(request);
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { error: "We couldn't verify your session. Please try again in a moment." },
@@ -218,5 +227,6 @@ export const config = {
     "/api/gtm/:path*",
     "/api/onboarding",
     "/api/admin/:path*",
+    "/playground/:path*",
   ],
 };

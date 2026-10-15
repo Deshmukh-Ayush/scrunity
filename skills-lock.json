@@ -13,6 +13,12 @@
       "skillPath": "skills/building-components/SKILL.md",
       "computedHash": "20889af7cb9b3abca1e38824f7fffaa873eb0cc4d45187967b97bd85462cf934"
     },
+    "component-canvas": {
+      "source": "ibelick/ui-skills",
+      "sourceType": "github",
+      "skillPath": "skills/component-canvas/SKILL.md",
+      "computedHash": "cf9589f0b82135b17a6ca0952b6247f949654bb029a01185fe7c95ed1c73a47a"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",
