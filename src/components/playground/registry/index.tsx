@@ -1,7 +1,13 @@
 import { badgeEntry, brandTextEntry, buttonEntry } from "./actions"
-import { exampleFormEntry, inputEntry, selectEntry, textareaEntry } from "./forms"
+import {
+  exampleFormEntry,
+  inputEntry,
+  selectEntry,
+  textareaEntry,
+} from "./forms"
 import { Foundations } from "./foundations"
 import { cardEntry, dialogEntry, dropdownMenuEntry } from "./overlays"
+import { composerEntry, feedRowEntry, sidebarEntry } from "./shell"
 import type { ShowcaseEntry } from "./types"
 
 /**
@@ -14,7 +20,8 @@ export const SHOWCASE: ShowcaseEntry[] = [
     id: "foundations",
     name: "Foundations",
     group: "Foundations",
-    description: "Color tokens with contrast ratios, type scale, radii, depth, icon sizes and motion.",
+    description:
+      "Color tokens with contrast ratios, type scale, radii, depth, icon sizes and motion.",
     render: () => <Foundations />,
   },
   buttonEntry,
@@ -27,6 +34,9 @@ export const SHOWCASE: ShowcaseEntry[] = [
   cardEntry,
   dialogEntry,
   dropdownMenuEntry,
+  sidebarEntry,
+  composerEntry,
+  feedRowEntry,
 ]
 
 export * from "./types"
