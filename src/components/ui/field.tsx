@@ -52,7 +52,7 @@ function FieldGroup({ className, ...props }: React.ComponentProps<"div">) {
 }
 
 const fieldVariants = cva(
-  "group/field flex w-full gap-2 data-[invalid=true]:text-red-600",
+  "group/field flex w-full gap-2 data-[invalid=true]:text-danger",
   {
     variants: {
       orientation: {
@@ -106,7 +106,7 @@ function FieldLabel({
     <Label
       data-slot="field-label"
       className={cn(
-        "group/field-label peer/field-label flex w-fit gap-2 leading-snug text-neutral-800 group-data-[disabled=true]/field:opacity-50 has-data-checked:border-[color-mix(in_oklch,var(--brand),transparent_70%)] has-data-checked:bg-[color-mix(in_oklch,var(--brand),transparent_95%)] has-[>[data-slot=field]]:rounded-lg has-[>[data-slot=field]]:border has-[>[data-slot=field]]:not-has-[:disabled,[data-disabled]]:hover:bg-neutral-50 has-[>[data-slot=field]]:has-focus-visible:border-[var(--brand)] has-[>[data-slot=field]]:has-focus-visible:ring-3 has-[>[data-slot=field]]:has-focus-visible:ring-[color-mix(in_oklch,var(--brand),transparent_50%)] *:data-[slot=field]:p-2.5 dark:has-data-checked:border-[color-mix(in_oklch,var(--brand),transparent_80%)] dark:has-data-checked:bg-[color-mix(in_oklch,var(--brand),transparent_90%)]",
+        "group/field-label peer/field-label flex w-fit gap-2 leading-snug text-neutral-800 group-data-[disabled=true]/field:opacity-50 has-data-checked:border-(--brand-focus) has-data-checked:bg-[color-mix(in_oklch,var(--brand-focus),transparent_95%)] has-[>[data-slot=field]]:rounded-lg has-[>[data-slot=field]]:border has-[>[data-slot=field]]:not-has-[:disabled,[data-disabled]]:hover:bg-neutral-50 has-[>[data-slot=field]]:has-focus-visible:border-(--brand-focus) has-[>[data-slot=field]]:has-focus-visible:ring-3 has-[>[data-slot=field]]:has-focus-visible:ring-[color-mix(in_oklch,var(--brand-focus),transparent_50%)] *:data-[slot=field]:p-2.5",
         "has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col",
         className,
       )}
@@ -135,7 +135,7 @@ function FieldDescription({ className, ...props }: React.ComponentProps<"p">) {
       className={cn(
         "text-left text-sm leading-normal font-normal text-neutral-500 group-has-data-horizontal/field:text-balance [[data-variant=legend]+&]:-mt-1.5",
         "last:mt-0 nth-last-2:-mt-1",
-        "[&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-[var(--brand)]",
+        "[&>a]:underline [&>a]:underline-offset-4 [&>a:hover]:text-fg-strong [&>a:hover]:underline",
         className,
       )}
       {...props}
@@ -216,7 +216,7 @@ function FieldError({
     <div
       role="alert"
       data-slot="field-error"
-      className={cn("text-sm font-normal text-red-600", className)}
+      className={cn("text-sm font-normal text-danger", className)}
       {...props}
     >
       {content}

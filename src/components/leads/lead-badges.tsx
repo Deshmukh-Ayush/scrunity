@@ -1,4 +1,5 @@
 import { AlertTriangle, CheckCircle2, MailReply } from "@/components/ui/icons"
+import { isVerifiedStatus } from "@/lib/email-verification"
 import { Badge } from "@/components/ui/badge"
 import { isValidPersonName } from "@/lib/gtm-contact-matcher"
 
@@ -92,22 +93,16 @@ export function LeadStatusBadge({
 
 /** How confident we are in the lead's email address. */
 export function VerificationBadge({ status }: { status: string }) {
+  if (isVerifiedStatus(status)) {
+    return (
+      <Badge variant="success">
+        <CheckCircle2 data-icon="inline-start" />
+        Verified
+      </Badge>
+    )
+  }
+
   switch (status) {
-    case "verified":
-    case "enrich_verified":
-      return (
-        <Badge variant="success">
-          <CheckCircle2 data-icon="inline-start" />
-          Verified
-        </Badge>
-      )
-    case "pattern_guessed_mx_valid":
-      return (
-        <Badge
-          variant="neutral">
-          MX Valid
-        </Badge>
-      )
     case "pattern_guessed_unverified":
       return (
         <Badge variant="neutral">

@@ -25,13 +25,6 @@ export function EmailSourceBadge({ source }: { source: string }) {
         </Badge>
       )
     case "pattern_guessed_mx_valid":
-      return (
-        <Badge
-          variant="outline"
-          className="gap-1 text-primary">
-          <ShieldCheck className="size-3" /> Pattern Guessed (MX Valid)
-        </Badge>
-      )
     case "pattern_guessed_unverified":
       return (
         <Badge
