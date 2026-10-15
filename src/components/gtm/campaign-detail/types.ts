@@ -1,3 +1,4 @@
+import type { CompanySearchFilters } from "@/db/schema"
 import type { InngestConnectivityStatus } from "@/lib/inngest-connectivity"
 
 /** JSON shapes from GET /api/gtm/campaigns/[id], /drafts and /api/gtm/mailbox. */
@@ -32,7 +33,9 @@ export interface Company {
   revenueRange?: string | null
   selectionStatus?: "selected" | "excluded"
   fitNote?: string | null
-  decisionMakerStatus?: "found" | "no_decision_maker_found" | "no_verified_email" | null
+  /** 0-100 fit with the segment; companies below the threshold start unselected. */
+  fitScore?: number | null
+  decisionMakerStatus?: "found" | "no_decision_maker_found" | "no_verified_email" | "not_reached" | null
 }
 
 export type DraftStatus = "draft" | "approved" | "rejected" | "sent" | "failed"
@@ -60,6 +63,8 @@ export interface CampaignData {
     currentStage: string
     failureReason?: string | null
     discoveryNote?: string | null
+    /** The company search Stage 4 ran (database mode). */
+    searchFilters?: CompanySearchFilters | null
     /** How the verified-lead search ended (vendor credits and stop codes removed). */
     leadSearchOutcome?: {
       result: "reached_target" | "budget_reached" | "out_of_companies"
@@ -68,6 +73,7 @@ export interface CampaignData {
       peopleReviewed: number
       companiesExamined: number
       stopReason?: string | null
+      companiesNotReached?: number
     } | null
     firecrawlCallCount?: number
     createdAt: string

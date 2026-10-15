@@ -54,8 +54,8 @@ const callsTo = (fragment: string) =>
     .filter(([h]) => h.includes(fragment))
     .reduce((n, [, c]) => n + c, 0)
 
-function check(label: string, ok: boolean) {
-  console.log(`  ${ok ? "PASS" : "FAIL"}: ${label}`)
+function check(label: string, ok: boolean, detail = "") {
+  console.log(`  ${ok ? "PASS" : "FAIL"}: ${label}${detail ? ` (${detail})` : ""}`)
   if (!ok) process.exitCode = 1
 }
 
@@ -170,10 +170,18 @@ async function setup() {
     "status left in_progress (runner and stall logic ignore it)",
     afterStage4.status === "awaiting_company_selection"
   )
+  // Every company is scored; only good fits (score >= 60) start selected. When
+  // scoring failed altogether (no scores), every company starts selected.
+  const scored = companies.some((c) => c.fitScore != null)
   check(
-    "every company selected by default",
+    "pre-selection follows the fit score (>= 60 selected, the rest excluded)",
     companies.length > 0 &&
-      companies.every((c) => c.selectionStatus === "selected")
+      companies.every((c) =>
+        scored
+          ? c.selectionStatus === ((c.fitScore ?? -1) >= 60 ? "selected" : "excluded")
+          : c.selectionStatus === "selected"
+      ),
+    companies.map((c) => `${c.domain}:${c.fitScore ?? "-"}:${c.selectionStatus}`).join(" ")
   )
   check(
     "zero Apollo and Firecrawl calls",

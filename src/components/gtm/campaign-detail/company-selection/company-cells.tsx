@@ -112,6 +112,22 @@ export function StatusPill({
   )
 }
 
+/** The 0-100 fit score and its one-line reason (database mode). */
+export function FitCell({ company }: { company: Company }) {
+  if (company.fitScore == null) return <>{company.fitNote || "—"}</>
+  return (
+    <div className="flex items-start gap-2">
+      <span
+        className="inline-flex h-5 min-w-8 shrink-0 items-center justify-center rounded-full border px-1.5 text-[11px] font-medium text-foreground tabular-nums"
+        aria-label={`Fit score ${company.fitScore} of 100`}
+      >
+        {company.fitScore}
+      </span>
+      <span>{company.fitNote || "—"}</span>
+    </div>
+  )
+}
+
 /** Name and title of each decision maker, or the honest not-found / not-run state. */
 export function DecisionMakerCell({
   company,
@@ -130,6 +146,9 @@ export function DecisionMakerCell({
   }
   if (company.decisionMakerStatus === "no_verified_email") {
     return <StatusPill tone="neutral">No verified email</StatusPill>
+  }
+  if (company.decisionMakerStatus === "not_reached") {
+    return <StatusPill tone="neutral">Not reached</StatusPill>
   }
   if (people.length === 0) {
     return (

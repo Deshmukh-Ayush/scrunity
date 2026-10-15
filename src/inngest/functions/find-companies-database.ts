@@ -7,20 +7,24 @@ import {
   gtmOutreachCampaign,
   gtmProspectCompany,
   gtmResearchRun,
+  type CompanySearchFilters,
 } from "@/db/schema"
 import {
   advanceCampaign,
   touchCampaignProgress,
 } from "@/lib/pipeline/stage-state"
+import { assertCampaignProviders } from "@/lib/pipeline/provider-check"
 import { extractDomain } from "@/lib/firecrawl"
 import { checkSuppression } from "@/lib/gtm-suppression"
 import { countryNameFromCode, formatTargetMarket } from "@/lib/geo/countries"
 import { getMaxCompaniesPerRun } from "@/lib/providers/config"
 import { getCompanyDiscoveryProvider } from "@/lib/providers/registry"
 import {
-  generateCompanyFitLines,
+  FIT_PRESELECT_THRESHOLD,
+  generateCompanyFitScores,
   type FitInputCompany,
 } from "@/lib/gtm-company-fit"
+import { generateCompanySearchFilters, matchedExcludedTerm } from "@/lib/gtm-company-search"
 import type { NormalizedCompany } from "@/lib/providers/types"
 import { safeRealtimePublish } from "./shared"
 import type { FindCompaniesResult, ProspectCompanyData } from "./find-companies"
@@ -41,44 +45,75 @@ function locationLabel(company: NormalizedCompany): string {
   )
 }
 
-/** Explains a short result in plain words; null when the full count came back. */
-function buildDiscoveryNote({
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
+/**
+ * The selection gate's note, telling the truth about the search: how many
+ * companies matched in the database, how many were fetched, what was skipped
+ * and how many were pre-selected as good fits.
+ */
+export function buildDiscoveryNote({
+  totalMatches,
+  fetched,
   stored,
-  requested,
   market,
   skippedNoDomain,
   skippedSuppressed,
+  skippedExcluded,
+  preselected,
+  scored,
 }: {
+  totalMatches: number | null
+  fetched: number
   stored: number
-  requested: number
   market: string
   skippedNoDomain: number
   skippedSuppressed: number
-}): string | null {
-  if (stored >= requested) return null
+  skippedExcluded: number
+  preselected: number
+  scored: boolean
+}): string {
   const head =
-    stored === 0
-      ? `No companies matched these filters in ${market}.`
-      : `Only ${stored} ${stored === 1 ? "company" : "companies"} matched these filters in ${market}.`
+    totalMatches == null
+      ? `${plural(fetched, "company", "companies")} found in ${market}.`
+      : totalMatches === 0
+        ? `No companies matched these filters in ${market}.`
+        : totalMatches <= fetched
+          ? `Only ${plural(totalMatches, "company", "companies")} matched these filters in ${market}.`
+          : `${totalMatches.toLocaleString("en-US")} companies matched these filters in ${market}; showing the first ${fetched}.`
   const skipped = [
     skippedNoDomain > 0 ? `${skippedNoDomain} had no website` : null,
-    skippedSuppressed > 0
-      ? `${skippedSuppressed} are on the suppression list`
-      : null,
+    skippedSuppressed > 0 ? `${skippedSuppressed} are on the suppression list` : null,
+    skippedExcluded > 0 ? `${skippedExcluded} matched an excluded term` : null,
   ].filter(Boolean)
-  const skippedText =
-    skipped.length > 0 ? ` Skipped: ${skipped.join(", ")}.` : ""
-  return `${head}${skippedText} Try widening the region or the segment's size band.`
+  const skippedText = skipped.length > 0 ? ` Skipped: ${skipped.join(", ")}.` : ""
+  const fitText =
+    stored === 0
+      ? ""
+      : !scored
+        ? " Fit scores aren't available, so every company is selected."
+        : preselected === 0
+          ? ` None scored ${FIT_PRESELECT_THRESHOLD}+ for this segment, so none are pre-selected.`
+          : ` ${preselected} of ${stored} scored ${FIT_PRESELECT_THRESHOLD}+ and are pre-selected.`
+  const widen =
+    totalMatches != null && totalMatches <= fetched
+      ? " Try widening the region or the segment's size band."
+      : ""
+  return `${head}${skippedText}${fitText}${widen}`
 }
 
 /**
  * Stage 4 (GTM_DISCOVERY_MODE=database): one company-database search built from
- * the segment's filters and the campaign's target market. No Firecrawl calls and
- * no LLM fallback; whatever the provider returns is all that gets stored.
+ * the segment (LLM-generated include/exclude keywords and industries, the size
+ * band) and the campaign's target market. No Firecrawl calls. Every company is
+ * scored 0-100 for fit; the good fits are pre-selected at the gate.
  */
 export async function executeFindCompaniesFromDatabase(
   outreachCampaignId: string
 ): Promise<FindCompaniesResult> {
+  // A missing provider stops here, before any vendor or LLM call.
+  assertCampaignProviders()
+
   const [context] = await db
     .select({
       campaign: gtmOutreachCampaign,
@@ -86,51 +121,56 @@ export async function executeFindCompaniesFromDatabase(
       researchRun: gtmResearchRun,
     })
     .from(gtmOutreachCampaign)
-    .innerJoin(
-      gtmIcpSegment,
-      eq(gtmOutreachCampaign.icpSegmentId, gtmIcpSegment.id)
-    )
-    .innerJoin(
-      gtmResearchRun,
-      eq(gtmOutreachCampaign.researchRunId, gtmResearchRun.id)
-    )
+    .innerJoin(gtmIcpSegment, eq(gtmOutreachCampaign.icpSegmentId, gtmIcpSegment.id))
+    .innerJoin(gtmResearchRun, eq(gtmOutreachCampaign.researchRunId, gtmResearchRun.id))
     .where(eq(gtmOutreachCampaign.id, outreachCampaignId))
 
-  if (!context)
-    throw new Error(`Outreach campaign ${outreachCampaignId} not found`)
+  if (!context) throw new Error(`Outreach campaign ${outreachCampaignId} not found`)
   const { campaign, segment, researchRun } = context
 
-  const countryCode =
-    campaign.targetCountryCode ?? researchRun.targetCountryCode
-  const region = campaign.targetCountryCode
-    ? campaign.targetRegion
-    : researchRun.targetRegion
+  const countryCode = campaign.targetCountryCode ?? researchRun.targetCountryCode
+  const region = campaign.targetCountryCode ? campaign.targetRegion : researchRun.targetRegion
   const country = countryNameFromCode(countryCode)
   if (!country) throw new MissingTargetCountryError()
   const market = formatTargetMarket(countryCode, region) ?? country
 
-  await safeRealtimePublish(
-    outreachCampaignChannel(outreachCampaignId).started,
-    {
-      stage: "find_companies",
-      message: `Searching the company database for ${segment.name} in ${market}...`,
-    }
-  )
+  await safeRealtimePublish(outreachCampaignChannel(outreachCampaignId).started, {
+    stage: "find_companies",
+    message: `Searching the company database for ${segment.name} in ${market}...`,
+  })
   await touchCampaignProgress(outreachCampaignId)
 
-  // Segments from before database mode have no keyword tags; the name is the best filter left.
-  const keywords = segment.targetKeywords?.length
-    ? segment.targetKeywords
-    : [segment.name]
+  // Filters are generated once and stored, so a restart searches the same way.
+  const filters: CompanySearchFilters =
+    campaign.searchFilters ??
+    (await generateCompanySearchFilters({
+      segment,
+      sellerDescription: researchRun.companyDescription,
+      market,
+    }))
+  if (!campaign.searchFilters) {
+    await db
+      .update(gtmOutreachCampaign)
+      .set({ searchFilters: filters })
+      .where(eq(gtmOutreachCampaign.id, outreachCampaignId))
+  }
+  await touchCampaignProgress(outreachCampaignId)
+
   const headcountRange =
-    segment.headcountMin != null && segment.headcountMax != null
-      ? { min: segment.headcountMin, max: segment.headcountMax }
+    filters.headcountMin != null && filters.headcountMax != null
+      ? { min: filters.headcountMin, max: filters.headcountMax }
       : null
   const limit = getMaxCompaniesPerRun()
-
-  const provider = getCompanyDiscoveryProvider()
-  const result = await provider.searchCompanies(
-    { country, state: region, keywords, headcountRange, limit },
+  const result = await getCompanyDiscoveryProvider().searchCompanies(
+    {
+      country,
+      state: region,
+      keywords: filters.includeKeywords,
+      excludeKeywords: filters.excludeKeywords,
+      industries: filters.industries,
+      headcountRange,
+      limit,
+    },
     {
       organizationId: researchRun.organizationId,
       researchRunId: researchRun.id,
@@ -141,20 +181,22 @@ export async function executeFindCompaniesFromDatabase(
 
   const ownDomain = extractDomain(researchRun.websiteUrl)
   const seenDomains = new Set<string>()
-  let skippedNoDomain = 0
-  let skippedSuppressed = 0
+  const skipped = { noDomain: 0, suppressed: 0, excluded: 0 }
   const accepted: Array<NormalizedCompany & { domain: string }> = []
-
   for (const company of result.companies) {
     const domain = company.domain
     if (!domain) {
-      skippedNoDomain++
+      skipped.noDomain++
       continue
     }
     if (domain === ownDomain || seenDomains.has(domain)) continue
     seenDomains.add(domain)
+    if (matchedExcludedTerm(company, filters.excludeKeywords)) {
+      skipped.excluded++
+      continue
+    }
     if (await checkSuppression({ domain })) {
-      skippedSuppressed++
+      skipped.suppressed++
       continue
     }
     accepted.push({ ...company, domain })
@@ -207,25 +249,40 @@ export async function executeFindCompaniesFromDatabase(
     })
   }
 
-  // One batched LLM call for the selection table's Fit column.
+  // One batched LLM call: a 0-100 fit score and a reason per company. Only good
+  // fits start selected; the rest stay visible, unticked.
   await touchCampaignProgress(outreachCampaignId)
-  const fitLines = await generateCompanyFitLines({
-    segment,
+  // Scored against the same size band the search filtered on.
+  const fits = await generateCompanyFitScores({
+    segment: { ...segment, headcountMin: filters.headcountMin, headcountMax: filters.headcountMax },
     companies: fitInputs,
   })
-  for (const [id, fitNote] of fitLines) {
+  const scored = fits.size > 0
+  let preselected = 0
+  for (const company of insertedCompanies) {
+    const fit = fits.get(company.id)
+    const selected = !scored || (fit != null && fit.score >= FIT_PRESELECT_THRESHOLD)
+    if (selected && scored) preselected++
     await db
       .update(gtmProspectCompany)
-      .set({ fitNote })
-      .where(eq(gtmProspectCompany.id, id))
+      .set({
+        fitScore: fit?.score ?? null,
+        fitNote: fit?.reason || null,
+        selectionStatus: selected ? "selected" : "excluded",
+      })
+      .where(eq(gtmProspectCompany.id, company.id))
   }
 
   const discoveryNote = buildDiscoveryNote({
+    totalMatches: result.totalAvailable,
+    fetched: result.companies.length,
     stored: insertedCompanies.length,
-    requested: limit,
     market,
-    skippedNoDomain,
-    skippedSuppressed,
+    skippedNoDomain: skipped.noDomain,
+    skippedSuppressed: skipped.suppressed,
+    skippedExcluded: skipped.excluded,
+    preselected,
+    scored,
   })
 
   // Database mode waits for the user to pick companies. The status leaves
@@ -234,17 +291,13 @@ export async function executeFindCompaniesFromDatabase(
     currentStage: "awaiting_company_selection",
     status: "awaiting_company_selection",
     discoveryNote,
+    searchFilters: { ...filters, totalMatches: result.totalAvailable, fetched: result.companies.length },
   })
 
-  await safeRealtimePublish(
-    outreachCampaignChannel(outreachCampaignId).completed,
-    {
-      stage: "find_companies",
-      summary:
-        discoveryNote ??
-        `Found ${insertedCompanies.length} companies in ${market}.`,
-    }
-  )
+  await safeRealtimePublish(outreachCampaignChannel(outreachCampaignId).completed, {
+    stage: "find_companies",
+    summary: discoveryNote,
+  })
 
   return { companies: insertedCompanies }
 }

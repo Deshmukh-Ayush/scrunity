@@ -28,6 +28,10 @@ export interface CompanyDiscoveryQuery {
   /** State, region or city within the country. Omit for the whole country. */
   state?: string | null
   keywords: string[]
+  /** Companies tagged, named or described with any of these are excluded. */
+  excludeKeywords?: string[]
+  /** Exact provider industry names (lib/providers/industries.ts); any one matches. */
+  industries?: string[]
   headcountRange?: { min: number; max: number } | null
   limit: number
 }

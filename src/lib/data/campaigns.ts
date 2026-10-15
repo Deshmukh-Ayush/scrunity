@@ -40,12 +40,13 @@ export async function listOrgCampaigns(organizationId: string) {
 }
 
 /** Vendor identifiers never leave the server: customers must not see which data vendor was used. */
-const VENDOR_FIELDS: readonly string[] = ["source", "providerId", "providerPersonId"]
+// leadSearchState holds the search's internal queue (people not yet tried).
+const VENDOR_FIELDS: readonly string[] = ["source", "providerId", "providerPersonId", "leadSearchState"]
 
 function withoutVendorFields<T extends { source: unknown }>(row: T) {
   return Object.fromEntries(
     Object.entries(row).filter(([key]) => !VENDOR_FIELDS.includes(key))
-  ) as Omit<T, "source" | "providerId" | "providerPersonId">
+  ) as Omit<T, "source" | "providerId" | "providerPersonId" | "leadSearchState">
 }
 
 /**
@@ -70,7 +71,8 @@ export async function getCampaignDetail(
     .select()
     .from(gtmProspectCompany)
     .where(eq(gtmProspectCompany.outreachCampaignId, campaignId))
-    .orderBy(gtmProspectCompany.createdAt)
+    // Best fit first (database mode); legacy rows have no score and keep their order.
+    .orderBy(sql`${gtmProspectCompany.fitScore} DESC NULLS LAST`, gtmProspectCompany.createdAt)
   const companies = rows.map(withoutVendorFields)
   const discovery = {
     usesCompanyDatabase:

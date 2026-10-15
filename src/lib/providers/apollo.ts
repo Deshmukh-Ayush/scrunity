@@ -76,14 +76,30 @@ export function normalizeApolloOrganization(org: ApolloOrganization): Normalized
   }
 }
 
-/** Apollo matches HQ location on free-text strings such as "delhi, india". */
-function buildSearchParams(query: CompanyDiscoveryQuery): URLSearchParams {
+/**
+ * Apollo matches HQ location on free-text strings such as "delhi, india".
+ * Parameter meanings (docs.apollo.io, company search): keyword tags filter on
+ * "keywords associated with companies"; q_not_organization_keyword_tags[]
+ * excludes companies matching any value "as an exact phrase against a
+ * company's keywords, name, and short description"; organization_industries[]
+ * values "must exactly match an Apollo industry name" and a company "only needs
+ * to match one". The docs describe mixed_companies/search; the Free key can
+ * only call organizations/search, so Stage 4 also applies the exclusions
+ * itself (gtm-company-search.ts matchedExcludedTerm).
+ */
+export function buildSearchParams(query: CompanyDiscoveryQuery): URLSearchParams {
   const params = new URLSearchParams()
   const country = query.country.trim().toLowerCase()
   const state = query.state?.trim().toLowerCase()
   params.append("organization_locations[]", state ? `${state}, ${country}` : country)
   for (const keyword of query.keywords) {
     params.append("q_organization_keyword_tags[]", keyword.toLowerCase())
+  }
+  for (const keyword of query.excludeKeywords ?? []) {
+    params.append("q_not_organization_keyword_tags[]", keyword.toLowerCase())
+  }
+  for (const industry of query.industries ?? []) {
+    params.append("organization_industries[]", industry.toLowerCase())
   }
   if (query.headcountRange) {
     params.append(

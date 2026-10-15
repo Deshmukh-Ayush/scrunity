@@ -21,12 +21,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { describeCompanySearch } from "@/lib/company-search-text"
 import { useCampaignDetail } from "../campaign-detail-root"
 import { useCompanySelection } from "./company-selection-root"
 import {
   CompanyCell,
   DecisionMakerCell,
   EmailCell,
+  FitCell,
   IndustryPill,
   WebsiteLink,
   locationText,
@@ -63,9 +65,14 @@ export function CompanySelectionToolbar() {
   const { data } = useCampaignDetail()
   const { companies, isEditable, showPeople, selectAll, clear } =
     useCompanySelection()
-  const { discoveryNote, currentStage } = data.campaign
+  const { discoveryNote, currentStage, searchFilters } = data.campaign
   return (
     <div className="space-y-3">
+      {searchFilters && (
+        <p className="text-xs text-muted-foreground">
+          {describeCompanySearch(searchFilters)}
+        </p>
+      )}
       {discoveryNote && (
         <p
           role="status"
@@ -81,7 +88,7 @@ export function CompanySelectionToolbar() {
           </h3>
           <p className="text-xs text-muted-foreground">
             {isEditable
-              ? "Untick any company you don't want. Only the ones you keep are searched for decision makers."
+              ? "Best fit first; only good fits start ticked. Only the companies you keep are searched for decision makers."
               : showPeople
                 ? "Decision makers for the companies you kept. Excluded companies were skipped."
                 : "Companies found for this segment."}
@@ -230,8 +237,8 @@ export function CompanySelectionGrid() {
                 <TableCell className="whitespace-nowrap">
                   {company.revenueRange || "—"}
                 </TableCell>
-                <TableCell className="max-w-[260px] min-w-[200px] whitespace-normal text-muted-foreground">
-                  {company.fitNote || "—"}
+                <TableCell className="max-w-[300px] min-w-[220px] whitespace-normal text-muted-foreground">
+                  <FitCell company={company} />
                 </TableCell>
                 <TableCell>
                   <WebsiteLink company={company} />
