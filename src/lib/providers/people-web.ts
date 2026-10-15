@@ -24,9 +24,11 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(
 const isLinkedInProfile = (url?: string) => Boolean(url && /linkedin\.com\/in\//i.test(url))
 
 /**
- * Interim decision-maker provider: the existing web discovery (a site search
- * for team/leadership pages plus a LinkedIn snippet search, both through
- * Firecrawl and its limiter and caps). Returns every plausible person ranked by
+ * Decision-maker provider over web search (GTM_PEOPLE_PROVIDER=web, and the
+ * provider of legacy mode): a LinkedIn snippet search, then, only when that
+ * found nobody with a profile, a site search for team/leadership pages and a
+ * scrape of that page, all through Firecrawl and its limiter and caps (at most
+ * 3 calls per company per pass). Returns every plausible person ranked by
  * title match, with a LinkedIn profile URL attached when either search found
  * one for that name. A paid people vendor can replace it behind
  * PeopleDiscoveryProvider without touching the verified-lead search.
@@ -45,24 +47,32 @@ export const webPeopleProvider: PeopleDiscoveryProvider = {
     } as typeof gtmProspectCompany.$inferSelect)
 
     const titles = query.titles.filter(Boolean)
-    await runLookupParts(
-      lookup,
-      {
-        runContext: {
-          campaignId: context.campaignId ?? undefined,
-          organizationId: context.organizationId ?? undefined,
-        },
-        targetRole: { jobFunctions: titles, searchKeyword: titles[0] ?? "founder" },
-        ...(query.patient ? PATIENT_PASS : FIRST_PASS),
+    const options = {
+      runContext: {
+        campaignId: context.campaignId ?? undefined,
+        organizationId: context.organizationId ?? undefined,
       },
-      ["team", "linkedin"]
-    )
+      targetRole: { jobFunctions: titles, searchKeyword: titles[0] ?? "founder" },
+      ...(query.patient ? PATIENT_PASS : FIRST_PASS),
+    }
+    const rank = () =>
+      rankCandidates(
+        [...lookup.teamCandidates, ...lookup.linkedinCandidates],
+        titles,
+        query.company.domain
+      ).slice(0, query.limit)
 
-    const people = rankCandidates(
-      [...lookup.teamCandidates, ...lookup.linkedinCandidates],
-      titles,
-      query.company.domain
-    ).slice(0, query.limit)
+    // LinkedIn first (1 call). Only someone with a LinkedIn profile can pass
+    // the qualification gate, and in the live test every person looked up came
+    // from this search, so the team page (search + scrape, 2 calls) runs only
+    // when it found nobody usable. Rate-limited: retry later, both parts.
+    await runLookupParts(lookup, options, ["linkedin"])
+    if (lookup.incomplete.size > 0) return { people: [], creditsUsed: 0, incomplete: true }
+    let people = rank()
+    if (!people.some((p) => p.linkedinUrl)) {
+      await runLookupParts(lookup, options, ["team"])
+      people = rank()
+    }
     return { people, creditsUsed: 0, incomplete: lookup.incomplete.size > 0 }
   },
 }

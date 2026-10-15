@@ -10,6 +10,7 @@ import { eq, and } from "drizzle-orm";
 import { resolveAuthAndOrg, verifyCampaignAccess } from "@/lib/gtm-auth";
 import { dispatchCampaign } from "@/lib/pipeline/dispatch";
 import { campaignIsIdle } from "@/lib/pipeline/stage-state";
+import { checkCampaignProviders } from "@/lib/pipeline/provider-check";
 
 export async function POST(
   _req: NextRequest,
@@ -33,6 +34,15 @@ export async function POST(
       );
     }
 
+    // A missing provider is refused before anything is reset or spent.
+    const providers = checkCampaignProviders();
+    if (!providers.ok) {
+      return NextResponse.json(
+        { error: providers.message, providerUnavailable: true },
+        { status: 503 }
+      );
+    }
+
     // Step 1: Atomic check-and-set. Allowed unless a live executor is still
     // working on the campaign (in_progress with a fresh heartbeat), which is
     // what lets a stalled campaign be retried without ever running it twice.
@@ -45,6 +55,8 @@ export async function POST(
         status: "in_progress",
         failureReason: null,
         discoveryNote: null,
+        searchFilters: null,
+        leadSearchState: null,
         stageStartedAt: new Date(),
         lastProgressAt: null,
       })

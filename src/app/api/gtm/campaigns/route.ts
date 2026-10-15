@@ -11,6 +11,7 @@ import { seedCampaignConversation } from "@/lib/gtm-campaign-conversation";
 import { z } from "zod";
 import { noAccessMessage, resolveCampaignAccess } from "@/lib/pilot/access";
 import { QUOTAS, consumeOrgQuota } from "@/lib/org-quota";
+import { checkCampaignProviders } from "@/lib/pipeline/provider-check";
 
 const createCampaignSchema = z.object({
   icpSegmentId: z.string().min(1, "ICP segment ID is required"),
@@ -78,6 +79,15 @@ export async function POST(req: NextRequest) {
     const access = await resolveCampaignAccess(auth.orgId, auth.userId);
     if (!access.hasAccess) {
       return NextResponse.json({ error: noAccessMessage(), noAccess: true }, { status: 403 });
+    }
+    // Every provider this discovery mode needs must be configured, checked
+    // before any quota, row or vendor spend.
+    const providers = checkCampaignProviders();
+    if (!providers.ok) {
+      return NextResponse.json(
+        { error: providers.message, providerUnavailable: true },
+        { status: 503 }
+      );
     }
     const quota = await consumeOrgQuota(auth.orgId, QUOTAS.campaign);
     if (!quota.allowed) {

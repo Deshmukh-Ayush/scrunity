@@ -36,11 +36,14 @@ export function getApolloMonthlyCreditCap(): number {
 }
 
 /**
- * Which decision-maker vendor to use. Only the synthetic "fixture" provider
- * exists today: the Apollo Free plan blocks people search (HTTP 403).
+ * Which decision-maker provider database mode uses: "web" (Firecrawl
+ * LinkedIn/team-page search, providers/people-web.ts) or "fixture" (synthetic
+ * people, fixture mode only). The Apollo Free plan blocks people search (HTTP
+ * 403), so there is no paid people vendor. Default: "fixture" in fixture mode,
+ * "web" otherwise.
  */
 export function getPeopleProviderKey(): string {
-  return process.env.GTM_PEOPLE_PROVIDER || "fixture"
+  return process.env.GTM_PEOPLE_PROVIDER || (getProviderMode() === "fixture" ? "fixture" : "web")
 }
 
 /** Decision makers stored per selected company: default 1, maximum 2. */
@@ -77,9 +80,16 @@ export function getMaxCandidatesPerCompany(): number {
   return intEnv("GTM_MAX_CANDIDATES_PER_COMPANY", 3, 1, 5)
 }
 
-/** Companies the verified-lead search may examine per campaign: default 40, ceiling 60. */
+/**
+ * Companies the verified-lead search may examine per attempt: default 15
+ * (the most one database-mode search returns), ceiling 60. With the web people
+ * provider the per-attempt Firecrawl cap (35) also bounds it: the search only
+ * starts a company while 3 calls (its worst case) are left, so it examines at
+ * least 11 and typically all 15 (LinkedIn search first: 1 call when it finds
+ * someone). Companies it never reaches are marked "not reached".
+ */
 export function getMaxCompaniesExamined(): number {
-  return intEnv("GTM_MAX_COMPANIES_EXAMINED", 40, 1, 60)
+  return intEnv("GTM_MAX_COMPANIES_EXAMINED", 15, 1, 60)
 }
 
 /**
@@ -91,9 +101,15 @@ export function getEmailLookupsPerCampaign(): number {
   return intEnv("GTM_EMAIL_LOOKUPS_PER_CAMPAIGN", 20, 0, 45)
 }
 
-/** Wall-clock limit of one verified-lead search attempt, in ms. Default 15 min, max 30. */
+/**
+ * Wall-clock limit of one verified-lead search attempt, in ms, measured from
+ * the stage claim across all its steps (no single step runs long). Default 20
+ * min, max 60. After it, no new company or lookup starts; lookups already paid
+ * for are still polled to their result (each at most
+ * GTM_EMAIL_LOOKUP_MAX_WAIT_SECONDS).
+ */
 export function getLeadSearchMaxMs(): number {
-  return intEnv("GTM_LEAD_SEARCH_MAX_MINUTES", 15, 1, 30) * 60_000
+  return intEnv("GTM_LEAD_SEARCH_MAX_MINUTES", 20, 1, 60) * 60_000
 }
 
 /** Companies processed at the same time (each still tries its people one by one). Default 3. */
