@@ -56,9 +56,15 @@ shadcn components read `--background`, `--card`, `--popover`, `--primary`, `--se
 - **Never a brand button inside repeated rows or lists** (table rows, cards in a grid, plan lists, draft lists). The
   same action is neutral there; it can be brand in a single-item view (e.g. Approve in the single-lead review dialog).
 - Empty-state buttons are brand only when they are the single action on the screen.
+- **Founder exceptions** (decided, not precedents):
+  - **Selected main-nav item:** a solid brand fill (`--nav-selected-bg`). Its text and icon are one token,
+    `--nav-selected-fg`: near-black (`--text-strong`, 7.63:1) by default; white (2.59:1, fails AA for 14px text) is one
+    line away (`--nav-selected-fg: var(--brand-foreground)`). The brand focus ring would disappear on a brand fill, so a
+    focused selected item gets a 2px near-black ring behind a 2px canvas gap. Hover on unselected items stays neutral.
+  - **"Review drafts"** in the Campaigns table is a brand button even though it repeats per row.
 - Current brand placements: chat send (Home), start research, confirm profile, launch campaigns, confirm companies,
-  start sending, Approve in the lead review dialog, create organization, pay / confirm seats in billing dialogs,
-  landing CTA.
+  start sending, Approve in the lead review dialog, New research run (Research page), Review drafts (Campaigns rows),
+  create organization, pay / confirm seats in billing dialogs, landing CTA.
 - **Brand button text:** `BRAND_BUTTON_TEXT = white` (founder's call, in `src/lib/design/tokens.ts`, mirrored by
   `--brand-foreground`). White on `#00aaf7` is **2.59:1**, below AA 4.5:1; near-black `#0a0a0a` is 7.63:1. Both are
   shown side by side at all three sizes on the testing route ("Brand button text"). To switch, set
@@ -231,6 +237,38 @@ Use them for interactive styles in `components/ui`.
   underlined on hover.
 - **Primitives library:** Base UI (`@base-ui/react`). Do not add a second primitive library.
 
+## Data table
+
+`src/components/ui/data-table/` (`DataTable`, cells, `FilterChips`, `useUrlFilter`). Used by Campaigns and Research;
+Companies, People and Deals reuse it. Shown on the testing route with every state.
+
+- **Surface:** white, `shadow-surface`, 10px radius. Inside, only single-side hairlines: under the header and under
+  each row. No cell borders, no zebra stripes, no row colors for status.
+- **Density:** 36px rows (`density="compact"`: 32px), 12px horizontal cell padding, `text-body` cells, `text-meta`
+  muted headers in sentence case (never uppercase).
+- **Semantics:** a real `<table>` with `aria-label`, `<th scope="col">`. It scrolls inside a focusable region
+  (`role="region"`, `aria-label`, `tabIndex=0`; the surface shows the focus ring). The header is sticky when the region
+  has a max height. Below 768px the first column sticks and the rest scrolls sideways; content never shrinks to fit,
+  and the name column is narrower there so the next column always peeks in as a cue.
+- **Column types:** `text` (truncates, full value in `title`), `entity` (16px logo or letter tile + name, the row's
+  link), `status` (semantic `Badge` with a label and icon; never a per-category hue), `date` (`<time>`, relative or
+  absolute, rendered after hydration), `number` (right-aligned, `tabular-nums`; "found / target" form), `actions`
+  (right-aligned, header for screen readers only).
+- **Sorting:** a column with `sortValue` gets a real `<button>` in its header (Hugeicons arrow glyph) and the sorted
+  `<th>` gets `aria-sort`. Client-side; missing values sort last.
+- **Row link:** the entity cell holds the one focusable link per row (keyboard, screen readers, middle-click).
+  `rowHref` adds a mouse-only twin (`tabIndex=-1`, `aria-hidden`) over every other non-action cell, so the whole row
+  is clickable. Not one `::after` stretched over the `<tr>`: WebKit ignores `position: relative` on table rows and
+  sent clicks to the wrong row. Never `onClick` on `<tr>`. Action controls stay separate tab stops.
+- **States:** `loading` (skeleton rows), `empty` and `error` (one centered `DataTableMessage`: title, one line, one
+  action; drawn in the surface, outside the scrolling table). Over `pageSize` (25) rows: a Previous/Next pager.
+- **Not built, on purpose:** row selection, bulk actions, column calculations, "add column", column visibility. No
+  dead UI.
+- **Filter chips** (`FilterChips`): compact toggle buttons (`aria-pressed`) with counts; "All" first, then only chips
+  with results. The selected chip is the strong-ink fill (a selected state, not brand). Keep the value in the URL
+  with `useUrlFilter` (`?status=`), so it survives refresh and back.
+- Status words are plain (`components/gtm/pipeline-status.tsx`): never raw snake_case in the UI.
+
 ## Container
 
 `src/components/layout/container.tsx`. A centered wrapper with 16px side padding on mobile, 24px at `sm` and 32px at
@@ -266,9 +304,10 @@ page draws its own sidebar or top bar.
 - **Nav config rule:** the nav is the `NAV_ITEMS` array in `shell/nav-config.ts`. Only routes that exist and work
   today go in it: no placeholders, no "coming soon", no dead links. A new section (Inbox, Tasks, Companies, People,
   Deals, Lists) is one new line once its route ships. Settings and Billing live in the workspace menu.
-- **Rows** (`SidebarItem`): 32px, 6px radius, 16px icon, `text-body` medium. Hover fills with `--muted-fill`; the
-  current page is a white chip (`bg-surface shadow-raised`) and carries `aria-current="page"`. Section labels are
-  `text-meta` muted.
+- **Rows** (`SidebarItem`): 32px, 6px radius, 16px icon, `text-body` medium. Hover fills with `--muted-fill` (only on
+  rows that are not current). The current page carries `aria-current="page"`: main nav (`tone="nav"`) is the brand
+  fill described under Brand; chat rows and the menu trigger (`tone="list"`) are a white chip (`bg-surface
+  shadow-raised`). Section labels are `text-meta` muted.
 - **Collapsible groups** (`SidebarGroup`): the trigger is a button with `aria-expanded`/`aria-controls`; a closed body
   is `inert`. Open/closed is remembered per user in localStorage (every access in try/catch; renders with the default
   without it). The body uses the transitions.dev accordion and animates only after the first toggle, so a remembered
