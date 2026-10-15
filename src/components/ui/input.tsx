@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils"
  * Focus uses ui-focus so the testing route can force it with data-force.
  */
 const fieldControlClassName =
-  "w-full min-w-0 rounded-md border border-input bg-transparent px-2.5 py-1 text-base text-fg-strong transition-colors outline-none placeholder:text-fg-subtle ui-focus:border-(--brand) ui-focus:ring-2 ui-focus:ring-[var(--brand)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-50 aria-invalid:border-danger aria-invalid:ring-3 aria-invalid:ring-danger/20 md:text-sm"
+  "w-full min-w-0 rounded-md border border-input bg-transparent px-2.5 py-1 text-base text-fg-strong transition-colors outline-none placeholder:text-fg-subtle ui-focus:border-(--brand-focus) ui-focus:ring-2 ui-focus:ring-[var(--brand-focus)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-50 aria-invalid:border-danger aria-invalid:ring-3 aria-invalid:ring-danger/20 md:text-sm"
 
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (

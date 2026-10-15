@@ -272,7 +272,7 @@ export function SegmentDigestCard({
           </span>
           <div className="flex flex-wrap gap-2 pt-0.5">
             <Badge
-              variant="success"
+              variant="neutral"
               className="gap-1">
               Interested: {metrics.replyBreakdown?.interested ?? 0}
             </Badge>

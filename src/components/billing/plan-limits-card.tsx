@@ -135,7 +135,7 @@ export async function PlanLimitsCard() {
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="text-2xl font-bold text-foreground">Unlimited</span>
-              <Badge variant="success" className="whitespace-nowrap">
+              <Badge variant="neutral" className="whitespace-nowrap">
                 Free & Uncapped
               </Badge>
             </div>

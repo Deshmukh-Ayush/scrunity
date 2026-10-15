@@ -32,7 +32,7 @@ export async function PlanSubscriptionCard() {
   const status = org?.subscriptionStatus || (isSubscribed ? "active" : "unsubscribed");
 
   const statusBadge = {
-    active: <Badge variant="success">Active</Badge>,
+    active: <Badge variant="neutral">Active</Badge>,
     past_due: <Badge variant="warning">Past Due</Badge>,
     canceled: <Badge variant="danger">Canceled</Badge>,
     trialing: <Badge variant="neutral">Trialing</Badge>,

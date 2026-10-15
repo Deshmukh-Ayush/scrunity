@@ -1,6 +1,7 @@
 "use client"
 
 import { Mail } from "@/components/ui/icons"
+import { GoogleLogo } from "@/components/ui/google-logo"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -30,6 +31,7 @@ export function MailboxStatusBar() {
             buttonVariants({ size: "sm" }), "shrink-0"
           )}
         >
+          <GoogleLogo />
           Connect Gmail Account
         </a>
       </Card>
@@ -40,9 +42,9 @@ export function MailboxStatusBar() {
     <div className="flex items-center justify-between px-1 text-xs text-muted-foreground">
       <div className="flex items-center gap-2">
         <Badge
-          variant="success"
+          variant="neutral"
           className="gap-1">
-          <span className="size-1.5 rounded-full bg-success" />
+          <span className="size-1.5 rounded-full bg-fg-muted" />
           Connected: {mailbox.email}
         </Badge>
         <span className="text-[11px]">

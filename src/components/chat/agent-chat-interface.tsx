@@ -127,10 +127,10 @@ export function AgentChatInterface({
                 ) : (
                   <Button
                     type="button"
-                    size="sm"
+                    variant="brand"
+                    size="icon"
                     disabled={!inputValue.trim()}
                     onClick={() => send()}
-                    className="size-8 rounded-full p-0 disabled:opacity-30"
                     title="Send message"
                     aria-label="Send message"
                   >

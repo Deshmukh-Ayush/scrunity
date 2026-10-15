@@ -1,4 +1,4 @@
-import { badgeEntry, buttonEntry } from "./actions"
+import { badgeEntry, brandTextEntry, buttonEntry } from "./actions"
 import { exampleFormEntry, inputEntry, selectEntry, textareaEntry } from "./forms"
 import { Foundations } from "./foundations"
 import { cardEntry, dialogEntry, dropdownMenuEntry } from "./overlays"
@@ -18,6 +18,7 @@ export const SHOWCASE: ShowcaseEntry[] = [
     render: () => <Foundations />,
   },
   buttonEntry,
+  brandTextEntry,
   badgeEntry,
   inputEntry,
   textareaEntry,

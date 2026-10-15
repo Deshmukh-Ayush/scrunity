@@ -12,10 +12,11 @@ export const COLORS = {
   borderStrong: "#d1d5db",
   textStrong: "#0a0a0a",
   textDefault: "#262626",
-  textMuted: "#737373",
+  textMuted: "#6b6b6b",
   textSubtle: "#a3a3a3",
   divider: "#d4d4d4",
   brand: "#00aaf7",
+  brandFocus: "#0088c6",
   success: "#047857",
   successTint: "#ecfdf5",
   danger: "#b91c1c",
@@ -57,7 +58,7 @@ export const CONTRAST_PAIRS: ContrastPair[] = [
   { name: "text-default on muted fill", fg: C.textDefault, bg: C.mutedFill, rule: "text" },
   { name: "text-muted on canvas", fg: C.textMuted, bg: C.canvas, rule: "text" },
   { name: "text-muted on surface", fg: C.textMuted, bg: C.surface, rule: "text" },
-  { name: "text-muted on muted fill", fg: C.textMuted, bg: C.mutedFill, rule: "avoid" },
+  { name: "text-muted on muted fill", fg: C.textMuted, bg: C.mutedFill, rule: "text" },
   { name: "text-subtle on surface (placeholder/disabled only)", fg: C.textSubtle, bg: C.surface, rule: "info" },
   { name: "#d4d4d4 on surface (divider only, never text)", fg: C.divider, bg: C.surface, rule: "info" },
   { name: "white on primary (text-strong)", fg: C.white, bg: C.textStrong, rule: "text" },
@@ -76,7 +77,8 @@ export const CONTRAST_PAIRS: ContrastPair[] = [
   { name: "white on --brand", fg: C.white, bg: C.brand, rule: "info" },
   { name: "text-strong on --brand", fg: C.textStrong, bg: C.brand, rule: "info" },
   { name: "button focus ring (text-strong) on canvas", fg: C.textStrong, bg: C.canvas, rule: "ui" },
-  { name: "field focus border (--brand) on surface", fg: C.brand, bg: C.surface, rule: "info" },
+  { name: "field focus border (--brand-focus) on surface", fg: C.brandFocus, bg: C.surface, rule: "ui" },
+  { name: "field focus border (--brand-focus) on canvas", fg: C.brandFocus, bg: C.canvas, rule: "ui" },
 ]
 
 export function contrast(a: string, b: string): number {

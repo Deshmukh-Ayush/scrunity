@@ -288,7 +288,7 @@ export function LeadReviewDialog({
               <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="brand"
                   size="md"
                   onClick={approve}
                   disabled={isPending}
@@ -305,7 +305,7 @@ export function LeadReviewDialog({
                   <VerificationBadge status={lead.verificationStatus} />
                 </div>
 
-                <Button variant="brand"
+                <Button
                   type="button"
                   size="md"
                   onClick={send}

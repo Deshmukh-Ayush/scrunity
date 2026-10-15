@@ -13,9 +13,9 @@ export function IntentBadge({
     case "interested":
       return (
         <Badge
-          variant="success"
+          variant="neutral"
           className="shrink-0 gap-1 px-2 py-0.5">
-          <span className="size-1.5 rounded-full bg-success" />
+          <span className="size-1.5 rounded-full bg-fg-muted" />
           Interested
         </Badge>
       )

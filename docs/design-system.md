@@ -30,10 +30,9 @@ Token names describe purpose, not appearance. Components use semantic tokens, ne
 |---|---|---|---|
 | `--text-strong` | `text-fg-strong` (also `text-foreground`) | `#0a0a0a` | Page titles, primary content (record names, table values) |
 | `--text-default` | `text-fg-default` | `#262626` | Labels, UI text, section labels |
-| `--text-muted` | `text-fg-muted` (also `text-muted-foreground`) | `#737373` | Descriptions, secondary text. 4.54:1 on canvas, 4.74:1 on white |
+| `--text-muted` | `text-fg-muted` (also `text-muted-foreground`) | `#6b6b6b` | Descriptions, secondary text. 5.33:1 on white, 5.10:1 on canvas, 4.84:1 on the muted fill |
 | `--text-subtle` | `text-fg-subtle` | `#a3a3a3` | **Placeholders and disabled text only** (2.52:1) |
 
-Do not put `--text-muted` on `--muted-fill` (4.31:1, below AA). Use `--text-default` on muted fills.
 
 ### shadcn mapping
 
@@ -50,14 +49,22 @@ shadcn components read `--background`, `--card`, `--popover`, `--primary`, `--se
 
 `--brand: #00aaf7`, used as `var(--brand)` or `bg-brand`.
 
-- **Used for:** brand button backgrounds, and the focus state of form fields (brand border plus a 2px brand ring).
-  The Field family also tints checked choice cards with it.
+- **Used for:** brand button backgrounds. Form-field focus uses the darker `--brand-focus: #0088c6` for the border and
+  the 2px ring (3.93:1 on white, 3.77:1 on the canvas: passes the 3:1 non-text minimum that `#00aaf7` at 2.59:1 fails).
+  The Field family also tints checked choice cards with brand.
 - **Never used for:** text, links, icons, badges, section backgrounds or decoration.
 - **Rule (Attio's approach):** brand appears only where attention is genuinely needed. At most one brand button per
   view. Most screens have none.
+- **Never a brand button inside repeated rows or lists** (table rows, cards in a grid, plan lists, draft lists). The
+  same action is neutral there; it can be brand in a single-item view (e.g. Approve in the single-lead review dialog).
+- Empty-state buttons are brand only when they are the single action on the screen.
+- Current brand placements: chat send (Home), start research, confirm profile, launch campaigns, confirm companies,
+  start sending, Approve in the lead review dialog, create organization, pay / confirm seats in billing dialogs,
+  landing CTA.
 - **Brand button text:** `BRAND_BUTTON_TEXT = white` (founder's call, in `src/lib/design/tokens.ts`, mirrored by
-  `--brand-foreground`). White on `#00aaf7` is **2.59:1**, below AA 4.5:1; near-black `#0a0a0a` is 7.63:1. To switch,
-  set `BRAND_BUTTON_TEXT = "dark"` and `--brand-foreground: var(--text-strong)`.
+  `--brand-foreground`). White on `#00aaf7` is **2.59:1**, below AA 4.5:1; near-black `#0a0a0a` is 7.63:1. Both are
+  shown side by side at all three sizes on the testing route ("Brand button text"). To switch, set
+  `BRAND_BUTTON_TEXT = "dark"` and `--brand-foreground: var(--text-strong)`.
 - The brand button is drawn from `--brand` only: a top-to-bottom gradient from `--brand-top`
   (`color-mix(in srgb, var(--brand) 92%, white)` = `#14b1f8`) to `--brand-bottom` (`… 94%, black` = `#00a0e8`), a 1px
   inset white highlight at the top, a `--brand-edge` ring (`… 80%, black` = `#0088c6`) and a small drop shadow. Hover
@@ -65,7 +72,8 @@ shadcn components read `--background`, `--card`, `--popover`, `--primary`, `--se
 
 ### Status
 
-A tint background with darker text from the same family. Each pair is at least 4.5:1, and status is **always** paired
+A tint background with darker text from the same family. **Green (success) is reserved for verified and completed
+states.** Replied, sent and similar progress states are neutral, with an icon (Replied uses the mail-reply icon). Each pair is at least 4.5:1, and status is **always** paired
 with a label or an icon, never color alone.
 
 | Status | Text (`text-*`) | Tint (`bg-*-tint`) | Border (`border-*-border`) | Text on tint | Text on white |
@@ -74,7 +82,8 @@ with a label or an icon, never color alone.
 | warning | `#b45309` | `#fffbeb` | `#fde68a` | 4.84 | 5.02 |
 | danger | `#b91c1c` | `#fef2f2` | `#fecaca` | 5.91 | 6.47 |
 
-No other colors in the UI. Tailwind's `neutral` and `gray` scales are allowed; brand and status colors only through
+No other colors in the UI. The one exception is the Google "G" logo (`components/ui/google-logo.tsx`), whose colors
+Google's brand rules require; it appears on Google sign-in and the Connect Gmail / Connect Google buttons. Tailwind's `neutral` and `gray` scales are allowed; brand and status colors only through
 their variables. Charts use the neutral `--chart-1..5` ramp.
 
 Check every pair with `npx tsx scripts/report-contrast.ts` (exits 1 if a required pair fails).
@@ -137,12 +146,17 @@ more between groups).
 Use the transitions.dev skill (`.agents/skills/transitions-dev`) for every transition and animation, and follow it
 over generic choices.
 
-- Tokens: `--motion-fast` 150ms, `--motion-base` 200ms, `--motion-slow` 300ms; `ease-enter`
-  (`cubic-bezier(0.23, 1, 0.32, 1)`) for enters. These are separate from the skill's own `--duration-*` scale,
-  whose names differ in value (its `--duration-fast` is 250ms).
+- **The split:** `--motion-fast` 150ms, `--motion-base` 200ms, `--motion-slow` 300ms and `ease-enter`
+  (`cubic-bezier(0.23, 1, 0.32, 1)`) are for **micro-interactions** only: press, hover and color changes on controls.
+  **Real animations** (things that appear, disappear or move: menus, dialogs, tooltips, toasts, panels, text swaps)
+  use the transitions skill's own tokens and per-transition variables (`--dropdown-*`, `--modal-*`, `--tt-*`, …).
+  The two scales share names but not values (the skill's `--duration-fast` is 250ms), which is why ours are
+  prefixed `--motion-*`.
 - Menus and select popups use the skill's menu dropdown (`.t-dropdown`: 250ms in, 150ms out, from scale 0.97,
   origin-aware); dialogs use its modal (`.t-modal`, `.t-modal-backdrop`: 250ms in, 150ms out, scale 0.96). Both are
-  adapted to Base UI's `data-starting-style` / `data-ending-style` attributes.
+  adapted to Base UI's `data-starting-style` / `data-ending-style` attributes. Tooltips use its tooltip transition
+  (`.t-tt-popup`: 80ms appear delay via the TooltipProvider, 150ms fade + scale from 0.98 in, 50ms out) as a white
+  floating bubble.
 - Buttons scale to 0.97 on press (`transition: scale 200ms ease-out`), only under `motion-safe`.
 - Never `transition: all`; list the properties.
 - Hover styles only apply on devices that can hover (Tailwind's `hover:` and the `ui-hover:` variant both use
@@ -165,9 +179,9 @@ Use them for interactive styles in `components/ui`.
   24×24px.
 - **Badge**: `neutral` (default), `outline`, `success`, `warning`, `danger`; `text-meta`, 6px radius, no animation.
 - **Form fields**: Input, Textarea and SelectTrigger share one recipe (`fieldControlClassName`) ported from the
-  landing page: 32px, 8px radius, cool-gray border, brand border and ring on focus, danger border and ring when
+  landing page: 32px, 8px radius, cool-gray border, `--brand-focus` border and ring on focus, danger border and ring when
   `aria-invalid`, muted fill when disabled, `text-base md:text-sm` (16px on phones so iOS does not zoom).
-- **Field family** (`components/ui/field.tsx`): `FieldSet`, `FieldLegend`, `FieldGroup`, `Field` (vertical,
+- **Field family** (`components/ui/field.tsx`, the founder's file, used as-is): `FieldSet`, `FieldLegend`, `FieldGroup`, `Field` (vertical,
   horizontal, responsive), `FieldContent`, `FieldLabel`, `FieldTitle`, `FieldDescription`, `FieldSeparator`,
   `FieldError` (`role="alert"`, de-duplicated messages).
 - **Primitives library:** Base UI (`@base-ui/react`). Do not add a second primitive library.

@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle, CheckCircle2, Plus, Send, Trash2, XCircle } from "@/components/ui/icons"
+import { BRAND_STOPS, COLORS, contrast } from "@/lib/design/tokens"
 import type { ShowcaseEntry, StateName } from "./types"
 
 const INTERACTIVE: StateName[] = ["default", "hover", "focus-visible", "pressed", "disabled", "loading"]
@@ -44,6 +45,42 @@ export const buttonEntry: ShowcaseEntry = {
       </Button>
     ),
   })),
+}
+
+const BRAND_TEXT_OPTIONS = [
+  { label: "White text (current default)", className: undefined, fg: COLORS.white },
+  { label: "Near-black text", className: "text-fg-strong", fg: COLORS.textStrong },
+]
+
+export const brandTextEntry: ShowcaseEntry = {
+  id: "brand-button-text",
+  name: "Brand button text",
+  group: "Actions",
+  description:
+    "White vs near-black text on the brand button, at all three sizes, with measured contrast. White stays the default until decided.",
+  render: () => (
+    <div className="grid w-full gap-6 sm:grid-cols-2">
+      {BRAND_TEXT_OPTIONS.map((option) => (
+        <div key={option.label} className="flex flex-col gap-3 rounded-lg bg-surface p-4 shadow-surface">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-body font-medium text-fg-strong">{option.label}</span>
+            <span className="text-meta text-fg-muted tabular-nums">
+              {contrast(option.fg, BRAND_STOPS.base).toFixed(2)}:1 on {BRAND_STOPS.base} ·{" "}
+              {contrast(option.fg, BRAND_STOPS.top).toFixed(2)}:1 top ·{" "}
+              {contrast(option.fg, BRAND_STOPS.bottom).toFixed(2)}:1 bottom
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {SIZES.map((size) => (
+              <Button key={size} variant="brand" size={size} className={option.className}>
+                Launch campaign
+              </Button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  ),
 }
 
 export const badgeEntry: ShowcaseEntry = {

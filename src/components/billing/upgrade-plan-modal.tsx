@@ -103,7 +103,7 @@ function PlanOption({
         <Button
           size="md"
           variant={
-            isCurrent ? "ghost" : config.isPopular ? "brand" : "secondary"
+            isCurrent ? "ghost" : "secondary"
           }
           className="w-full"
           disabled={isCurrent || disabled}

@@ -19,6 +19,8 @@ npm run db:migrate     # apply migrations (never db:push against prod)
 npm run db:studio
 ```
 
+**Running heavy processes (permanent rule):** never run more than one heavy process at a time. Don't run the dev server, `npm run build` and test scripts in parallel; stop the dev server before `npm run build`. Run `npm run typecheck`, then `npm run build`, once, at the very end of a task, with nothing else running alongside them. If the user asks for typecheck only, skip the build.
+
 There is no test runner. Verification lives in `scripts/*.ts`: standalone scripts that load `.env` through `dotenv`, import from `../src/...`, and run against the real database (`DATABASE_URL`). Run one with `npx tsx scripts/<name>.ts`, e.g. `npx tsx scripts/test-multi-provider-mailboxes.ts`. They write real rows, so check what a script inserts or cleans up before you run it.
 
 ## Product state

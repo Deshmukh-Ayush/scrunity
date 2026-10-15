@@ -42,6 +42,7 @@ import {
   Loading03Icon,
   Location01Icon,
   Mail01Icon,
+  MailReply01Icon,
   Maximize01Icon,
   Menu01Icon,
   Message01Icon,
@@ -135,6 +136,7 @@ export const Inbox = icon(InboxIcon, "Inbox")
 export const Info = icon(InformationCircleIcon, "Info")
 export const Loader2 = icon(Loading03Icon, "Loader2")
 export const Mail = icon(Mail01Icon, "Mail")
+export const MailReply = icon(MailReply01Icon, "MailReply")
 export const MapPin = icon(Location01Icon, "MapPin")
 export const Maximize = icon(Maximize01Icon, "Maximize")
 export const Menu = icon(Menu01Icon, "Menu")

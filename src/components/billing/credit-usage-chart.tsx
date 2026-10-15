@@ -297,7 +297,7 @@ export function CreditUsageChart({
                         Debit
                       </Badge>
                     ) : isTopup ? (
-                      <Badge variant="success" className="h-4">
+                      <Badge variant="neutral" className="h-4">
                         {isGrant ? "Granted" : "Top-Up"}
                       </Badge>
                     ) : (

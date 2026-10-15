@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { GoogleLogo } from "@/components/ui/google-logo"
 import { AlertCircle, CheckCircle2, Clock, Mail, Server } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -158,7 +159,7 @@ function ProviderOptions({ onConnected }: { onConnected: () => void }) {
               "h-9 w-full gap-1.5 text-xs"
             )}
           >
-            <Mail className="size-3.5" />
+            <GoogleLogo />
             Connect Google Account
           </a>
         </div>

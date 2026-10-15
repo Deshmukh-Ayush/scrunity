@@ -1,4 +1,4 @@
-import { AlertTriangle } from "@/components/ui/icons"
+import { AlertTriangle, CheckCircle2, MailReply } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
 import { isValidPersonName } from "@/lib/gtm-contact-matcher"
 
@@ -59,7 +59,12 @@ export function LeadStatusBadge({
     case "meeting_booked":
       return <Badge variant="neutral">Meeting Booked</Badge>
     case "replied":
-      return <Badge variant="neutral">Replied</Badge>
+      return (
+        <Badge variant="neutral">
+          <MailReply data-icon="inline-start" />
+          Replied
+        </Badge>
+      )
     case "sent":
       return <Badge variant="neutral">Sent</Badge>
     case "bounced":
@@ -91,14 +96,15 @@ export function VerificationBadge({ status }: { status: string }) {
     case "verified":
     case "enrich_verified":
       return (
-        <Badge variant="neutral">
+        <Badge variant="success">
+          <CheckCircle2 data-icon="inline-start" />
           Verified
         </Badge>
       )
     case "pattern_guessed_mx_valid":
       return (
         <Badge
-          variant="success">
+          variant="neutral">
           MX Valid
         </Badge>
       )

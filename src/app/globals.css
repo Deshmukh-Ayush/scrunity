@@ -34,7 +34,7 @@
   /* Surfaces */
   --canvas: #f9fafb; /* app background */
   --surface: #ffffff; /* cards, panels, popovers, main content panel */
-  --muted-fill: #f3f4f6; /* hover and selected fills; use --text-default on it, not --text-muted */
+  --muted-fill: #f3f4f6; /* hover and selected fills */
 
   /* Borders (cool gray, to match the canvas) */
   --border-default: #e5e7eb;
@@ -43,7 +43,7 @@
   /* Text */
   --text-strong: #0a0a0a; /* page titles, primary content */
   --text-default: #262626; /* labels, UI text, section labels */
-  --text-muted: #737373; /* descriptions, secondary text (4.54:1 canvas, 4.74:1 white) */
+  --text-muted: #6b6b6b; /* descriptions, secondary text (5.33:1 white, 4.84:1 on --muted-fill) */
   --text-subtle: #a3a3a3; /* placeholders and disabled text only (2.52:1) */
 
   /* Brand: brand-button backgrounds and form-field focus only. Never text, icons or decoration. */
@@ -51,6 +51,8 @@
   --brand-top: color-mix(in srgb, var(--brand) 92%, white);
   --brand-bottom: color-mix(in srgb, var(--brand) 94%, black);
   --brand-edge: color-mix(in srgb, var(--brand) 80%, black);
+  /* Form-field focus border and ring: darker brand, 3.93:1 on white (passes the 3:1 non-text minimum). */
+  --brand-focus: #0088c6;
   /* BRAND_BUTTON_TEXT = white (founder's call; 2.59:1). For dark text use var(--text-strong) (7.63:1). */
   --brand-foreground: #ffffff;
 
@@ -339,7 +341,36 @@
   transition-duration: var(--modal-close-dur);
 }
 
+/* Tooltip open/close (17-tooltip): the 80ms appear delay is the
+   TooltipProvider delay; fade + scale in, near-instant out. */
+:root {
+  --tt-in-dur: 150ms;
+  --tt-out-dur: 50ms;
+  --tt-scale: 0.98;
+  --tt-in-ease: ease-out;
+  --tt-out-ease: ease-out;
+}
+.t-tt-popup {
+  transform-origin: var(--transform-origin, 50% 100%);
+  transition:
+    opacity var(--tt-in-dur) var(--tt-in-ease),
+    scale   var(--tt-in-dur) var(--tt-in-ease);
+}
+.t-tt-popup[data-starting-style] {
+  opacity: 0;
+  scale: var(--tt-scale);
+}
+.t-tt-popup[data-ending-style] {
+  opacity: 0;
+  scale: var(--tt-scale);
+  transition:
+    opacity var(--tt-out-dur) var(--tt-out-ease),
+    scale   var(--tt-out-dur) var(--tt-out-ease);
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .t-tt-popup,
+  .t-tt-popup[data-ending-style],
   .t-dropdown,
   .t-dropdown[data-ending-style],
   .t-modal,

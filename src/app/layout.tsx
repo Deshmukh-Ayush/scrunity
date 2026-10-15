@@ -82,7 +82,7 @@ export default function RootLayout({
       <body suppressHydrationWarning>
         <PostHogProvider>
           <ThemeProvider>
-            <TooltipProvider delayDuration={200}>
+            <TooltipProvider delayDuration={80}>
               {children}
               <SpeedInsights />
               <Analytics />

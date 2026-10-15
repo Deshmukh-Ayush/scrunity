@@ -20,7 +20,7 @@ export function EmailSourceBadge({ source }: { source: string }) {
       )
     case "found_on_site":
       return (
-        <Badge variant="success" className="gap-1">
+        <Badge variant="neutral" className="gap-1">
           <ShieldCheck className="size-3" /> Found on Site
         </Badge>
       )
@@ -89,7 +89,7 @@ export function DraftStatusBadge({
   switch (status) {
     case "sent":
       return (
-        <Badge variant="success" className="gap-1 capitalize">
+        <Badge variant="neutral" className="gap-1 capitalize">
           <Check className="size-3" /> Sent
         </Badge>
       )
@@ -102,7 +102,7 @@ export function DraftStatusBadge({
     case "approved":
       return (
         <Badge
-          variant="success"
+          variant="neutral"
           className="capitalize">
           Approved
         </Badge>
