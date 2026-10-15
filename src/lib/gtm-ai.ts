@@ -8,6 +8,19 @@ export const gtmModel = primaryModel;
 export const fallbackModel = groq("openai/gpt-oss-20b");
 
 /**
+ * Options for every structured (JSON) call. gpt-oss is a reasoning model and
+ * its reasoning tokens count against maxOutputTokens: at the default effort a
+ * 500-token cap was sometimes spent entirely on reasoning, and Groq answered
+ * "Failed to validate JSON" with an empty failed_generation (seen in 1 of 24
+ * paced replays and twice in the live test). Low effort keeps reasoning short.
+ * Caps stay moderate because Groq counts the requested cap against the
+ * free tier's 8,000 tokens-per-minute limit.
+ */
+export const primaryStructuredOptions = {
+  providerOptions: { groq: { reasoningEffort: "low" as const } },
+};
+
+/**
  * Runs structured generation using primary model with fallback to secondary model.
  * Enforces hard provider-agnostic output token caps (maxTokens -> maxOutputTokens).
  */
@@ -29,6 +42,7 @@ export async function generateStructuredWithFallback<T>({
       system,
       prompt,
       maxOutputTokens: maxTokens,
+      ...primaryStructuredOptions,
     });
     if (output) return output as T;
   } catch (err: any) {
@@ -45,6 +59,7 @@ export async function generateStructuredWithFallback<T>({
       system,
       prompt,
       maxOutputTokens: maxTokens,
+      ...primaryStructuredOptions,
     });
     if (output) return output as T;
   } catch (err: any) {
@@ -420,7 +435,7 @@ export async function generateFallbackProspectCompanies({
 // -------------------------------------------------------------
 // Stage 5: Target Job Function Mapping
 // -------------------------------------------------------------
-const jobFunctionSchema = z.object({
+export const jobFunctionSchema = z.object({
   jobFunctions: z
     .array(z.string())
     .min(1)
@@ -430,6 +445,27 @@ const jobFunctionSchema = z.object({
     .string()
     .describe("Short search term under 4 words for LinkedIn snippet search, e.g. 'Founder OR CEO'"),
 });
+
+// Was 500: reasoning alone reached 470 tokens in replays (see primaryStructuredOptions).
+export const JOB_FUNCTION_MAX_TOKENS = 1000;
+
+/** System and user prompt of deriveTargetJobFunction (also replayed by scripts/test-llm-structured-output.ts). */
+export function jobFunctionPrompt({
+  name,
+  painPoint,
+  criteria,
+}: {
+  name: string;
+  painPoint: string;
+  criteria: string[];
+}) {
+  return {
+    system:
+      "You are a sales development leader. Given an ICP segment, determine the exact decision-maker roles most likely to purchase or champion a solution for their pain point.\n" +
+      "CONCISENESS RULES: Output only 1 to 2 exact job titles and a short search keyword. No explanatory notes, no preamble, no task restatement.",
+    prompt: `Segment: ${name}\nPain Point: ${painPoint}\nCriteria: ${criteria.join(", ")}`,
+  };
+}
 
 export async function deriveTargetJobFunction({
   segmentName,
@@ -442,11 +478,8 @@ export async function deriveTargetJobFunction({
 }) {
   return await generateStructuredWithFallback({
     schema: jobFunctionSchema,
-    maxTokens: 500,
-    system:
-      "You are a sales development leader. Given an ICP segment, determine the exact decision-maker roles most likely to purchase or champion a solution for their pain point.\n" +
-      "CONCISENESS RULES: Output only 1 to 2 exact job titles and a short search keyword. No explanatory notes, no preamble, no task restatement.",
-    prompt: `Segment: ${segmentName}\nPain Point: ${painPoint}\nCriteria: ${criteria.join(", ")}`,
+    maxTokens: JOB_FUNCTION_MAX_TOKENS,
+    ...jobFunctionPrompt({ name: segmentName, painPoint, criteria }),
   });
 }
 
