@@ -164,6 +164,24 @@ export function Foundations() {
         </div>
       </Section>
 
+      <Section title="Tables (density and column types)">
+        <div className="flex flex-col gap-2 text-body text-fg-muted">
+          <p>
+            Density: rows are 36px (compact 32px) with 12px cell padding, 14/20 cell text and 12/16/500 muted headers in
+            sentence case. Hairlines only under the header and each row; no cell borders. The surface is white with
+            shadow-surface and a 10px radius.
+          </p>
+          <p>
+            Column types: <span className="text-fg-default">text</span> (truncates, full value in the title) ·{" "}
+            <span className="text-fg-default">entity</span> (16px logo or letter tile + name, the row link) ·{" "}
+            <span className="text-fg-default">status</span> (semantic badge with a label) ·{" "}
+            <span className="text-fg-default">date</span> (relative or absolute, a time element) ·{" "}
+            <span className="text-fg-default">number</span> (right-aligned, tabular figures) ·{" "}
+            <span className="text-fg-default">actions</span> (right-aligned, its own control). See Data table.
+          </p>
+        </div>
+      </Section>
+
       <Section title="Motion">
         <p className="text-body text-fg-muted">
           Micro-interactions: --motion-fast 150ms · base 200ms · slow 300ms; press scales to 0.96 over 150ms ease-out. Animations use the transitions.dev values: dropdown 250ms in / 150ms out, modal 250ms in / 150ms out from 0.96, tooltip 150ms in / 50ms out. Under reduced motion only a 150ms opacity fade remains.

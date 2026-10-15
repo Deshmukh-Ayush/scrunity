@@ -7,6 +7,7 @@ import {
 } from "./forms"
 import { Foundations } from "./foundations"
 import { cardEntry, dialogEntry, dropdownMenuEntry } from "./overlays"
+import { dataTableEntry } from "./data-table"
 import { composerEntry, feedRowEntry, sidebarEntry } from "./shell"
 import type { ShowcaseEntry } from "./types"
 
@@ -32,6 +33,7 @@ export const SHOWCASE: ShowcaseEntry[] = [
   selectEntry,
   exampleFormEntry,
   cardEntry,
+  dataTableEntry,
   dialogEntry,
   dropdownMenuEntry,
   sidebarEntry,

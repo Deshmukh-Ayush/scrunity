@@ -6,7 +6,9 @@ import {
   Alert02Icon,
   AlertCircleIcon,
   ArrowDown01Icon,
+  ArrowDown02Icon,
   ArrowDownLeft01Icon,
+  ArrowUpDownIcon,
   ArrowLeft01Icon,
   ArrowLeft02Icon,
   ArrowRight01Icon,
@@ -87,7 +89,9 @@ export type Icon = (props: IconProps) => React.JSX.Element
 
 function icon(svg: HugeiconsIconProps["icon"], name: string): Icon {
   function IconComponent({ size = 16, className, ...props }: IconProps) {
-    const labelled = props["aria-label"] !== undefined || props["aria-labelledby"] !== undefined
+    const labelled =
+      props["aria-label"] !== undefined ||
+      props["aria-labelledby"] !== undefined
     return (
       <HugeiconsIcon
         icon={svg}
@@ -106,6 +110,8 @@ function icon(svg: HugeiconsIconProps["icon"], name: string): Icon {
 export const Activity = icon(Activity01Icon, "Activity")
 export const AlertCircle = icon(AlertCircleIcon, "AlertCircle")
 export const AlertTriangle = icon(Alert02Icon, "AlertTriangle")
+export const ArrowDown = icon(ArrowDown02Icon, "ArrowDown")
+export const ArrowUpDown = icon(ArrowUpDownIcon, "ArrowUpDown")
 export const ArrowDownLeft = icon(ArrowDownLeft01Icon, "ArrowDownLeft")
 export const ArrowLeft = icon(ArrowLeft02Icon, "ArrowLeft")
 export const ArrowRight = icon(ArrowRight02Icon, "ArrowRight")
