@@ -2,13 +2,23 @@ import * as React from "react"
 import { Input as InputPrimitive } from "@base-ui/react/input"
 import { cn } from "@/lib/utils"
 
+/**
+ * The form-field recipe from the founder's landing page, on semantic tokens.
+ * Shared by Input, Textarea and SelectTrigger. `text-base md:text-sm` keeps
+ * 16px on phones so iOS does not zoom into the field.
+ * Focus uses ui-focus so the testing route can force it with data-force.
+ */
+const fieldControlClassName =
+  "w-full min-w-0 rounded-md border border-input bg-transparent px-2.5 py-1 text-base text-fg-strong transition-colors outline-none placeholder:text-fg-subtle ui-focus:border-(--brand) ui-focus:ring-2 ui-focus:ring-[var(--brand)] disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-muted disabled:opacity-50 aria-invalid:border-danger aria-invalid:ring-3 aria-invalid:ring-danger/20 md:text-sm"
+
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
     <InputPrimitive
       type={type}
       data-slot="input"
       className={cn(
-        "h-7 w-full min-w-0 rounded-md border border-input bg-input/20 px-2 py-0.5 text-sm transition-colors outline-none file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-xs/relaxed file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 md:text-xs/relaxed dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
+        fieldControlClassName,
+        "h-8 file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-fg-strong",
         className
       )}
       {...props}
@@ -16,4 +26,4 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   )
 }
 
-export { Input }
+export { Input, fieldControlClassName }
