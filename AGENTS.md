@@ -53,3 +53,21 @@ These take precedence over the Render Architecture Rules above wherever the two 
 <!-- END:workflow-rules -->
 
 
+
+<!-- BEGIN:design-rules -->
+# Design Rules
+
+Full reference: `docs/design-system.md`. Every component is shown at `/playground/components/document/testing` (platform admins only); register new showcase components in `src/components/playground/registry/`.
+
+- **Never use a raw hex value in a component.** Tailwind's `neutral` and `gray` scales are allowed; brand and status colors only through their variables (`bg-brand`, `text-success`, `bg-danger-tint`, …). Text colors are `text-fg-strong|default|muted|subtle`.
+- **Brand (`--brand`) is only for brand button backgrounds and form-field focus.** At most one brand button per view; most views have none. `--primary` is neutral ink, not brand.
+- **Surfaces use the three shadow tokens instead of borders:** `shadow-surface` (flat), `shadow-raised` (small controls), `shadow-floating` (popovers, menus, dialogs, composer). Real borders only on form fields, single-side dividers and dashed placeholders.
+- **Never signal status with color alone.** Pair it with a label or an icon.
+- **No `transition: all`.** Use the transitions.dev skill (`.agents/skills/transitions-dev`) for motion; animations under `motion-safe`, hover styles only where hover exists.
+- **Icons come from `@/components/ui/icons`** (Hugeicons free). Lucide and Phosphor are not used.
+- **Type uses the scale utilities** `text-title|composer|section|body|meta`, not raw sizes.
+- **Use `Container`** (`src/components/layout/container.tsx`) for page width. It has no background:
+  - `width="prose"` (max 720px): chat and the agent composer.
+  - `width="page"` (default, `max-w-7xl`): settings and forms.
+  - `width="full"` (no max width): CRM tables, which use the full width.
+<!-- END:design-rules -->
