@@ -1,7 +1,7 @@
 
 import { useSidebarCollapse } from "@/hooks/use-sidebar-collapse"
 import { cn } from "@/lib/utils"
-import { SidebarIcon } from "@phosphor-icons/react"
+import { PanelLeft } from "@/components/ui/icons"
 
 type CollapseToggleProps = React.ComponentPropsWithoutRef<"button">
 
@@ -19,7 +19,7 @@ export function CollapseToggle({ className, ...props }: CollapseToggleProps) {
       )}
       {...props}
     >
-      <SidebarIcon className="h-6 w-6" />
+      <PanelLeft className="size-5" />
     </button>
   )
 }

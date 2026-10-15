@@ -1,4 +1,4 @@
-import { Bot, Loader2 } from "lucide-react"
+import { Bot, Loader2 } from "@/components/ui/icons"
 import { Markdown } from "@/components/ui/markdown"
 import { Tool } from "@/components/ui/tool"
 import type { ChatMessage as ChatMessageData } from "./types"

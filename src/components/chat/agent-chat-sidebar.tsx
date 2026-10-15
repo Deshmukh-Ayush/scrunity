@@ -9,7 +9,7 @@ import {
   Sparkles,
   Loader2,
   Trash2,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

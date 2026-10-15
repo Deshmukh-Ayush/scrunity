@@ -3,7 +3,7 @@
 import React, { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { authClient, useSession } from "@/lib/auth-client"
-import { MoreHorizontal, ArrowUpRight } from "lucide-react"
+import { MoreHorizontal, ArrowUpRight } from "@/components/ui/icons"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
 import posthog from "posthog-js"

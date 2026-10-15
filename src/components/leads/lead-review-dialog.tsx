@@ -8,7 +8,7 @@ import {
   Mail,
   Send,
   XCircle,
-} from "lucide-react"
+} from "@/components/ui/icons"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {

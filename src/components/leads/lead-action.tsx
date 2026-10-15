@@ -9,7 +9,7 @@ import {
   RefreshCw,
   Send,
   Sparkles,
-} from "lucide-react"
+} from "@/components/ui/icons"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { isValidPersonName } from "@/lib/gtm-contact-matcher"

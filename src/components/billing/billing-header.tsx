@@ -3,7 +3,7 @@ import { getTenantContext } from "@/lib/tenant-context";
 import { db } from "@/utils/db";
 import { organization } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { AlertTriangle, ArrowRight } from "lucide-react";
+import { AlertTriangle, ArrowRight } from "@/components/ui/icons";
 import { ManagePortalButton } from "./manage-portal-button";
 
 export async function BillingHeader() {

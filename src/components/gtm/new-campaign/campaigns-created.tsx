@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowRight, CheckCircle2, Users } from "lucide-react"
+import { ArrowRight, CheckCircle2, Users } from "@/components/ui/icons"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 

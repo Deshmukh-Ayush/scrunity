@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { AlertCircle, ArrowLeft, Loader2, RotateCcw, Send } from "lucide-react"
+import { AlertCircle, ArrowLeft, Loader2, RotateCcw, Send } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"

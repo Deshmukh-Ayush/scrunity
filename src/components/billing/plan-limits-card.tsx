@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { getPlanLimits, getTotalAllowedSeats, getMaxActiveCampaigns, type PlanTier } from "@/config/billing";
 import { AddSeatsModal } from "./add-seats-modal";
 import { UpgradePlanModal } from "./upgrade-plan-modal";
-import { Target, Users, Search, CheckCircle2, ShieldCheck, Plus } from "lucide-react";
+import { Target, Users, Search, CheckCircle2, ShieldCheck, Plus } from "@/components/ui/icons";
 
 export async function PlanLimitsCard() {
   const { organizationId } = await getTenantContext();

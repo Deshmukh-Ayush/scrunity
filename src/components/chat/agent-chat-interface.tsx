@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ArrowUp, Loader2, RotateCcw, StopCircle } from "lucide-react"
+import { ArrowUp, Loader2, RotateCcw, StopCircle } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {

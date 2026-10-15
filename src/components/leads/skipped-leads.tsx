@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ChevronRight } from "lucide-react"
+import { ChevronRight } from "@/components/ui/icons"
 
 /** One person the default view leaves out, with a neutral reason. */
 export interface SkippedLead {

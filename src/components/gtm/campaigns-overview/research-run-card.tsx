@@ -1,4 +1,4 @@
-import { ArrowRight, Building2 } from "lucide-react"
+import { ArrowRight, Building2 } from "@/components/ui/icons"
 import {
   Card,
   CardContent,

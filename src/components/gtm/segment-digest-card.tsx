@@ -25,7 +25,7 @@ import {
   XCircle,
   MessageSquare,
   Building2,
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 export interface SegmentDigestCardProps {
   segmentId: string;

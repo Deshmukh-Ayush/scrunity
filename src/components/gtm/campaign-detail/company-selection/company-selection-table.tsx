@@ -11,7 +11,7 @@ import {
   Tag,
   UserRound,
   Users,
-} from "lucide-react"
+} from "@/components/ui/icons"
 import { Button } from "@/components/ui/button"
 import {
   Table,

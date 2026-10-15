@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { BILLING_CONFIG, getPlanLimits, type PlanTier } from "@/config/billing";
 import { UpgradePlanModal } from "./upgrade-plan-modal";
 import { ManagePortalButton } from "./manage-portal-button";
-import { CreditCard, Calendar, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
+import { CreditCard, Calendar, CheckCircle2, AlertCircle, Sparkles } from "@/components/ui/icons";
 
 export async function PlanSubscriptionCard() {
   const { organizationId } = await getTenantContext();

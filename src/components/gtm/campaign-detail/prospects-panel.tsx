@@ -1,6 +1,6 @@
 "use client"
 
-import { ExternalLink } from "lucide-react"
+import { ExternalLink } from "@/components/ui/icons"
 import { useCampaignDetail } from "./campaign-detail-root"
 import { EmailSourceBadge } from "./status-badges"
 

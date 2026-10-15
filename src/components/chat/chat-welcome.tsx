@@ -1,4 +1,4 @@
-import { Mail, Search, Sparkles, Target, Users } from "lucide-react"
+import { Mail, Search, Sparkles, Target, Users } from "@/components/ui/icons"
 
 const STARTER_PROMPTS = [
   {

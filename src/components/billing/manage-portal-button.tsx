@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { CreditCard } from "lucide-react"
+import { CreditCard } from "@/components/ui/icons"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 

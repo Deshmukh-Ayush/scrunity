@@ -1,4 +1,4 @@
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
 import { isValidPersonName } from "@/lib/gtm-contact-matcher"
 

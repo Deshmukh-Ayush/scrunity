@@ -1,4 +1,4 @@
-import { Receipt, Download } from "lucide-react"
+import { Receipt, Download } from "@/components/ui/icons"
 import { Card, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { getTenantContext } from "@/lib/tenant-context"

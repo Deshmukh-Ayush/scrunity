@@ -34,7 +34,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   RotateCcw,
-} from "lucide-react"
+} from "@/components/ui/icons"
 
 export type RangeType = "daily" | "weekly" | "monthly"
 

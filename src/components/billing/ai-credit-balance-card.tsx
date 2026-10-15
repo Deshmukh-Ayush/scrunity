@@ -4,7 +4,7 @@ import { getAiCreditBalance } from "@/lib/gtm-ai-credits";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Progress, ProgressTrack, ProgressIndicator } from "@/components/ui/progress";
 import { BuyCreditsModal } from "./buy-credits-modal";
-import { Zap, Clock, ShieldCheck, AlertCircle } from "lucide-react";
+import { Zap, Clock, ShieldCheck, AlertCircle } from "@/components/ui/icons";
 
 export async function AiCreditBalanceCard() {
   const { organizationId } = await getTenantContext();

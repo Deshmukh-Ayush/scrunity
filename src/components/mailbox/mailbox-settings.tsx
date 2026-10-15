@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { AlertCircle, CheckCircle2, Clock, Mail, Server } from "lucide-react"
+import { AlertCircle, CheckCircle2, Clock, Mail, Server } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"

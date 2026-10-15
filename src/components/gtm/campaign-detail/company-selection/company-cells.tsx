@@ -1,6 +1,6 @@
 "use client"
 
-import { ExternalLink } from "lucide-react"
+import { ExternalLink } from "@/components/ui/icons"
 import { cn } from "@/lib/utils"
 import type { Company, Contact } from "../types"
 

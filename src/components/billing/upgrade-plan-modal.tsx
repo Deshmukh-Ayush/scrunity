@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, ShieldCheck, Sparkles, Users, Zap } from "lucide-react"
+import { Plus, ShieldCheck, Sparkles, Users, Zap } from "@/components/ui/icons"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

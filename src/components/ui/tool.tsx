@@ -23,7 +23,7 @@ import {
   ExternalLink,
   Building2,
   BadgeCheck,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { Badge } from "@/components/ui/badge";
 
 export type ToolPart = {

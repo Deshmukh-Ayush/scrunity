@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { signIn } from "@/lib/auth-client"
 import React, { useState } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2 } from "@/components/ui/icons"
 import Link from "next/link"
 import Image from "next/image"
 import { MagicLinkForm } from "./magic-link-form"

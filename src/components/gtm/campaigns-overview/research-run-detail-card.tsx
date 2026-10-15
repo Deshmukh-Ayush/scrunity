@@ -1,4 +1,4 @@
-import { Building2, Globe, Loader2, Mail } from "lucide-react"
+import { Building2, Globe, Loader2, Mail } from "@/components/ui/icons"
 import { Button } from "@/components/ui/button"
 import {
   Card,

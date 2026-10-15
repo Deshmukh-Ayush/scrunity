@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { FileQuestion } from "lucide-react";
+import { FileQuestion } from "@/components/ui/icons";
 
 export default function GlobalNotFound() {
   return (

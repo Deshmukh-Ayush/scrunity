@@ -115,7 +115,7 @@ export default async function DocsPage() {
               ['ORM', 'Drizzle ORM', 'Schema defined in src/db/schema.ts, versioned migrations in drizzle/'],
               ['Billing', 'Dodo Payments (MoR)', 'Automated checkout sessions, customer portal, webhook handlers'],
               ['UI & Styling', 'Tailwind CSS v4 & Radix UI', 'Brand color #00aff9 (bg-primary), dark mode, custom neutral tokens'],
-              ['Icons', 'Phosphor Icons & Lucide', '@phosphor-icons/react in client components, Lucide in RSC'],
+              ['Icons', 'Hugeicons (free, MIT)', 'components/ui/icons.tsx wraps @hugeicons/react'],
             ]}
           />
         </Section>

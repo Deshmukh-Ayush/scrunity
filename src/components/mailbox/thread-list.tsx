@@ -1,6 +1,6 @@
 "use client"
 
-import { AlertTriangle, Inbox, RefreshCw, Search } from "lucide-react"
+import { AlertTriangle, Inbox, RefreshCw, Search } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"

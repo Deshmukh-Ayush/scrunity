@@ -1,10 +1,8 @@
 "use client"
 
 import { useRef, type ReactNode } from "react"
-import { useTheme } from "next-themes"
-import { Maximize, Minus, Moon, Plus, RotateCcw, Sun } from "lucide-react"
+import { Maximize, Minus, Plus, RotateCcw } from "@/components/ui/icons"
 import { Button } from "@/components/ui/button"
-import { useHydrated } from "@/hooks/use-hydrated"
 import { useCanvasCamera } from "./use-canvas-camera"
 
 /**
@@ -54,7 +52,7 @@ function CanvasToolbar({
       data-canvas-controls
       role="toolbar"
       aria-label="Canvas controls"
-      className="absolute top-3 right-3 flex items-center gap-1 rounded-lg border bg-background/90 p-1 backdrop-blur"
+      className="absolute top-3 right-3 flex items-center gap-1 rounded-lg bg-surface p-1 shadow-floating"
     >
       <Button variant="ghost" size="icon-sm" aria-label="Zoom out" onClick={() => onZoom(1 / 1.2)}>
         <Minus />
@@ -71,24 +69,7 @@ function CanvasToolbar({
       <Button variant="ghost" size="icon-sm" aria-label="Reset camera" onClick={onReset}>
         <RotateCcw />
       </Button>
-      <ThemeToggle />
     </div>
   )
 }
 
-function ThemeToggle() {
-  const { resolvedTheme, setTheme } = useTheme()
-  const hydrated = useHydrated()
-  const isDark = hydrated && resolvedTheme === "dark"
-  return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-      aria-pressed={isDark}
-      onClick={() => setTheme(isDark ? "light" : "dark")}
-    >
-      {isDark ? <Sun /> : <Moon />}
-    </Button>
-  )
-}

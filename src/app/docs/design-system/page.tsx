@@ -4,7 +4,7 @@ import fs from "fs";
 import path from "path";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Sparkles, Check, Copy } from "lucide-react";
+import { ArrowLeft, Sparkles, Check, Copy } from "@/components/ui/icons";
 
 export const metadata: Metadata = {
   title: "Scrunity Design System | Specification",

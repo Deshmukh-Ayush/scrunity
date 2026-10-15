@@ -5,7 +5,7 @@ import {
   HelpCircle,
   ShieldCheck,
   XCircle,
-} from "lucide-react"
+} from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
 import type { DraftStatus } from "./types"
 

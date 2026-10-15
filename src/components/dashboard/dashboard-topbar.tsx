@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { List } from "@phosphor-icons/react"
+import { Menu } from "@/components/ui/icons"
 import Link from "next/link"
 import { DashboardSidebar } from "@/components/dashboard/sidebar"
 import { CollapseToggle } from "@/components/sidebar/collapse-toggle"
@@ -76,7 +76,7 @@ export function DashboardTopbar({
             aria-label="Toggle navigation menu"
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.96] md:hidden"
           >
-            <List className="h-5 w-5" />
+            <Menu className="size-5" />
           </button>
           <div className="hidden md:flex">
             <CollapseToggle />

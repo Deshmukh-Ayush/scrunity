@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ExternalLink } from "lucide-react"
+import { ExternalLink } from "@/components/ui/icons"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { LeadAction } from "./lead-action"
 import { LeadStatusBadge, LinkedinIcon, VerificationBadge } from "./lead-badges"

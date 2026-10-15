@@ -8,7 +8,7 @@ import {
   Mail,
   Send,
   Users,
-} from "lucide-react"
+} from "@/components/ui/icons"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { useCampaignDetail } from "./campaign-detail-root"

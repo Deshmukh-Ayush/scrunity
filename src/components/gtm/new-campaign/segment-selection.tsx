@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowRight, Check, Loader2, Mail } from "lucide-react"
+import { ArrowRight, Check, Loader2, Mail } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"

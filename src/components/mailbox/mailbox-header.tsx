@@ -1,6 +1,6 @@
 "use client"
 
-import { Mail, RefreshCw } from "lucide-react"
+import { Mail, RefreshCw } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"

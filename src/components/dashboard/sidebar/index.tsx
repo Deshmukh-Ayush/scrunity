@@ -13,13 +13,7 @@ import {
   NavItem,
   NavItemLabel,
 } from "@/components/sidebar/nav-items"
-import { 
-  CaretUpDownIcon, 
-  House, 
-  Gear, 
-  CreditCard 
-} from "@phosphor-icons/react"
-import { Target, Sparkles, Users, Mail } from "lucide-react"
+import { ChevronUpDown, CreditCard, Home, Mail, Settings, Sparkles, Target, Users } from "@/components/ui/icons"
 import { AgentConversationNav } from "@/components/chat/agent-chat-sidebar"
 
 type OrgLike = {
@@ -36,11 +30,11 @@ type DashboardSidebarProps = {
 const EASE_OUT = "cubic-bezier(0.23, 1, 0.32, 1)"
 
 const dashboardNavItems = [
-  { name: "Overview", href: "/dashboard", icon: House },
+  { name: "Overview", href: "/dashboard", icon: Home },
   { name: "Campaigns", href: "/dashboard/campaigns", icon: Target },
   { name: "Leads", href: "/dashboard/leads", icon: Users },
   { name: "Mailbox", href: "/dashboard/mailbox", icon: Mail },
-  { name: "Settings", href: "/dashboard/mailbox?tab=settings", icon: Gear },
+  { name: "Settings", href: "/dashboard/mailbox?tab=settings", icon: Settings },
   { name: "Billing", href: "/dashboard/billing", icon: CreditCard },
 ]
 
@@ -213,7 +207,7 @@ export function DashboardSidebar({
               org={org}
               canWhitelabel={canWhitelabel}
             />
-            {!isCollapsed && <CaretUpDownIcon size={16} className="shrink-0 text-muted-foreground" />}
+            {!isCollapsed && <ChevronUpDown className="shrink-0 text-muted-foreground" />}
           </Link>
 
           {/* Dynamic Nav List Swapped by Mode */}

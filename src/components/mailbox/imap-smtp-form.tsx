@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { AlertTriangle, Check, Info, Loader2, Server } from "lucide-react"
+import { AlertTriangle, Check, Info, Loader2, Server } from "@/components/ui/icons"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 

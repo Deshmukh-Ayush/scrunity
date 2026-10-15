@@ -1,6 +1,6 @@
 "use client"
 
-import { AlertCircle, AlertTriangle, Loader2, RotateCcw } from "lucide-react"
+import { AlertCircle, AlertTriangle, Loader2, RotateCcw } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"

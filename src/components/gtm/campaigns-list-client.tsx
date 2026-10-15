@@ -24,7 +24,7 @@ import {
   AlertCircle,
   Send,
   Building2,
-} from "lucide-react"
+} from "@/components/ui/icons"
 import { checkStageStaleness } from "@/lib/gtm-staleness"
 import { useHydrated } from "@/hooks/use-hydrated"
 import { LocalDate } from "@/components/ui/local-date"

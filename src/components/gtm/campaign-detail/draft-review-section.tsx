@@ -1,6 +1,6 @@
 "use client"
 
-import { AlertTriangle, CheckCircle2, Loader2, Mail } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Loader2, Mail } from "@/components/ui/icons"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useCampaignDetail } from "./campaign-detail-root"
