@@ -171,10 +171,18 @@ export const INVENTORY: InventoryGroup[] = [
     entries: [
       e("agent-chat.tsx", "data", "AgentChat"),
       e("agent-chat-interface.tsx", "client", "AgentChatInterface"),
-      e("agent-chat-sidebar.tsx", "client", "AgentConversationNav"),
-      e("agent-chat-skeleton.tsx", "shared", "AgentChatSkeleton"),
+      e("agent-composer.tsx", "client", "AgentComposer"),
       e("chat-message.tsx", "shared", "ChatMessage"),
-      e("chat-welcome.tsx", "shared", "ChatWelcome"),
+    ],
+  },
+  {
+    id: "home",
+    title: "home",
+    entries: [
+      e("home.tsx", "data", "Home"),
+      e("home-client.tsx", "client", "HomeClient", "Greeting", "StarterPrompts"),
+      e("home-feed.tsx", "client", "NeedsYou", "Today"),
+      e("feed-row.tsx", "shared", "FeedRow", "FeedSection", "FeedSectionHeader"),
     ],
   },
   {
@@ -189,14 +197,14 @@ export const INVENTORY: InventoryGroup[] = [
   },
   {
     id: "navigation",
-    title: "sidebar · dashboard",
+    title: "shell",
     entries: [
-      e("dashboard/sidebar/index.tsx", "client", "DashboardSidebar"),
-      e("dashboard/dashboard-topbar.tsx", "client", "DashboardTopbar"),
-      e("sidebar/brand.tsx", "client", "SidebarBrand"),
-      e("sidebar/collapse-toggle.tsx", "shared", "CollapseToggle"),
-      e("sidebar/nav-items.tsx", "client", "NavItem", "NavItemBadge", "NavItemLabel"),
-      e("sidebar/profile-menu.tsx", "client", "ProfileMenu"),
+      e("shell/app-shell.tsx", "client", "AppShell"),
+      e("shell/app-sidebar.tsx", "data", "AppSidebar"),
+      e("shell/sidebar-content.tsx", "client", "SidebarContent", "CreditsPill"),
+      e("shell/sidebar-item.tsx", "client", "SidebarItem", "SidebarSectionLabel", "SidebarGroup"),
+      e("shell/sidebar-chats.tsx", "client", "SidebarChats"),
+      e("shell/workspace-menu.tsx", "client", "WorkspaceMenu"),
     ],
   },
   {

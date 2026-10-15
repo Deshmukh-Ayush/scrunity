@@ -451,3 +451,111 @@
 @media (prefers-reduced-motion: reduce) {
   .t-shimmer::before { animation: none !important; }
 }
+
+/* ─────────────────────────────────────────────────────────────
+ * App shell (components/shell) and Home → chat.
+ * ───────────────────────────────────────────────────────────── */
+
+/* Sidebar groups: transitions.dev accordion (21-accordion), grid-template-rows
+   0fr ↔ 1fr. Animates only after the first toggle (data-animate), so a
+   remembered state restored on load does not play. */
+:root {
+  --acc-expand: 250ms;
+  --acc-collapse: 250ms;
+  --acc-chevron: 250ms;
+  --acc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.t-acc-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+}
+.t-acc[data-open="true"] .t-acc-panel {
+  grid-template-rows: 1fr;
+}
+.t-acc-panel-inner {
+  overflow: hidden;
+  opacity: 0;
+  filter: blur(2px);
+}
+.t-acc[data-open="true"] .t-acc-panel-inner {
+  opacity: 1;
+  filter: blur(0);
+}
+.t-acc[data-animate] .t-acc-panel {
+  transition: grid-template-rows var(--acc-collapse) var(--acc-ease);
+}
+.t-acc[data-animate][data-open="true"] .t-acc-panel {
+  transition-duration: var(--acc-expand);
+}
+.t-acc[data-animate] .t-acc-panel-inner {
+  transition:
+    opacity var(--acc-collapse) var(--acc-ease),
+    filter var(--acc-collapse) var(--acc-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-acc .t-acc-panel,
+  .t-acc .t-acc-panel-inner {
+    transition: none !important;
+  }
+}
+
+/* Mobile nav drawer: a panel sliding in from the leading edge (transitions.dev
+   panel reveal timing: 400ms in, 350ms out), on Base UI's lifecycle attributes.
+   Reduced motion: opacity only. */
+:root {
+  --drawer-open-dur: 400ms;
+  --drawer-close-dur: 350ms;
+  --drawer-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.t-drawer {
+  transition:
+    transform var(--drawer-open-dur) var(--drawer-ease),
+    opacity var(--drawer-open-dur) var(--drawer-ease);
+}
+.t-drawer[data-starting-style],
+.t-drawer[data-ending-style] {
+  transform: translateX(-100%);
+}
+.t-drawer[data-ending-style] {
+  transition-duration: var(--drawer-close-dur);
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-drawer {
+    transition: opacity 150ms ease-out !important;
+  }
+  .t-drawer[data-starting-style],
+  .t-drawer[data-ending-style] {
+    transform: none;
+    opacity: 0;
+  }
+}
+
+/* Home → chat (React <ViewTransition>, components/chat/agent-composer.tsx):
+   the composer moves to its chat position, everything else cross-fades.
+   transitions.dev page-slide timing (250ms, smooth-out); old content leaves
+   faster than new content arrives. Reduced motion: instant swap. */
+:root {
+  --composer-move-dur: 250ms;
+  --page-fade-out-dur: 150ms;
+  --page-fade-in-dur: 250ms;
+  --page-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+::view-transition-group(.composer-move) {
+  animation-duration: var(--composer-move-dur);
+  animation-timing-function: var(--page-ease);
+}
+::view-transition-old(root) {
+  animation-duration: var(--page-fade-out-dur);
+  animation-timing-function: ease-out;
+}
+::view-transition-new(root) {
+  animation-duration: var(--page-fade-in-dur);
+  animation-timing-function: ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
