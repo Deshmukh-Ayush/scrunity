@@ -15,7 +15,7 @@ export function EmailSourceBadge({ source }: { source: string }) {
     case "found_on_site":
       return (
         <Badge variant="neutral" className="gap-1">
-          <ShieldCheck className="size-3" /> Found on Site
+          <ShieldCheck className="size-3" /> Found on site
         </Badge>
       )
     case "pattern_guessed_mx_valid":
@@ -24,7 +24,7 @@ export function EmailSourceBadge({ source }: { source: string }) {
         <Badge
           variant="warning"
           className="gap-1">
-          <AlertTriangleSolid className="size-3" /> Pattern Guessed (Unverified)
+          <AlertTriangleSolid className="size-3" /> Pattern guessed (unverified)
         </Badge>
       )
     case "company_fallback":
@@ -32,13 +32,13 @@ export function EmailSourceBadge({ source }: { source: string }) {
         <Badge
           variant="neutral"
           className="gap-1 text-muted-foreground">
-          <HelpCircle className="size-3" /> Company Fallback
+          <HelpCircle className="size-3" /> Company fallback
         </Badge>
       )
     default:
       return (
         <Badge variant="neutral">
-          No Email Found
+          No email found
         </Badge>
       )
   }
@@ -67,7 +67,7 @@ export function DraftStatusBadge({
     return (
       <Badge
         variant="danger"
-        className="gap-1 capitalize">
+        className="gap-1">
         <XCircleSolid className="size-3" /> Bounced
       </Badge>
     )
@@ -76,33 +76,31 @@ export function DraftStatusBadge({
   switch (status) {
     case "sent":
       return (
-        <Badge variant="neutral" className="gap-1 capitalize">
+        <Badge variant="neutral" className="gap-1">
           <Check className="size-3" /> Sent
         </Badge>
       )
     case "failed":
       return (
-        <Badge variant="danger" className="gap-1 capitalize">
+        <Badge variant="danger" className="gap-1">
           <XCircleSolid className="size-3" /> Failed
         </Badge>
       )
     case "approved":
       return (
-        <Badge
-          variant="neutral"
-          className="capitalize">
+        <Badge variant="neutral">
           Approved
         </Badge>
       )
     case "rejected":
       return (
-        <Badge variant="danger" className="capitalize">
+        <Badge variant="danger">
           Rejected
         </Badge>
       )
     default:
       return (
-        <Badge variant="neutral" className="capitalize">
+        <Badge variant="neutral">
           Draft
         </Badge>
       )

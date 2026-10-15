@@ -35,7 +35,7 @@ function Card({
           "[--card-spacing:--spacing(4)] data-[size=sm]:[--card-spacing:--spacing(3)]",
           "has-[>img:first-child]:pt-0",
           interactive &&
-            "cursor-pointer transition-[box-shadow,translate] duration-150 ease-out ui-hover:shadow-floating motion-safe:ui-hover:-translate-y-px ui-focus:focus-ring",
+            "cursor-pointer transition-[box-shadow,translate,border-color] duration-150 ease-out motion-reduce:transition-none ui-hover:shadow-floating motion-safe:ui-hover:-translate-y-px ui-focus:focus-ring",
           className
         ),
       },

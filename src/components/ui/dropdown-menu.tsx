@@ -56,7 +56,7 @@ function DropdownMenuItem({
       data-variant={variant}
       className={cn(
         "relative flex min-h-7 cursor-default items-center gap-2 rounded-[5px] px-2 py-1 text-body text-fg-default outline-none select-none",
-        "data-highlighted:bg-muted data-highlighted:text-fg-strong focus-visible:focus-ring-inset data-disabled:pointer-events-none data-disabled:opacity-50",
+        "data-highlighted:bg-muted data-highlighted:text-fg-strong data-disabled:pointer-events-none data-disabled:opacity-50",
         "data-[variant=danger]:text-danger data-[variant=danger]:data-highlighted:bg-danger-tint data-[variant=danger]:data-highlighted:text-danger",
         "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:translate-y-[0.5px] [&_svg:not([class*='size-'])]:size-4",
         className

@@ -106,7 +106,7 @@ function FieldLabel({
     <Label
       data-slot="field-label"
       className={cn(
-        "group/field-label peer/field-label flex w-fit gap-2 leading-snug text-neutral-800 group-data-[disabled=true]/field:opacity-50 has-data-checked:border-fg-strong has-data-checked:bg-canvas has-[>[data-slot=field]]:rounded-lg has-[>[data-slot=field]]:border has-[>[data-slot=field]]:not-has-[:disabled,[data-disabled]]:hover:bg-neutral-50 has-[>[data-slot=field]]:has-focus-visible:focus-ring *:data-[slot=field]:p-2.5",
+        "group/field-label peer/field-label flex w-fit gap-2 leading-snug text-neutral-800 group-data-[disabled=true]/field:opacity-50 has-data-checked:border-fg-strong has-data-checked:bg-canvas has-[>[data-slot=field]]:rounded-lg has-[>[data-slot=field]]:border has-[>[data-slot=field]]:not-has-[:disabled,[data-disabled]]:hover:bg-neutral-50 has-[>[data-slot=field]]:transition-[border-color,box-shadow,background-color] has-[>[data-slot=field]]:duration-150 has-[>[data-slot=field]]:ease-out has-[>[data-slot=field]]:has-focus-visible:focus-ring *:data-[slot=field]:p-2.5",
         "has-[>[data-slot=field]]:w-full has-[>[data-slot=field]]:flex-col",
         className,
       )}
@@ -173,13 +173,20 @@ function FieldSeparator({
   );
 }
 
+/**
+ * Field errors (scope="field", the default) are linked to their control: give
+ * the error an id and the input aria-describedby={id} and aria-invalid. Only
+ * form-level errors (scope="form") are announced with role="alert".
+ */
 function FieldError({
   className,
   children,
   errors,
+  scope = "field",
   ...props
 }: React.ComponentProps<"div"> & {
   errors?: Array<{ message?: string } | undefined>;
+  scope?: "field" | "form";
 }) {
   const content = useMemo(() => {
     if (children) {
@@ -214,8 +221,9 @@ function FieldError({
 
   return (
     <div
-      role="alert"
+      role={scope === "form" ? "alert" : undefined}
       data-slot="field-error"
+      data-scope={scope}
       className={cn("text-sm font-normal text-danger", className)}
       {...props}
     >

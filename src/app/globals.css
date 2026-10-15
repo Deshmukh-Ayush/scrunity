@@ -51,10 +51,9 @@
   --brand-top: color-mix(in srgb, var(--brand) 92%, white);
   --brand-bottom: color-mix(in srgb, var(--brand) 94%, black);
   --brand-edge: color-mix(in srgb, var(--brand) 80%, black);
-  /* Focus: every focus-visible state is a --brand ring (2.59:1 on white; founder's accepted decision). */
-  --focus-ring-color: var(--brand);
-  --focus-ring-width: 2px;
-  --focus-ring-offset: 2px;
+  /* Focus uses --ring (= --brand); see @utility focus-ring. 2.59:1 on white is the founder's accepted decision. */
+  /* Vertical offset of icons inside badges. Tune by hand: positive moves icons down. */
+  --badge-icon-offset: -0.25px;
   /* BRAND_BUTTON_TEXT = white (founder's call; 2.59:1). For dark text use var(--text-strong) (7.63:1). */
   --brand-foreground: #ffffff;
 
@@ -239,10 +238,12 @@
   button:not(:disabled), [role="button"]:not(:disabled) {
     cursor: pointer;
   }
-  /* Links use the shared brand focus ring (see @utility focus-ring below). */
-  a:focus-visible {
-    outline: var(--focus-ring-width) solid var(--focus-ring-color);
-    outline-offset: var(--focus-ring-offset);
+  /* Plain links get the same ring (components set their own with focus-ring). */
+  :where(a):focus-visible {
+    outline: 2px solid transparent;
+    border-radius: 2px;
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
+    transition: box-shadow 150ms ease-out;
   }
   /* Icons (components/ui/icons.tsx and HugeiconsIcon in components/ui): the stroke is
      drawn in rendered pixels, 1.5px next to regular text; medium-weight parents
@@ -254,18 +255,20 @@
 }
 
 /*
- * The one focus recipe. A 2px --brand outline, 2px outside the element; outline
- * follows border-radius and, unlike box-shadow, survives forced-colors mode.
- * focus-ring-inset is the same ring drawn inside, for items in scroll
- * containers (menus, listboxes) where an outer ring would be clipped.
+ * The one focus recipe: shadcn's default in brand. The border turns --ring and a
+ * 3px --ring/50 ring appears. Tailwind's ring and shadow utilities write
+ * separate variables (--tw-ring-shadow, --tw-shadow) into one box-shadow, so
+ * the ring stacks with shadow-surface / shadow-raised / the brand button
+ * shadow instead of replacing them. The transparent outline is invisible
+ * normally and becomes the indicator in forced-colors mode, which drops
+ * box-shadow. Pair it with a transition on color, border-color and
+ * box-shadow (150ms ease-out). Menu and select items use the highlighted
+ * background instead of a ring.
  */
 @utility focus-ring {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}
-@utility focus-ring-inset {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: calc(var(--focus-ring-width) * -1);
+  @apply border-ring ring-[3px] ring-ring/50;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
 }
 
 /* Utility: hide scrollbar but keep scroll */

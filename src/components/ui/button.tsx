@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils"
 const buttonVariants = cva(
   [
     "group/button relative inline-flex shrink-0 items-center justify-center rounded-md border border-transparent font-medium whitespace-nowrap outline-none select-none [-webkit-tap-highlight-color:transparent]",
-    "transition-[scale,background-color,box-shadow,color,filter] duration-150 ease-out",
+    "transition-[scale,background-color,border-color,box-shadow,color,filter] duration-150 ease-out motion-reduce:transition-none",
     "ui-focus:focus-ring",
     "disabled:pointer-events-none disabled:opacity-50 data-[loading]:pointer-events-none",
     "[--icon-stroke:2px] [&_svg]:pointer-events-none [&_svg]:shrink-0",
@@ -93,8 +93,8 @@ function Button({
     >
       {loading ? (
         <>
-          {/* Keeps the label in the layout so the width does not change. */}
-          <span className="invisible inline-flex items-center gap-[inherit]">{children}</span>
+          {/* Keeps the label in the layout (width) and in the accessibility tree (name). */}
+          <span className="inline-flex items-center gap-[inherit] opacity-0">{children}</span>
           <span className="absolute inset-0 flex items-center justify-center">
             <HugeiconsIcon
               icon={Loading03Icon}

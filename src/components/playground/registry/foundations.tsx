@@ -12,7 +12,7 @@ const SWATCHES: { token: string; hex: string; purpose: string }[] = [
   { token: "--text-muted", hex: COLORS.textMuted, purpose: "Descriptions, secondary text" },
   { token: "--text-subtle", hex: COLORS.textSubtle, purpose: "Placeholders, disabled only" },
   { token: "--brand", hex: COLORS.brand, purpose: "Brand buttons and focus rings" },
-  { token: "--focus-ring-color", hex: COLORS.brand, purpose: "Every focus ring (= --brand)" },
+  { token: "--ring", hex: COLORS.brand, purpose: "Every focus ring (= --brand)" },
   { token: "--success / -tint", hex: COLORS.success, purpose: `on ${COLORS.successTint}` },
   { token: "--warning / -tint", hex: COLORS.warning, purpose: `on ${COLORS.warningTint}` },
   { token: "--danger / -tint", hex: COLORS.danger, purpose: `on ${COLORS.dangerTint}` },
@@ -139,12 +139,12 @@ export function Foundations() {
 
       <Section title="Focus ring">
         <div className="flex flex-wrap items-center gap-6">
-          <div className="focus-ring flex h-8 items-center rounded-md bg-surface px-3 text-body text-fg-default shadow-raised">
+          <div className="focus-ring flex h-8 items-center rounded-md border border-transparent bg-surface px-3 text-body text-fg-default shadow-raised">
             focus-ring
           </div>
           <span className="text-meta text-fg-muted">
-            2px --brand outline, 2px offset, follows the radius. 2.59:1 on white: accepted. focus-ring-inset draws it
-            inside, for menu and list items.
+            shadcn pattern in brand: border-ring + 3px ring-ring/50 (--ring = --brand), stacked on the surface shadow,
+            150ms ease-out. Menu and select items use the highlighted background instead.
           </span>
         </div>
       </Section>

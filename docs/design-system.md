@@ -139,24 +139,29 @@ look crisp without a heavy outlined look. No other shadows.
 
 ## Focus
 
-One recipe for every focus-visible state (inputs, textarea, select, buttons, menu triggers, menu and select items,
-checkable cards, clickable cards, links), defined once in `globals.css`:
+shadcn's default focus pattern, in brand. Defined once as the `focus-ring` utility in `globals.css`:
 
-| Token | Value |
-|---|---|
-| `--focus-ring-color` | `var(--brand)` (`#00aaf7`) |
-| `--focus-ring-width` | `2px` |
-| `--focus-ring-offset` | `2px` |
+```css
+@utility focus-ring {
+  @apply border-ring ring-[3px] ring-ring/50; /* --ring = --brand */
+  outline: 2px solid transparent;             /* becomes visible in forced-colors mode */
+  outline-offset: 2px;
+}
+```
 
-- `focus-ring` utility: `outline: 2px solid var(--brand); outline-offset: 2px`. An outline follows the border radius
-  and, unlike a box-shadow, stays visible in forced-colors mode. Components apply it with `ui-focus:focus-ring` (so the
-  testing route can force it); links get it from a base rule.
-- `focus-ring-inset` draws the same ring inside (`outline-offset: -2px`) for items inside scroll containers (menu and
-  select items), where an outer ring would be clipped.
-- Form fields keep their border (default color) and add the ring; invalid fields keep the danger border and ring.
-- **Contrast: the brand ring measures 2.59:1 on white and 2.48:1 on the canvas, below the 3:1 non-text guideline. This
-  is the founder's accepted decision**; the contrast script reports it as `accepted`.
-- The better-ui skill assigns focus rings to `better-accessibility`, which is not installed, so this recipe is ours.
+- Components apply it with `ui-focus:focus-ring` (focus-visible, or `data-force="focus-visible"` on the testing route, so
+  forced focus is identical to real focus): Input, Textarea, Select trigger, every Button variant (so the dropdown
+  trigger too), clickable cards and choice cards. Plain links get the same 3px ring from a base rule.
+- **It stacks with the depth tokens.** Tailwind's ring and shadow utilities write separate variables
+  (`--tw-ring-shadow`, `--tw-shadow`) into one `box-shadow`, so a focused secondary button keeps `shadow-raised`, a
+  brand button keeps its highlight and lift, and a clickable card keeps `shadow-surface`. Controls carry a transparent
+  1px border so `border-ring` has something to color.
+- **Motion:** the ring eases in with `transition-[color,border-color,box-shadow]` (plus the control's other properties)
+  over 150ms ease-out, the landing field's feel; `motion-reduce:transition-none` turns it off under reduced motion.
+- **Menu and select items** use the highlighted background (`data-highlighted:bg-muted`), not a ring.
+- **Forced colors:** box-shadow disappears there, so the transparent 2px outline becomes the indicator.
+- **Contrast:** the brand ring measures 2.59:1 on white (and is drawn at 50% opacity). This is the founder's accepted
+  decision; the contrast script reports it as `accepted`.
 
 ## Spacing
 
@@ -205,8 +210,9 @@ Use them for interactive styles in `components/ui`.
   its line box's center) with a 2px stroke (medium text). `loading` keeps width and color; `static` disables the
   press scale. 8px radius; transparent 1px border under the shadow ring. Hit area is at least 24×24px.
 - **Badge**: one treatment, a tint fill with no ring: `neutral` (default), `success`, `warning`, `danger`. 20px tall,
-  `text-meta`, 6px radius, 6px text-side padding and 4px on a leading icon's side, icons always 14px with a 2px
-  stroke and nudged 0.5px down. No animation.
+  `text-meta`, 6px radius, 6px text-side padding and 4px on a leading icon's side, icons always 14px (outline icons at a
+  1.5px stroke; status badges use the solid set in `components/icons/status`) and shifted by `--badge-icon-offset`
+  (globals.css, tune by hand). `max-w-full`: a long label truncates and the full text is in the `title`. No animation.
 - **Card**: 10px radius, `shadow-surface` over a transparent border, 16px padding (`size="sm"`: 12px) and 16px
   between sections. `CardHeader` takes an optional `CardLeading` (32px logo or initials, 8px radius, 12px from the
   text), `CardTitle` (`text-section`) and `CardDescription`, a quiet metadata row 2px below (separate items with

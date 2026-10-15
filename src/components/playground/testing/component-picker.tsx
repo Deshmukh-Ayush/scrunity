@@ -9,8 +9,11 @@ import type { ShowcaseEntry } from "../registry/types"
 const PAGE_SIZE = 10
 
 /**
- * Searchable component dropdown (WAI-ARIA combobox + listbox). Shows ten
- * matches at a time; typing filters by name or group.
+ * Searchable component dropdown (WAI-ARIA combobox + listbox), ten matches
+ * per page. The input shows the selected component; typing replaces it and
+ * filters by name or group. Keyboard: ArrowDown/ArrowUp move through the
+ * list and across page boundaries, PageDown/PageUp change page, Enter picks,
+ * Escape closes. Tabbing to Previous/Next keeps the list open.
  */
 export function ComponentPicker({
   entries,
@@ -22,14 +25,15 @@ export function ComponentPicker({
   onSelect: (id: string) => void
 }) {
   const listId = useId()
-  const inputRef = useRef<HTMLInputElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState("")
+  // null = not typing: the input shows the selected component's name.
+  const [query, setQuery] = useState<string | null>(null)
   const [page, setPage] = useState(0)
   const [active, setActive] = useState(0)
 
   const matches = useMemo(() => {
-    const q = query.trim().toLowerCase()
+    const q = (query ?? "").trim().toLowerCase()
     if (!q) return entries
     return entries.filter((e) => e.name.toLowerCase().includes(q) || e.group.toLowerCase().includes(q))
   }, [entries, query])
@@ -38,63 +42,95 @@ export function ComponentPicker({
   const visible = matches.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE)
   const selected = entries.find((e) => e.id === selectedId)
 
+  function goToPage(next: number, activeIndex: "first" | "last") {
+    const target = Math.min(Math.max(next, 0), pageCount - 1)
+    setPage(target)
+    const size = matches.slice(target * PAGE_SIZE, target * PAGE_SIZE + PAGE_SIZE).length
+    setActive(activeIndex === "first" ? 0 : Math.max(size - 1, 0))
+  }
+
   function choose(entry: ShowcaseEntry) {
     onSelect(entry.id)
     setOpen(false)
-    setQuery("")
+    setQuery(null)
     setPage(0)
   }
 
-  function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (event.key === "ArrowDown") {
-      event.preventDefault()
-      setOpen(true)
-      setActive((i) => Math.min(i + 1, visible.length - 1))
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault()
-      setActive((i) => Math.max(i - 1, 0))
-    } else if (event.key === "Enter" && open && visible[active]) {
-      event.preventDefault()
-      choose(visible[active])
-    } else if (event.key === "Escape") {
+  /** Close only when focus leaves the whole picker (input, list and pager). */
+  function onBlurWithin(event: React.FocusEvent) {
+    if (!rootRef.current?.contains(event.relatedTarget as Node | null)) {
       setOpen(false)
+      setQuery(null)
+    }
+  }
+
+  function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    switch (event.key) {
+      case "ArrowDown":
+        event.preventDefault()
+        if (!open) return setOpen(true)
+        if (active < visible.length - 1) setActive(active + 1)
+        else if (page < pageCount - 1) goToPage(page + 1, "first")
+        break
+      case "ArrowUp":
+        event.preventDefault()
+        if (active > 0) setActive(active - 1)
+        else if (page > 0) goToPage(page - 1, "last")
+        break
+      case "PageDown":
+        event.preventDefault()
+        setOpen(true)
+        goToPage(page + 1, "first")
+        break
+      case "PageUp":
+        event.preventDefault()
+        setOpen(true)
+        goToPage(page - 1, "first")
+        break
+      case "Enter":
+        if (open && visible[active]) {
+          event.preventDefault()
+          choose(visible[active])
+        }
+        break
+      case "Escape":
+        setOpen(false)
+        setQuery(null)
+        break
     }
   }
 
   return (
-    <div className="relative w-full max-w-xs">
+    <div ref={rootRef} className="relative w-full max-w-xs" onBlur={onBlurWithin}>
       <div className="relative">
         <Search className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-fg-muted" />
         <input
-          ref={inputRef}
           role="combobox"
           aria-expanded={open}
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={open && visible[active] ? `${listId}-${visible[active].id}` : undefined}
           aria-label="Component"
-          placeholder={selected ? selected.name : "Search components"}
-          value={query}
+          placeholder="Search components"
+          value={query ?? selected?.name ?? ""}
           onChange={(e) => {
             setQuery(e.target.value)
             setPage(0)
             setActive(0)
             setOpen(true)
           }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setOpen(false)}
+          onFocus={(e) => {
+            e.target.select()
+            setOpen(true)
+          }}
           onKeyDown={onKeyDown}
-          className="h-8 w-full rounded-md bg-surface pr-8 pl-8 text-base text-fg-strong shadow-raised outline-none placeholder:text-fg-default focus-visible:focus-ring md:text-sm"
+          className="h-8 w-full rounded-md border border-transparent bg-surface pr-8 pl-8 text-base text-fg-strong shadow-raised transition-[border-color,box-shadow] duration-150 ease-out outline-none placeholder:text-fg-subtle focus-visible:focus-ring motion-reduce:transition-none md:text-sm"
         />
         <ChevronDown className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-fg-muted" />
       </div>
 
       {open && (
-        <div
-          className="absolute top-full right-0 left-0 z-50 mt-1 rounded-lg bg-popover p-1 shadow-floating"
-          // Keep focus in the input while clicking options or paging.
-          onMouseDown={(e) => e.preventDefault()}
-        >
+        <div className="absolute top-full right-0 left-0 z-50 mt-1 rounded-lg border border-transparent bg-popover p-1 shadow-floating">
           <ul id={listId} role="listbox" aria-label="Components">
             {visible.length === 0 && <li className="px-2 py-1.5 text-body text-fg-muted">No components match.</li>}
             {visible.map((entry, index) => (
@@ -103,10 +139,12 @@ export function ComponentPicker({
                 id={`${listId}-${entry.id}`}
                 role="option"
                 aria-selected={entry.id === selectedId}
+                // Keep focus in the input while clicking an option.
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => choose(entry)}
                 onMouseEnter={() => setActive(index)}
                 className={cn(
-                  "flex min-h-7 cursor-default items-center justify-between gap-2 rounded-sm px-2 py-1 text-body text-fg-default",
+                  "flex min-h-7 cursor-default items-center justify-between gap-2 rounded-[5px] px-2 py-1 text-body text-fg-default",
                   index === active && "bg-muted text-fg-strong"
                 )}
               >
@@ -117,18 +155,18 @@ export function ComponentPicker({
           </ul>
           {pageCount > 1 && (
             <div className="mt-1 flex items-center justify-between border-t px-1 pt-1">
-              <span className="text-meta text-fg-muted tabular-nums">
+              <span className="text-meta text-fg-muted tabular-nums" aria-live="polite">
                 {page * PAGE_SIZE + 1}–{Math.min(matches.length, (page + 1) * PAGE_SIZE)} of {matches.length}
               </span>
               <div className="flex gap-1">
-                <Button size="sm" variant="ghost" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+                <Button size="sm" variant="ghost" disabled={page === 0} onClick={() => goToPage(page - 1, "first")}>
                   Previous
                 </Button>
                 <Button
                   size="sm"
                   variant="ghost"
                   disabled={page >= pageCount - 1}
-                  onClick={() => setPage((p) => p + 1)}
+                  onClick={() => goToPage(page + 1, "first")}
                 >
                   Next
                 </Button>
