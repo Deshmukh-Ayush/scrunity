@@ -106,11 +106,12 @@ export function getOrgDailyFirecrawlCap(): number {
  * statement, so it holds across serverless instances. Concurrent reservations
  * can overshoot by at most the limiter's concurrency.
  */
-async function reserveOrgDailyFirecrawlCall(context: FirecrawlRunContext): Promise<void> {
+async function reserveOrgDailyFirecrawlCall(context: FirecrawlRunContext): Promise<string> {
   const cap = getOrgDailyFirecrawlCap();
+  const id = crypto.randomUUID();
   const result = await db.execute(sql`
     INSERT INTO gtm_vendor_usage (id, vendor, endpoint, credits_used, organization_id, research_run_id, campaign_id)
-    SELECT ${crypto.randomUUID()}, 'firecrawl', 'call', 1, ${context.organizationId}, ${context.researchRunId ?? null}, ${context.campaignId ?? null}
+    SELECT ${id}, 'firecrawl', 'call', 1, ${context.organizationId}, ${context.researchRunId ?? null}, ${context.campaignId ?? null}
     WHERE (
       SELECT coalesce(sum(credits_used), 0) FROM gtm_vendor_usage
       WHERE vendor = 'firecrawl' AND organization_id = ${context.organizationId}
@@ -122,6 +123,7 @@ async function reserveOrgDailyFirecrawlCall(context: FirecrawlRunContext): Promi
     console.warn(`[Firecrawl Spend Paused] Organization ${context.organizationId} reached its daily cap of ${cap} calls.`);
     throw new FirecrawlSpendPausedError(cap, cap, "daily");
   }
+  return id;
 }
 
 export function getMonthlyFirecrawlAllotment(): number {
@@ -148,6 +150,7 @@ export async function checkFirecrawlCallAllowed(
   context: FirecrawlRunContext
 ): Promise<void> {
   const { organizationId, researchRunId, campaignId } = context;
+  let ledgerRowId: string | null = null;
 
   // 1. Check organization monthly billing cycle pause ceiling (95%)
   if (organizationId) {
@@ -165,17 +168,25 @@ export async function checkFirecrawlCallAllowed(
     }
 
     // 1b. Per-organization daily cap (also reserves this call in the ledger).
-    await reserveOrgDailyFirecrawlCall(context);
+    ledgerRowId = await reserveOrgDailyFirecrawlCall(context);
   }
 
   // 2. Reserve one call from the stage-attempt budget and the lifetime
   //    backstop in a single conditional UPDATE, so the count and the check
   //    can never race. A reservation is spent whatever the call's outcome.
-  if (researchRunId) {
-    await reserveResearchRunCall(researchRunId);
-  }
-  if (campaignId) {
-    await reserveCampaignCall(campaignId);
+  try {
+    if (researchRunId) {
+      await reserveResearchRunCall(researchRunId);
+    }
+    if (campaignId) {
+      await reserveCampaignCall(campaignId);
+    }
+  } catch (err) {
+    // The call is refused, so it never happens: take back its ledger row.
+    if (ledgerRowId) {
+      await db.execute(sql`DELETE FROM gtm_vendor_usage WHERE id = ${ledgerRowId}`);
+    }
+    throw err;
   }
 }
 

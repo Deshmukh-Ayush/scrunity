@@ -24,7 +24,7 @@ for (const name of [
   delete process.env[name]
 }
 
-import { eq } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import { db } from "../src/utils/db"
 import {
@@ -32,6 +32,7 @@ import {
   gtmOutreachCampaign,
   gtmProspectCompany,
   gtmResearchRun,
+  gtmVendorUsage,
   member,
   organization,
   user,
@@ -119,6 +120,15 @@ async function counters(campaignId: string) {
   return c
 }
 
+/** Firecrawl rows in the vendor ledger for this campaign (one per reserved call). */
+async function ledgerRows(campaignId: string) {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(gtmVendorUsage)
+    .where(and(eq(gtmVendorUsage.campaignId, campaignId), eq(gtmVendorUsage.vendor, "firecrawl")))
+  return Number(row.n)
+}
+
 /** Calls Firecrawl in an unbounded loop until the cap stops it. */
 async function runaway(campaignId: string, organizationId: string) {
   const before = firecrawlCalls
@@ -204,6 +214,8 @@ async function main() {
       "failure reason is the per-attempt one",
       (first.err as FirecrawlCallCapExceededError)?.failureReason === "firecrawl_call_cap_exceeded"
     )
+    const rowsAfterCap = await ledgerRows(campaignId)
+    check("the refused 36th call left no ledger row: rows == network calls", rowsAfterCap === first.networkCalls, `${rowsAfterCap} rows, ${first.networkCalls} calls`)
     console.log("   counters:", await counters(campaignId))
 
     console.log("\n2. Founder's case: Retry after a capped attempt gets a fresh budget and stage 4 finishes")
@@ -242,13 +254,18 @@ async function main() {
     )
     await resetForRetry(campaignId)
     await claimCampaignStage(campaignId, "find_companies")
+    const rowsBeforeFourth = await ledgerRows(campaignId)
     const fourth = await runaway(campaignId, orgId)
     check("a further restart makes zero network calls", fourth.networkCalls === 0, `${fourth.networkCalls}`)
+    check("and writes zero ledger rows", (await ledgerRows(campaignId)) === rowsBeforeFourth, `${rowsBeforeFourth} -> ${await ledgerRows(campaignId)}`)
+    check("ledger rows equal network calls over the whole test", (await ledgerRows(campaignId)) === firecrawlCalls, `${await ledgerRows(campaignId)} rows, ${firecrawlCalls} calls`)
     console.log("   counters:", await counters(campaignId))
 
     check("no other vendor host was contacted", blockedHosts.length === 0, blockedHosts.join(", "))
     console.log(`\nTotal stubbed Firecrawl calls: ${firecrawlCalls}`)
   } finally {
+    // Stubbed calls, not real spend: their ledger rows go too.
+    await db.delete(gtmVendorUsage).where(eq(gtmVendorUsage.campaignId, campaignId))
     // Cascades to research run, segment, campaign, companies, credit period, usage events.
     await db.delete(organization).where(eq(organization.id, orgId))
     await db.delete(user).where(eq(user.id, userId))
