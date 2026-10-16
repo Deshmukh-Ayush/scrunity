@@ -1,93 +1,23 @@
-import { groq } from "@ai-sdk/groq";
-import { generateText, Output } from "ai";
 import { z } from "zod";
 import type { SynthesizedCompanyProfile, SegmentDigestMetrics } from "@/db/schema";
+import { getLlmProvider } from "@/lib/llm/provider";
+import { primaryModel } from "@/lib/llm/groq";
 
-export const primaryModel = groq("openai/gpt-oss-120b");
+// Model objects stay exported for streaming chat and replay scripts.
+export { fallbackModel, primaryModel, primaryStructuredOptions } from "@/lib/llm/groq";
 export const gtmModel = primaryModel;
-export const fallbackModel = groq("openai/gpt-oss-20b");
 
 /**
- * Options for every structured (JSON) call. gpt-oss is a reasoning model and
- * its reasoning tokens count against maxOutputTokens: at the default effort a
- * 500-token cap was sometimes spent entirely on reasoning, and Groq answered
- * "Failed to validate JSON" with an empty failed_generation (seen in 1 of 24
- * paced replays and twice in the live test). Low effort keeps reasoning short.
- * Caps stay moderate because Groq counts the requested cap against the
- * free tier's 8,000 tokens-per-minute limit.
+ * Structured generation through the configured LLM provider (lib/llm), with its
+ * fallback chain. Enforces hard output token caps (maxTokens -> maxOutputTokens).
  */
-export const primaryStructuredOptions = {
-  providerOptions: { groq: { reasoningEffort: "low" as const } },
-};
-
-/**
- * Runs structured generation using primary model with fallback to secondary model.
- * Enforces hard provider-agnostic output token caps (maxTokens -> maxOutputTokens).
- */
-export async function generateStructuredWithFallback<T>({
-  schema,
-  system,
-  prompt,
-  maxTokens,
-}: {
+export async function generateStructuredWithFallback<T>(request: {
   schema: z.ZodType<T>;
   system: string;
   prompt: string;
   maxTokens?: number;
 }): Promise<T> {
-  try {
-    const { output } = await generateText({
-      model: primaryModel,
-      output: Output.object({ schema }),
-      system,
-      prompt,
-      maxOutputTokens: maxTokens,
-      ...primaryStructuredOptions,
-    });
-    if (output) return output as T;
-  } catch (err: any) {
-    console.warn(
-      "[GTM AI Fallback] Primary model error. Falling back to secondary model:",
-      err?.message || err
-    );
-  }
-
-  try {
-    const { output } = await generateText({
-      model: fallbackModel,
-      output: Output.object({ schema }),
-      system,
-      prompt,
-      maxOutputTokens: maxTokens,
-      ...primaryStructuredOptions,
-    });
-    if (output) return output as T;
-  } catch (err: any) {
-    console.warn(
-      "[GTM AI Fallback] Secondary model error. Attempting resilient direct JSON fallback:",
-      err?.message || err
-    );
-  }
-
-  // Level-3 Fallback: Direct JSON prompt with regex extraction (handles Groq schema validation quirks)
-  const res = await generateText({
-    model: primaryModel,
-    system: `${system}\nCRITICAL: Respond ONLY with a valid JSON object matching the requested schema. No surrounding markdown, no explanations.`,
-    prompt,
-    maxOutputTokens: maxTokens,
-  });
-
-  const jsonMatch = res.text.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    try {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return schema.parse(parsed);
-    } catch (parseErr) {
-      console.warn("[GTM AI Fallback] Level-3 direct JSON parse failed:", parseErr);
-    }
-  }
-
-  throw new Error("Both primary, secondary, and direct AI models failed to produce output.");
+  return getLlmProvider().generateStructured(request);
 }
 
 // -------------------------------------------------------------
