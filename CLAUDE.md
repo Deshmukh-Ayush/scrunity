@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Read `AGENTS.md` first.** It holds the binding rules: Next.js 16 has breaking changes (check `node_modules/next/dist/docs/` before writing Next code), the database migration protocol, the render/architecture rules (route folders hold only `page.tsx`/`layout.tsx`; `page.tsx` is always a Server Component and never fetches data itself; no `<Suspense>` without flagging first; authorization is done in `src/proxy.ts`), and the workflow rules (never commit unprompted, no "it works" without evidence).
 
+**Never use the `any` type.** Use `unknown` and narrow it, a real type, or a generic. No `as any`, no `: any`, and no `// @ts-ignore` to hide one.
+
 ## Commands
 
 ```bash
