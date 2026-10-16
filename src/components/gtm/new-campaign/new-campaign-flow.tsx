@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { toast } from "sonner"
+import { Container } from "@/components/layout/container"
 import { CompanyProfileConfirmation } from "../company-profile-confirmation"
 import { CampaignsCreated } from "./campaigns-created"
 import { CompanyDetailsForm } from "./company-details-form"
@@ -10,6 +11,7 @@ import { SegmentSelection } from "./segment-selection"
 import { useLogoPreview } from "@/hooks/use-logo-preview"
 import { countryCodeFromName } from "@/lib/geo/countries"
 import type {
+  CompanyFormErrors,
   CompanyFormValues,
   Competitor,
   FlowStep,
@@ -40,36 +42,32 @@ function moneyPayload(amount: string, currency: string) {
   return Number.isFinite(parsed) && parsed > 0 ? { amount: parsed, currency } : null
 }
 
-function failureMessage(reason?: string | null) {
-  if (reason === "web_search_attempt_limit")
-    return "Research stopped: this step reached its web-search safety limit for one attempt, which protects your credits. Restart the stage to try again with a fresh limit."
-  if (reason === "web_search_total_limit")
-    return "Research stopped: this run has used its total web-search allowance across all retries. Start a new research run to continue."
-  if (reason === "web_search_daily_limit")
-    return "Research paused: your organization reached today's web-search limit. Restart the stage after 00:00 UTC to continue."
-  if (reason === "web_search_monthly_limit")
-    return "Research paused: your organization's monthly web-search allotment is nearly used up for this billing cycle."
-  return reason
-    ? `Research failed: ${reason}`
-    : "The autonomous research pipeline encountered an error."
-}
-
 const errorText = (err: unknown, fallback: string) =>
   err instanceof Error ? err.message : fallback
 
+/** Inline errors for the required fields; empty when the form can be sent. */
+function validate(form: CompanyFormValues): CompanyFormErrors {
+  const errors: CompanyFormErrors = {}
+  if (!form.websiteUrl.trim()) errors.websiteUrl = "Enter your website, for example acme.com."
+  if (!form.companyName.trim()) errors.companyName = "Enter your company name."
+  if (!countryCodeFromName(form.targetCountry)) errors.targetCountry = "Choose a country from the list."
+  if (!form.companyDescription.trim())
+    errors.companyDescription = "Describe what your company does in a sentence or two."
+  return errors
+}
+
 /**
  * New research run → profile confirmation → segment selection → campaigns.
- * Starts a research run from the form, polls it until stage 3 finishes, then
- * launches one outreach campaign per selected ICP segment.
+ * Starts a research run from the form, polls it until the last research step
+ * finishes, then starts one outreach campaign per selected segment.
  */
 export function NewCampaignFlow() {
   const [step, setStep] = React.useState<FlowStep>("FORM")
   const [form, setForm] = React.useState(INITIAL_FORM)
+  const [fieldErrors, setFieldErrors] = React.useState<CompanyFormErrors>({})
   const updateForm = (patch: Partial<CompanyFormValues>) =>
     setForm((prev) => ({ ...prev, ...patch }))
-  const { logoPreview, isFetchingLogo, clearLogo } = useLogoPreview(
-    form.websiteUrl
-  )
+  const { logoPreview, clearLogo } = useLogoPreview(form.websiteUrl)
 
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [researchRunId, setResearchRunId] = React.useState<string | null>(null)
@@ -89,20 +87,16 @@ export function NewCampaignFlow() {
   const [launchedCampaignIds, setLaunchedCampaignIds] = React.useState<
     string[]
   >([])
+  const [launchError, setLaunchError] = React.useState<string | null>(null)
 
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (
-      !form.websiteUrl.trim() ||
-      !form.companyName.trim() ||
-      !form.companyDescription.trim()
-    ) {
-      toast.error("Please provide website URL, company name, and description")
-      return
-    }
+    const errors = validate(form)
+    setFieldErrors(errors)
     const targetCountryCode = countryCodeFromName(form.targetCountry)
-    if (!targetCountryCode) {
-      toast.error("Please pick a target country from the list")
+    const firstInvalid = Object.keys(errors)[0]
+    if (firstInvalid || !targetCountryCode) {
+      if (firstInvalid) document.getElementById(firstInvalid)?.focus()
       return
     }
 
@@ -126,16 +120,13 @@ export function NewCampaignFlow() {
       })
       const data = await res.json()
       if (!res.ok)
-        throw new Error(data.error || "Failed to start company research")
+        throw new Error(data.error || "Research didn't start. Check your connection and try again.")
 
       setResearchRunId(data.researchRun.id)
       setRunDetails(data.researchRun)
       setStep("RUNNING")
-      toast.success("Autonomous pipeline started!")
     } catch (err) {
-      const msg = errorText(err, "Submission failed")
-      toast.error(msg)
-      setErrorMessage(msg)
+      setErrorMessage(errorText(err, "Research didn't start. Check your connection and try again."))
     } finally {
       setIsSubmitting(false)
     }
@@ -169,8 +160,6 @@ export function NewCampaignFlow() {
             )
           }
           setStep("PROFILE_CONFIRMATION")
-        } else if (run.status === "failed") {
-          setErrorMessage(failureMessage(run.failureReason))
         }
       } catch (err) {
         console.warn("Error polling research run:", err)
@@ -198,16 +187,16 @@ export function NewCampaignFlow() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Could not restart research")
+      if (!res.ok) throw new Error(data.error || "Research didn't restart. Try again.")
       setRunDetails(data.researchRun)
       setCompetitors([])
       setSegments([])
       setSelectedSegmentIds(new Set())
       setIsEditingDescription(false)
       setStep("RUNNING")
-      toast.success("Company research restarted with your updated description.")
+      toast.success("Research is running again with your new description.")
     } catch (err) {
-      toast.error(errorText(err, "Could not restart research"))
+      toast.error(errorText(err, "Research didn't restart. Try again."))
     } finally {
       setIsRestarting(false)
     }
@@ -224,10 +213,10 @@ export function NewCampaignFlow() {
         }
       )
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Could not restart stage")
-      toast.success(data.message || "Stage restarted successfully!")
+      if (!res.ok) throw new Error(data.error || "The step didn't restart. Try again.")
+      toast.success("Step restarted.")
     } catch (err) {
-      toast.error(errorText(err, "Could not restart stage"))
+      toast.error(errorText(err, "The step didn't restart. Try again."))
     } finally {
       setIsRestarting(false)
     }
@@ -249,12 +238,10 @@ export function NewCampaignFlow() {
     )
 
   const handleLaunchCampaigns = async () => {
-    if (selectedSegmentIds.size === 0) {
-      toast.error("Please select at least one segment to pursue")
-      return
-    }
+    if (selectedSegmentIds.size === 0) return
     setIsLaunching(true)
     const createdIds: string[] = []
+    let firstError: string | null = null
     try {
       for (const icpSegmentId of Array.from(selectedSegmentIds)) {
         const res = await fetch("/api/gtm/campaigns", {
@@ -264,79 +251,93 @@ export function NewCampaignFlow() {
         })
         const data = await res.json()
         if (res.ok && data.campaign?.id) createdIds.push(data.campaign.id)
+        else firstError ??= typeof data.error === "string" ? data.error : null
       }
       setLaunchedCampaignIds(createdIds)
+      setLaunchError(firstError)
       setStep("COMPLETED")
-      toast.success(
-        `Successfully launched ${createdIds.length} outreach campaign(s)!`
-      )
     } catch (err) {
-      toast.error(errorText(err, "Failed to launch campaigns"))
+      toast.error(errorText(err, "Campaigns didn't start. Check your connection and try again."))
     } finally {
       setIsLaunching(false)
     }
   }
 
-  switch (step) {
-    case "FORM":
-      return (
-        <CompanyDetailsForm
-          values={form}
-          onChange={updateForm}
-          logoPreview={logoPreview}
-          isFetchingLogo={isFetchingLogo}
-          onLogoError={clearLogo}
-          isSubmitting={isSubmitting}
-          errorMessage={errorMessage}
-          onSubmit={handleSubmitForm}
-        />
-      )
-    case "RUNNING":
-      return (
-        <ResearchProgress
-          runDetails={runDetails}
-          fallbackCompanyName={form.companyName}
-          fallbackWebsiteUrl={form.websiteUrl}
-          logoPreview={logoPreview}
-          competitors={competitors}
-          segments={segments}
-          errorMessage={errorMessage}
-          isRestarting={isRestarting}
-          onRestartStage={handleRestartStage}
-          onRetryResearch={handleRetryResearch}
-        />
-      )
-    case "PROFILE_CONFIRMATION":
-      return (
-        <CompanyProfileConfirmation
-          profile={runDetails?.synthesizedProfile}
-          companyDescription={form.companyDescription}
-          isEditing={isEditingDescription}
-          isSaving={isRestarting}
-          onDescriptionChange={(companyDescription) =>
-            updateForm({ companyDescription })
-          }
-          onEdit={() => setIsEditingDescription(true)}
-          onContinue={() => {
-            setStep("SEGMENT_SELECTION")
-            toast.success("ICP segments are ready to review.")
-          }}
-          onSave={handleRetryResearch}
-        />
-      )
-    case "SEGMENT_SELECTION":
-      return (
-        <SegmentSelection
-          run={runDetails}
-          segments={segments}
-          selectedIds={selectedSegmentIds}
-          onToggle={toggleSegment}
-          onToggleAll={toggleAllSegments}
-          isLaunching={isLaunching}
-          onLaunch={handleLaunchCampaigns}
-        />
-      )
-    case "COMPLETED":
-      return <CampaignsCreated campaignIds={launchedCampaignIds} />
+  const renderStep = () => {
+    switch (step) {
+      case "FORM":
+        return (
+          <CompanyDetailsForm
+            values={form}
+            onChange={updateForm}
+            errors={fieldErrors}
+            logoPreview={logoPreview}
+            onLogoError={clearLogo}
+            isSubmitting={isSubmitting}
+            errorMessage={errorMessage}
+            onSubmit={handleSubmitForm}
+          />
+        )
+      case "RUNNING":
+        return (
+          <ResearchProgress
+            runDetails={runDetails}
+            fallbackCompanyName={form.companyName}
+            fallbackWebsiteUrl={form.websiteUrl}
+            logoPreview={logoPreview}
+            competitors={competitors}
+            segments={segments}
+            isRestarting={isRestarting}
+            onRestartStage={handleRestartStage}
+            onRetryResearch={handleRetryResearch}
+          />
+        )
+      case "PROFILE_CONFIRMATION":
+        return (
+          <CompanyProfileConfirmation
+            profile={runDetails?.synthesizedProfile}
+            companyDescription={form.companyDescription}
+            isEditing={isEditingDescription}
+            isSaving={isRestarting}
+            onDescriptionChange={(companyDescription) =>
+              updateForm({ companyDescription })
+            }
+            onEdit={() => setIsEditingDescription(true)}
+            onCancelEdit={() => setIsEditingDescription(false)}
+            onContinue={() => setStep("SEGMENT_SELECTION")}
+            onSave={handleRetryResearch}
+          />
+        )
+      case "SEGMENT_SELECTION":
+        return (
+          <SegmentSelection
+            run={runDetails}
+            segments={segments}
+            selectedIds={selectedSegmentIds}
+            onToggle={toggleSegment}
+            onToggleAll={toggleAllSegments}
+            isLaunching={isLaunching}
+            onLaunch={handleLaunchCampaigns}
+            onEditDescription={() => {
+              setIsEditingDescription(true)
+              setStep("PROFILE_CONFIRMATION")
+            }}
+          />
+        )
+      case "COMPLETED":
+        return (
+          <CampaignsCreated
+            campaignIds={launchedCampaignIds}
+            requested={selectedSegmentIds.size}
+            firstError={launchError}
+          />
+        )
+    }
   }
+
+  return (
+    <Container width="prose" className="py-6 md:py-8">
+      {renderStep()}
+    </Container>
+  )
 }

@@ -1,53 +1,72 @@
 import Link from "next/link"
-import { ArrowRight, CheckCircle2, Users } from "@/components/ui/icons"
+import { CheckCircleSolid } from "@/components/icons/status"
 import { buttonVariants } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { EmptyState } from "@/components/ui/empty-state"
 
-/** Final step: confirmation with links to the campaigns dashboard and first pipeline. */
-export function CampaignsCreated({ campaignIds }: { campaignIds: string[] }) {
+const campaigns = (n: number) =>
+  new Intl.PluralRules("en").select(n) === "one" ? "1 campaign" : `${n} campaigns`
+
+const surface = "rounded-xl border border-transparent bg-surface shadow-surface"
+
+/**
+ * Final step: a calm confirmation (completed, so the one emerald check),
+ * what happens next in one sentence, and two ways on. If some segments
+ * couldn't start, the first reason the server gave is shown as is.
+ */
+export function CampaignsCreated({
+  campaignIds,
+  requested,
+  firstError,
+}: {
+  campaignIds: string[]
+  requested: number
+  firstError: string | null
+}) {
+  const started = campaignIds.length
+  const notStarted = Math.max(0, requested - started)
+  const viewCampaigns = (
+    <Link href="/dashboard/campaigns" className={buttonVariants()}>
+      View campaigns
+    </Link>
+  )
+
+  if (started === 0) {
+    return (
+      <div className={surface}>
+        <EmptyState
+          role="alert"
+          title="No campaigns were started"
+          description={firstError ?? "The campaigns couldn't start. Try again from Research, or contact support."}
+          actions={viewCampaigns}
+        />
+      </div>
+    )
+  }
+
   return (
-    <div className="mx-auto max-w-xl space-y-6 py-6 text-center">
-      <div className="flex justify-center">
-        <div className="flex size-12 items-center justify-center rounded-full border border-success-border bg-success-tint text-success">
-          <CheckCircle2 className="size-7" />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Campaigns Created Successfully!
-        </h1>
-        <p className="mx-auto max-w-md text-sm text-muted-foreground">
-          We created {campaignIds.length} outreach campaign(s). The autonomous
-          agent is now finding candidate companies, identifying decision-makers,
-          and drafting cold emails for your review.
-        </p>
-      </div>
-
-      <div className="flex flex-col items-center justify-center gap-3 pt-4 sm:flex-row">
-        <Link
-          href="/dashboard/campaigns"
-          className={cn(
-            buttonVariants({ }),
-            "w-full gap-2 sm:w-auto"
-          )}
-        >
-          <Users className="size-4" />
-          View Campaigns Dashboard
-        </Link>
-        {campaignIds[0] && (
-          <Link
-            href={`/dashboard/campaigns/${campaignIds[0]}`}
-            className={cn(
-              buttonVariants({ variant: "outline" }),
-              "w-full gap-2 sm:w-auto"
-            )}
-          >
-            Open First Campaign Pipeline
-            <ArrowRight className="size-4" />
-          </Link>
-        )}
-      </div>
+    <div className={surface}>
+      <EmptyState
+        role="status"
+        illustration={
+          <span className="flex size-10 items-center justify-center rounded-full bg-success-tint text-success">
+            <CheckCircleSolid className="size-5" />
+          </span>
+        }
+        title={`${campaigns(started)} started`}
+        description={
+          notStarted > 0
+            ? `${campaigns(notStarted)} couldn't start: ${firstError ?? "try it again from Research."}`
+            : "Each one now finds companies in its segment, checks decision makers' emails and writes drafts for you to review. Nothing is sent until you approve it."
+        }
+        actions={
+          <>
+            {viewCampaigns}
+            <Link href={`/dashboard/campaigns/${campaignIds[0]}`} className={buttonVariants()}>
+              {started === 1 ? "Open campaign" : "Open the first campaign"}
+            </Link>
+          </>
+        }
+      />
     </div>
   )
 }
