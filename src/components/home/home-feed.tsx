@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   Building2,
   Calendar,
+  Info,
   Mail,
   MailReply,
   Send,
@@ -21,6 +22,7 @@ const NEEDS_YOU_ORDER: Record<NeedsYouItem["kind"], number> = {
   approve_emails: 1,
   send_approved: 2,
   select_companies: 3,
+  awaiting_review: 4,
 }
 
 const plural = (count: number, word: string) =>
@@ -58,6 +60,14 @@ function needsYouRow(item: NeedsYouItem) {
         href,
         icon: Building2,
         title: "Choose which companies to contact",
+        context: item.segmentName,
+        action: "Review",
+      }
+    case "awaiting_review":
+      return {
+        href,
+        icon: Info,
+        title: "Campaign waiting for your review",
         context: item.segmentName,
         action: "Review",
       }

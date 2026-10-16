@@ -18,7 +18,7 @@ import {
   ComposerDemo,
   GroupDemo,
   SidebarDemo,
-  WHITE_NAV_TEXT,
+  NEAR_BLACK_NAV_TEXT,
 } from "./shell-demos"
 import type { ForcedStateProps, ShowcaseEntry, StateName } from "./types"
 
@@ -30,14 +30,14 @@ const linkForce = (
   props["data-force"] === "pressed" ? undefined : props["data-force"]
 
 function SelectedNavItem({
-  white = false,
+  nearBlack = false,
   force,
 }: {
-  white?: boolean
+  nearBlack?: boolean
   force?: "hover" | "focus-visible"
 }) {
   return (
-    <div className="w-48" style={white ? WHITE_NAV_TEXT : undefined}>
+    <div className="w-48" style={nearBlack ? NEAR_BLACK_NAV_TEXT : undefined}>
       <SidebarItem
         href="#sidebar"
         icon={Home}
@@ -55,20 +55,20 @@ export const sidebarEntry: ShowcaseEntry = {
   name: "Sidebar",
   group: "Shell",
   description:
-    'Rows: 32px, 6px radius, 16px icon, 14/20 medium label; hover fills with --muted-fill. The current main-nav item is a solid brand fill (founder exception) with aria-current="page"; its text and icon are one token, --nav-selected-fg. Near-black (7.63:1, the default) and white (2.59:1, fails AA for 14px text) side by side. Focus on it is a near-black ring behind a canvas gap. Click "Chats" to collapse a group.',
+    'Rows: 32px, 6px radius, 16px icon, 14/20 medium label; hover fills with --muted-fill. The current main-nav item is a solid brand fill (founder exception) with aria-current="page"; its text and icon are one token, --nav-selected-fg. White (2.59:1, below AA; founder decision, the default) and near-black (7.63:1) side by side. Focus on it is a near-black ring behind a canvas gap. Click "Chats" to collapse a group.',
   render: () => (
     <div className="flex flex-wrap items-start gap-6">
       <figure className="flex flex-col gap-2">
         <figcaption className="text-meta text-fg-muted">
-          Near-black text (default) · 7.63:1
+          White text (default, founder decision) · 2.59:1
         </figcaption>
         <SidebarDemo />
       </figure>
       <figure className="flex flex-col gap-2">
         <figcaption className="text-meta text-fg-muted">
-          White text · 2.59:1
+          Near-black text · 7.63:1
         </figcaption>
-        <SidebarDemo selectedText="white" />
+        <SidebarDemo selectedText="near-black" />
       </figure>
       <figure className="flex flex-col gap-2">
         <figcaption className="text-meta text-fg-muted">
@@ -95,14 +95,14 @@ export const sidebarEntry: ShowcaseEntry = {
       ),
     },
     {
-      label: "selected (near-black)",
+      label: "selected (white, default)",
       supports: LINK_STATES,
       render: (props) => <SelectedNavItem force={linkForce(props)} />,
     },
     {
-      label: "selected (white)",
+      label: "selected (near-black)",
       supports: LINK_STATES,
-      render: (props) => <SelectedNavItem white force={linkForce(props)} />,
+      render: (props) => <SelectedNavItem nearBlack force={linkForce(props)} />,
     },
     {
       label: "chat row (selected)",

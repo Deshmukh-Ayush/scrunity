@@ -58,8 +58,9 @@ shadcn components read `--background`, `--card`, `--popover`, `--primary`, `--se
 - Empty-state buttons are brand only when they are the single action on the screen.
 - **Founder exceptions** (decided, not precedents):
   - **Selected main-nav item:** a solid brand fill (`--nav-selected-bg`). Its text and icon are one token,
-    `--nav-selected-fg`: near-black (`--text-strong`, 7.63:1) by default; white (2.59:1, fails AA for 14px text) is one
-    line away (`--nav-selected-fg: var(--brand-foreground)`). The brand focus ring would disappear on a brand fill, so a
+    `--nav-selected-fg`, set to **white** (`var(--brand-foreground)`). White on `#00aaf7` is 2.59:1, below AA for
+    14px text: a second founder decision, reviewed against near-black (`--text-strong`, 7.63:1), which is one line
+    away. The contrast script reports it as `accepted`. The brand focus ring would disappear on a brand fill, so a
     focused selected item gets a 2px near-black ring behind a 2px canvas gap. Hover on unselected items stays neutral.
   - **"Review drafts"** in the Campaigns table is a brand button even though it repeats per row.
 - Current brand placements: chat send (Home), start research, confirm profile, launch campaigns, confirm companies,

@@ -45,19 +45,19 @@ export function ComposerDemo({
   )
 }
 
-/** White selected-nav text, for comparing against the near-black default. */
-export const WHITE_NAV_TEXT = {
-  "--nav-selected-fg": "var(--brand-foreground)",
+/** Near-black selected-nav text, for comparing against the white default. */
+export const NEAR_BLACK_NAV_TEXT = {
+  "--nav-selected-fg": "var(--text-strong)",
 } as React.CSSProperties
 
 /**
  * The sidebar as it sits in the shell: canvas background, one current item,
- * Chats open or closed. `selectedText="white"` swaps --nav-selected-fg for the
- * comparison on the testing route.
+ * Chats open or closed. `selectedText="near-black"` swaps --nav-selected-fg
+ * for the comparison on the testing route (white is the default).
  */
 export function SidebarDemo({
   chatsOpen = true,
-  selectedText = "near-black",
+  selectedText = "white",
 }: {
   chatsOpen?: boolean
   selectedText?: "near-black" | "white"
@@ -65,7 +65,7 @@ export function SidebarDemo({
   const [open, setOpen] = React.useState(chatsOpen)
   return (
     <div
-      style={selectedText === "white" ? WHITE_NAV_TEXT : undefined}
+      style={selectedText === "near-black" ? NEAR_BLACK_NAV_TEXT : undefined}
       className="flex w-60 flex-col gap-5 rounded-lg border border-transparent bg-canvas p-3 shadow-surface"
     >
       <ul role="list" className="flex flex-col gap-px">

@@ -27,6 +27,7 @@ import {
  */
 
 export type NeedsYouKind =
+  | "awaiting_review"
   | "select_companies"
   | "approve_emails"
   | "send_approved"
@@ -92,6 +93,9 @@ function listCampaignsNeedingYou(organizationId: string) {
         eq(gtmResearchRun.organizationId, organizationId),
         or(
           eq(gtmOutreachCampaign.status, "failed"),
+          // Awaiting approval is set on the status even when the stage still reads
+          // find_contacts or write_emails, so match either.
+          eq(gtmOutreachCampaign.status, "awaiting_approval"),
           inArray(gtmOutreachCampaign.currentStage, [
             "awaiting_company_selection",
             "awaiting_approval",
@@ -115,11 +119,15 @@ function toNeedsYouItem(
     return { ...base, kind: "campaign_failed", count: 0 }
   if (row.currentStage === "awaiting_company_selection")
     return { ...base, kind: "select_companies", count: 0 }
-  if (row.currentStage === "awaiting_approval") {
+  if (
+    row.currentStage === "awaiting_approval" ||
+    row.status === "awaiting_approval"
+  ) {
     if (row.draftCount > 0)
       return { ...base, kind: "approve_emails", count: row.draftCount }
     if (row.approvedCount > 0)
       return { ...base, kind: "send_approved", count: row.approvedCount }
+    return { ...base, kind: "awaiting_review", count: 0 }
   }
   return null
 }
