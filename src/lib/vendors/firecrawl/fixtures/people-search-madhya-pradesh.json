@@ -1,0 +1,276 @@
+{
+ "_note": "SYNTHETIC test data shaped like the documented Firecrawl people/search response (data.people[], data.metadata). Names are invented; domains and LinkedIn URLs use the reserved .example TLD. The contents of location, social_profiles and employment are NOT documented by Firecrawl: the nesting used here (employment.current.company, social_profiles.linkedin.url) is an assumption to verify against one live response. Served only when person_locations mentions Madhya Pradesh; any other location returns an empty page (free). fx-fe-003 appears twice to exercise dedupe; Rewa Lunchbox has no domain to exercise the skip.",
+ "people": [
+  {
+   "id": "fx-fe-001",
+   "full_name": "Aarav Fixturewala",
+   "first_name": "Aarav",
+   "last_name": "Fixturewala",
+   "headline": "Founder at Indore Tiffin Co",
+   "description": null,
+   "location": {
+    "city": "Indore",
+    "region": "Madhya Pradesh",
+    "country": "India"
+   },
+   "social_profiles": {
+    "linkedin": {
+     "url": "https://linkedin.example/in/aarav-fixturewala"
+    }
+   },
+   "employment": {
+    "current": {
+     "title": "Founder",
+     "company": {
+      "id": "fx-co-1",
+      "name": "Indore Tiffin Co",
+      "headcount": 25,
+      "industry": "food & beverages",
+      "headquarters": "Madhya Pradesh, India",
+      "domain": "indoretiffin.example"
+     }
+    }
+   },
+   "educations": [],
+   "languages": [],
+   "skills": []
+  },
+  {
+   "id": "fx-fe-002",
+   "full_name": "Diya Testkar",
+   "first_name": "Diya",
+   "last_name": "Testkar",
+   "headline": "Head of Operations at Indore Tiffin Co",
+   "description": null,
+   "location": {
+    "city": "Indore",
+    "region": "Madhya Pradesh",
+    "country": "India"
+   },
+   "social_profiles": {
+    "linkedin": {
+     "url": "https://linkedin.example/in/diya-testkar"
+    }
+   },
+   "employment": {
+    "current": {
+     "title": "Head of Operations",
+     "company": {
+      "id": "fx-co-1",
+      "name": "Indore Tiffin Co",
+      "headcount": 25,
+      "industry": "food & beverages",
+      "headquarters": "Madhya Pradesh, India",
+      "domain": "indoretiffin.example"
+     }
+    }
+   },
+   "educations": [],
+   "languages": [],
+   "skills": []
+  },
+  {
+   "id": "fx-fe-003",
+   "full_name": "Kabir Samplesingh",
+   "first_name": "Kabir",
+   "last_name": "Samplesingh",
+   "headline": "Owner at Bhopal Dabba Express",
+   "description": null,
+   "location": {
+    "city": "Bhopal",
+    "region": "Madhya Pradesh",
+    "country": "India"
+   },
+   "social_profiles": {
+    "linkedin": {
+     "url": "https://linkedin.example/in/kabir-samplesingh"
+    }
+   },
+   "employment": {
+    "current": {
+     "title": "Owner",
+     "company": {
+      "id": "fx-co-2",
+      "name": "Bhopal Dabba Express",
+      "headcount": 18,
+      "industry": "food & beverages",
+      "headquarters": "Madhya Pradesh, India",
+      "domain": "bhopaldabba.example"
+     }
+    }
+   },
+   "educations": [],
+   "languages": [],
+   "skills": []
+  },
+  {
+   "id": "fx-fe-004",
+   "full_name": "Meera Placeholder",
+   "first_name": "Meera",
+   "last_name": "Placeholder",
+   "headline": "Co-Founder at Gwalior Meals",
+   "description": null,
+   "location": {
+    "city": "Gwalior",
+    "region": "Madhya Pradesh",
+    "country": "India"
+   },
+   "social_profiles": {
+    "linkedin": {
+     "url": "https://linkedin.example/in/meera-placeholder"
+    }
+   },
+   "employment": {
+    "current": {
+     "title": "Co-Founder",
+     "company": {
+      "id": "fx-co-3",
+      "name": "Gwalior Meals",
+      "headcount": 32,
+      "industry": "food & beverages",
+      "headquarters": "Madhya Pradesh, India",
+      "domain": "gwaliormeals.example"
+     }
+    }
+   },
+   "educations": [],
+   "languages": [],
+   "skills": []
+  },
+  {
+   "id": "fx-fe-005",
+   "full_name": "Rohan Demoshah",
+   "first_name": "Rohan",
+   "last_name": "Demoshah",
+   "headline": "Founder at Rewa Lunchbox",
+   "description": null,
+   "location": {
+    "city": "Rewa",
+    "region": "Madhya Pradesh",
+    "country": "India"
+   },
+   "social_profiles": {
+    "linkedin": {
+     "url": "https://linkedin.example/in/rohan-demoshah"
+    }
+   },
+   "employment": {
+    "current": {
+     "title": "Founder",
+     "company": {
+      "id": "fx-co-4",
+      "name": "Rewa Lunchbox",
+      "headcount": 12,
+      "industry": "food & beverages",
+      "headquarters": "Madhya Pradesh, India"
+     }
+    }
+   },
+   "educations": [],
+   "languages": [],
+   "skills": []
+  },
+  {
+   "id": "fx-fe-003",
+   "full_name": "Kabir Samplesingh",
+   "first_name": "Kabir",
+   "last_name": "Samplesingh",
+   "headline": "Owner at Bhopal Dabba Express",
+   "description": null,
+   "location": {
+    "city": "Bhopal",
+    "region": "Madhya Pradesh",
+    "country": "India"
+   },
+   "social_profiles": {
+    "linkedin": {
+     "url": "https://linkedin.example/in/kabir-samplesingh"
+    }
+   },
+   "employment": {
+    "current": {
+     "title": "Owner",
+     "company": {
+      "id": "fx-co-2",
+      "name": "Bhopal Dabba Express",
+      "headcount": 18,
+      "industry": "food & beverages",
+      "headquarters": "Madhya Pradesh, India",
+      "domain": "bhopaldabba.example"
+     }
+    }
+   },
+   "educations": [],
+   "languages": [],
+   "skills": []
+  },
+  {
+   "id": "fx-fe-006",
+   "full_name": "Ishaan Mockdev",
+   "first_name": "Ishaan",
+   "last_name": "Mockdev",
+   "headline": "Managing Director at Jabalpur Kitchens",
+   "description": null,
+   "location": {
+    "city": "Jabalpur",
+    "region": "Madhya Pradesh",
+    "country": "India"
+   },
+   "social_profiles": {
+    "linkedin": {
+     "url": "https://linkedin.example/in/ishaan-mockdev"
+    }
+   },
+   "employment": {
+    "current": {
+     "title": "Managing Director",
+     "company": {
+      "id": "fx-co-5",
+      "name": "Jabalpur Kitchens",
+      "headcount": 40,
+      "industry": "food & beverages",
+      "headquarters": "Madhya Pradesh, India",
+      "domain": "jabalpurkitchens.example"
+     }
+    }
+   },
+   "educations": [],
+   "languages": [],
+   "skills": []
+  },
+  {
+   "id": "fx-fe-007",
+   "full_name": "Tara Exemplar",
+   "first_name": "Tara",
+   "last_name": "Exemplar",
+   "headline": "Founder at Ujjain Homefood",
+   "description": null,
+   "location": {
+    "city": "Ujjain",
+    "region": "Madhya Pradesh",
+    "country": "India"
+   },
+   "social_profiles": {
+    "linkedin": {
+     "url": "https://linkedin.example/in/tara-exemplar"
+    }
+   },
+   "employment": {
+    "current": {
+     "title": "Founder",
+     "company": {
+      "id": "fx-co-6",
+      "name": "Ujjain Homefood",
+      "headcount": 15,
+      "industry": "food & beverages",
+      "headquarters": "Madhya Pradesh, India",
+      "domain": "ujjainhomefood.example"
+     }
+    }
+   },
+   "educations": [],
+   "languages": [],
+   "skills": []
+  }
+ ]
+}

@@ -8,14 +8,52 @@ export function getProviderMode(): "live" | "fixture" {
   return process.env.GTM_PROVIDER_MODE === "fixture" ? "fixture" : "live"
 }
 
-/** `legacy` keeps the Firecrawl Stage 4; `database` uses the company provider. */
+/**
+ * Where people and email data come from. `firecrawl` (default): people search
+ * and work emails through Firecrawl's data API, with the company-selection gate.
+ * `legacy`: the previous vendors and switches (GTM_DISCOVERY_MODE,
+ * GTM_COMPANY_PROVIDER, GTM_PEOPLE_PROVIDER, GTM_EMAIL_PROVIDER), kept for one
+ * release so the old path can be restored.
+ */
+export function getPeopleDataProvider(): "firecrawl" | "legacy" {
+  return process.env.PEOPLE_DATA_PROVIDER === "legacy" ? "legacy" : "firecrawl"
+}
+
+const usesFirecrawlData = () => getPeopleDataProvider() === "firecrawl"
+
+/**
+ * `database`: Stage 4 searches a data provider and stops at the company
+ * selection gate (always the case with PEOPLE_DATA_PROVIDER=firecrawl).
+ * `legacy`: the old Firecrawl web-search Stage 4.
+ */
 export function getDiscoveryMode(): "database" | "legacy" {
+  if (usesFirecrawlData()) return "database"
   return process.env.GTM_DISCOVERY_MODE === "database" ? "database" : "legacy"
 }
 
-/** Which company-discovery vendor to use. Only "apollo" exists today. */
+/** Which company-discovery provider to use: "firecrawl" (people search), or "apollo" in legacy mode. */
 export function getCompanyProviderKey(): string {
+  if (usesFirecrawlData()) return "firecrawl"
   return process.env.GTM_COMPANY_PROVIDER || "apollo"
+}
+
+/** Firecrawl data credits allowed per calendar month (UTC), all campaigns together. Default 3000. */
+export function getFirecrawlMonthlyCreditCap(): number {
+  return intEnv("FIRECRAWL_MONTHLY_CREDIT_CAP", 3000, 0, 1_000_000)
+}
+
+/**
+ * Firecrawl data credits one campaign may spend across all its attempts.
+ * Default 1200: a full people search at the default candidate cap (150 x 5 =
+ * 750) plus 20 work-email lookups (20 x 20 = 400) and some headroom.
+ */
+export function getFirecrawlRunCreditCap(): number {
+  return intEnv("FIRECRAWL_RUN_CREDIT_CAP", 1200, 0, 100_000)
+}
+
+/** People one campaign's search reads at most (6 per page, 5 credits each). Default 150, ceiling 600. */
+export function getPeopleSearchCandidateCap(): number {
+  return intEnv("GTM_PEOPLE_SEARCH_CANDIDATE_CAP", 150, 1, 600)
 }
 
 const MAX_COMPANIES_DEFAULT = 15
@@ -36,13 +74,15 @@ export function getApolloMonthlyCreditCap(): number {
 }
 
 /**
- * Which decision-maker provider database mode uses: "web" (Firecrawl
- * LinkedIn/team-page search, providers/people-web.ts) or "fixture" (synthetic
- * people, fixture mode only). The Apollo Free plan blocks people search (HTTP
- * 403), so there is no paid people vendor. Default: "fixture" in fixture mode,
+ * Which decision-maker provider Stage 5 uses. With PEOPLE_DATA_PROVIDER=firecrawl
+ * it is always "stored" (the people Stage 4's people search found). Legacy:
+ * "web" (Firecrawl LinkedIn/team-page search, providers/people-web.ts) or
+ * "fixture" (synthetic people, fixture mode only). Default: "fixture" in fixture mode,
  * "web" otherwise.
  */
 export function getPeopleProviderKey(): string {
+  // Firecrawl mode: people come from Stage 4's people search, stored per company.
+  if (usesFirecrawlData()) return "stored"
   return process.env.GTM_PEOPLE_PROVIDER || (getProviderMode() === "fixture" ? "fixture" : "web")
 }
 
@@ -59,8 +99,9 @@ const intEnv = (name: string, fallback: number, min: number, max: number) => {
   return Math.min(value, max)
 }
 
-/** Which email-enrichment vendor finds and verifies addresses. Only "fullenrich" exists. */
+/** Which email-enrichment vendor finds and verifies addresses: "firecrawl", or "fullenrich" in legacy mode. */
 export function getEmailProviderKey(): string {
+  if (usesFirecrawlData()) return "firecrawl"
   return process.env.GTM_EMAIL_PROVIDER || "fullenrich"
 }
 

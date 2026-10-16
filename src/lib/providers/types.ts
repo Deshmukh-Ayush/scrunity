@@ -113,21 +113,26 @@ export class PeopleProviderUnavailableError extends Error {
 }
 
 /**
- * The call would push this month's vendor spend past its cap. Thrown before any
- * network request. `failureReason` is what the pipeline stores on the row.
+ * The call would push this month's vendor spend (or, scope "run", this
+ * campaign's) past its cap. Thrown before any network request. `failureReason`
+ * is what the pipeline stores on the row.
  */
 export class VendorCreditCapError extends Error {
-  public readonly failureReason = "provider_credit_cap_reached"
+  public readonly failureReason: "provider_credit_cap_reached" | "provider_run_credit_cap_reached"
   constructor(
     public readonly vendor: string,
     public readonly used: number,
     public readonly cap: number,
-    public readonly requested: number
+    public readonly requested: number,
+    public readonly scope: "monthly" | "run" = "monthly"
   ) {
     super(
-      `${vendor} monthly credit cap reached: ${used} of ${cap} credits used this month, call needs ${requested}.`
+      scope === "run"
+        ? `${vendor} per-campaign credit cap reached: ${used} of ${cap} credits used by this campaign, call needs ${requested}.`
+        : `${vendor} monthly credit cap reached: ${used} of ${cap} credits used this month, call needs ${requested}.`
     )
     this.name = "VendorCreditCapError"
+    this.failureReason = scope === "run" ? "provider_run_credit_cap_reached" : "provider_credit_cap_reached"
   }
 }
 

@@ -61,35 +61,49 @@ export async function recordVendorUsage({
 
 /**
  * Reserves `credits` in the ledger before a vendor call, in one SQL statement:
- * the row is inserted only if this month's total stays within `cap`, so two
- * concurrent lookups cannot both slip under the cap. Returns the reservation id
- * to settle with the real cost once the vendor reports it.
+ * the row is inserted only if this month's total stays within `cap` (and, when
+ * `campaignCap` is given, this campaign's total within it), so two concurrent
+ * calls cannot both slip under a cap. Returns the reservation id to settle with
+ * the real cost once the vendor reports it.
  */
 export async function reserveVendorCredits({
   vendor,
   endpoint,
   credits,
   cap,
+  campaignCap,
   context,
 }: {
   vendor: string
   endpoint: string
   credits: number
   cap: number
+  campaignCap?: number | null
   context: VendorSpendContext
 }): Promise<string> {
   const id = crypto.randomUUID()
+  const campaignId = context.campaignId ?? null
+  const runLimit = campaignCap != null && campaignId ? campaignCap : null
   const inserted = await db.execute(sql`
     INSERT INTO gtm_vendor_usage (id, vendor, endpoint, credits_used, organization_id, research_run_id, campaign_id)
     SELECT ${id}, ${vendor}, ${endpoint}, ${credits}, ${context.organizationId ?? null},
-      ${context.researchRunId ?? null}, ${context.campaignId ?? null}
+      ${context.researchRunId ?? null}, ${campaignId}
     WHERE (
       SELECT coalesce(sum(credits_used), 0) FROM gtm_vendor_usage
       WHERE vendor = ${vendor} AND created_at >= ${startOfMonthUtc().toISOString()}
     ) + ${credits} <= ${cap}
+    AND (${runLimit}::int IS NULL OR (
+      SELECT coalesce(sum(credits_used), 0) FROM gtm_vendor_usage
+      WHERE vendor = ${vendor} AND campaign_id = ${campaignId}
+    ) + ${credits} <= ${runLimit}::int)
     RETURNING id`)
   if (inserted.rows.length === 0) {
-    throw new VendorCreditCapError(vendor, await getMonthlyVendorCredits(vendor), cap, credits)
+    const monthUsed = await getMonthlyVendorCredits(vendor)
+    if (monthUsed + credits > cap || runLimit === null || !campaignId) {
+      throw new VendorCreditCapError(vendor, monthUsed, cap, credits)
+    }
+    const runUsed = await getCampaignVendorCredits(vendor, campaignId)
+    throw new VendorCreditCapError(vendor, runUsed, runLimit, credits, "run")
   }
   return id
 }

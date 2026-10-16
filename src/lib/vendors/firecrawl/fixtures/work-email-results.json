@@ -1,0 +1,106 @@
+{
+ "_note": "SYNTHETIC work-email data shaped like the documented Firecrawl contacts/work-email response (data.results[].contact_info). Keyed by \"first last@domain\" (lowercase). The status field inside most_probable_work_email is NOT documented by Firecrawl; it uses FullEnrich's own words (DELIVERABLE, CATCH_ALL, HIGH_PROBABILITY). tara exemplar has an address with no status at all, which must stay unverified. Unknown keys return an empty results array (free).",
+ "results": {
+  "aarav fixturewala@indoretiffin.example": {
+   "results": [
+    {
+     "input": {},
+     "contact_info": {
+      "most_probable_work_email": {
+       "email": "aarav@indoretiffin.example",
+       "status": "DELIVERABLE"
+      },
+      "work_emails": [
+       {
+        "email": "aarav@indoretiffin.example",
+        "status": "DELIVERABLE"
+       }
+      ]
+     },
+     "profile": {}
+    }
+   ]
+  },
+  "diya testkar@indoretiffin.example": {
+   "results": [
+    {
+     "input": {},
+     "contact_info": {
+      "most_probable_work_email": {
+       "email": "diya@indoretiffin.example",
+       "status": "CATCH_ALL"
+      },
+      "work_emails": [
+       {
+        "email": "diya@indoretiffin.example",
+        "status": "CATCH_ALL"
+       }
+      ]
+     },
+     "profile": {}
+    }
+   ]
+  },
+  "kabir samplesingh@bhopaldabba.example": {
+   "results": [
+    {
+     "input": {},
+     "contact_info": {
+      "most_probable_work_email": {
+       "email": "kabir@bhopaldabba.example",
+       "status": "HIGH_PROBABILITY"
+      },
+      "work_emails": [
+       {
+        "email": "kabir@bhopaldabba.example",
+        "status": "HIGH_PROBABILITY"
+       }
+      ]
+     },
+     "profile": {}
+    }
+   ]
+  },
+  "meera placeholder@gwaliormeals.example": {
+   "results": [
+    {
+     "input": {},
+     "contact_info": {
+      "most_probable_work_email": {
+       "email": "meera@gwaliormeals.example",
+       "status": "DELIVERABLE"
+      },
+      "work_emails": [
+       {
+        "email": "meera@gwaliormeals.example",
+        "status": "DELIVERABLE"
+       }
+      ]
+     },
+     "profile": {}
+    }
+   ]
+  },
+  "ishaan mockdev@jabalpurkitchens.example": {
+   "results": []
+  },
+  "tara exemplar@ujjainhomefood.example": {
+   "results": [
+    {
+     "input": {},
+     "contact_info": {
+      "most_probable_work_email": {
+       "email": "tara@ujjainhomefood.example"
+      },
+      "work_emails": [
+       {
+        "email": "tara@ujjainhomefood.example"
+       }
+      ]
+     },
+     "profile": {}
+    }
+   ]
+  }
+ }
+}
