@@ -83,8 +83,8 @@ export function CompanySelectionToolbar() {
       )}
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
         <div className="space-y-1">
-          <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-            Companies ({companies.length})
+          <h3 className="text-section text-fg-default tabular-nums">
+            {companies.length === 1 ? "1 company" : `${companies.length} companies`}
           </h3>
           <p className="text-xs text-muted-foreground">
             {isEditable

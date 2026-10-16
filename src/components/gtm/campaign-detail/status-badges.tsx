@@ -1,5 +1,5 @@
 import { AlertTriangleSolid, CheckCircleSolid, XCircleSolid } from "@/components/icons/status"
-import { Check, HelpCircle, ShieldCheck } from "@/components/ui/icons"
+import { Check, HelpCircle, Send, ShieldCheck, X } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
 import type { DraftStatus } from "./types"
 
@@ -76,8 +76,8 @@ export function DraftStatusBadge({
   switch (status) {
     case "sent":
       return (
-        <Badge variant="neutral" className="gap-1">
-          <Check className="size-3" /> Sent
+        <Badge variant="neutral">
+          <Send /> Sent
         </Badge>
       )
     case "failed":
@@ -89,19 +89,20 @@ export function DraftStatusBadge({
     case "approved":
       return (
         <Badge variant="neutral">
-          Approved
+          <Check /> Approved
         </Badge>
       )
     case "rejected":
+      // A decision, not an error: neutral, with an icon.
       return (
-        <Badge variant="danger">
-          Rejected
+        <Badge variant="neutral">
+          <X /> Rejected
         </Badge>
       )
     default:
       return (
         <Badge variant="neutral">
-          Draft
+          Waiting for review
         </Badge>
       )
   }

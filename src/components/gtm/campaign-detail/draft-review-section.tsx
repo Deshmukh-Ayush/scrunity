@@ -1,113 +1,67 @@
 "use client"
 
-import { AlertTriangle, CheckCircle2, Loader2, Mail } from "@/components/ui/icons"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import Link from "next/link"
+import { CheckCircle2 } from "@/components/ui/icons"
+import { Button, buttonVariants } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { useCampaignDetail } from "./campaign-detail-root"
 import { DraftCard } from "./draft-card"
-import { LeadSearchSummary } from "./lead-search-summary"
 
 /**
- * What to show before any draft exists. Recovery actions (restart, re-run) are
- * deliberately not repeated here; they live in the header and status banner.
+ * "Your review": the counts, Approve all, and one card per email with its
+ * own approve, reject and edit actions. Nothing is sent from here; sending
+ * starts from the header once emails are approved.
  */
-function EmptyDrafts() {
-  const { data, staleness } = useCampaignDetail()
-  const { campaign } = data
+export function DraftReviewSection() {
+  const { drafts, counts, isUpdating, approveAllDrafts, process } = useCampaignDetail()
 
-  let icon = <Mail className="size-8 text-muted-foreground/50" />
-  let title = "No drafts generated yet"
-  let body: React.ReactNode =
-    "Run the autonomous research pipeline to discover ICP companies, scrape key decision-makers, and draft emails."
-
-  if (campaign.status === "in_progress" && staleness.isStalled) {
-    icon = <AlertTriangle className="size-6 text-warning" />
-    title = "Pipeline Execution Stalled"
-    body = staleness.explanation
-  } else if (campaign.status === "in_progress") {
-    icon = <Loader2 className="size-6 animate-spin text-primary" />
-    title = "Autonomous Pipeline is Active"
-    body = (
-      <>
-        The agent is currently executing stage{" "}
-        <span className="font-semibold text-foreground">
-          {campaign.currentStage.replace(/_/g, " ")}
-        </span>
-        . Prospect companies, verified contacts, and tailored drafts will appear
-        automatically here.
-      </>
+  if (drafts.length === 0) {
+    return (
+      <div
+        className={
+          process.state === "no-results"
+            ? "rounded-xl border border-transparent bg-surface shadow-surface"
+            : "rounded-xl border border-dashed border-border-strong"
+        }
+      >
+        <EmptyState
+          size={process.state === "no-results" ? "default" : "sm"}
+          role={process.state === "no-results" ? "status" : undefined}
+          title="No emails to review"
+          description={process.noResultsReason ?? "Emails appear here once they're written. Nothing is sent until you approve it."}
+          actions={
+            process.state === "no-results" ? (
+              <Link href="/dashboard/campaigns/new" className={buttonVariants()}>
+                Start a new research run
+              </Link>
+            ) : undefined
+          }
+        />
+      </div>
     )
   }
 
   return (
-    <Card className="border-dashed p-8 text-center text-xs">
-      <div className="flex flex-col items-center justify-center space-y-3">
-        {icon}
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-foreground">{title}</p>
-          <p className="mx-auto max-w-md text-xs text-muted-foreground">
-            {body}
-          </p>
-        </div>
-      </div>
-    </Card>
-  )
-}
-
-/** Generated drafts with review counts and a bulk approve action. */
-export function DraftReviewSection() {
-  const { drafts, counts, isUpdating, approveAllDrafts } = useCampaignDetail()
-
-  return (
-    <section className="space-y-4" aria-labelledby="draft-review-heading">
+    <>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2
-            id="draft-review-heading"
-            className="flex items-center gap-2 text-base font-semibold text-foreground"
-          >
-            <Mail className="size-4 text-primary" />
-            Generated Email Drafts ({drafts.length})
-          </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Review and approve drafts before dispatch. Sending is safely
-            throttled (30-90s delay) via Gmail.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-xs text-muted-foreground">
-            {counts.approved} Approved / {counts.sent} Sent
-          </span>
-          {counts.pending > 0 && (
-            <Button
-              variant="outline"
-              size="md"
-              onClick={approveAllDrafts}
-              disabled={isUpdating}
-              className="gap-1.5"
-            >
-              {isUpdating ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <CheckCircle2 className="size-3.5" />
-              )}
-              Approve All ({counts.pending})
-            </Button>
-          )}
-        </div>
+        <p className="text-body text-fg-muted tabular-nums">
+          {counts.pending} waiting · {counts.approved} approved · {counts.sent} sent
+          {counts.rejected > 0 ? ` · ${counts.rejected} rejected` : ""}
+        </p>
+        {counts.pending > 0 && (
+          <Button onClick={approveAllDrafts} loading={isUpdating}>
+            <CheckCircle2 data-icon="inline-start" />
+            {`Approve all ${counts.pending}`}
+          </Button>
+        )}
       </div>
-
-      <LeadSearchSummary />
-
-      {drafts.length === 0 ? (
-        <EmptyDrafts />
-      ) : (
-        <div className="space-y-4">
-          {drafts.map((d) => (
-            <DraftCard key={d.id} draft={d} />
-          ))}
-        </div>
-      )}
-    </section>
+      <ul aria-label="Emails to review" className="flex flex-col gap-3">
+        {drafts.map((d) => (
+          <li key={d.id}>
+            <DraftCard draft={d} />
+          </li>
+        ))}
+      </ul>
+    </>
   )
 }

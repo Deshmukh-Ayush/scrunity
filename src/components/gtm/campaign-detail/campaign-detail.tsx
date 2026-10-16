@@ -6,18 +6,21 @@ import { getCachedInngestConnectivity } from "@/lib/inngest-connectivity"
 import { asJson } from "@/lib/data/serialize"
 import { CampaignDetailRoot } from "./campaign-detail-root"
 import { CampaignDetailHeader } from "./campaign-detail-header"
-import { PipelineStatusBanner } from "./pipeline-status-banner"
+import { CampaignProcessCard } from "./campaign-process-card"
 import { MailboxStatusBar } from "./mailbox-status-bar"
-import { StageStepper } from "./stage-stepper"
-import { DraftReviewSection } from "./draft-review-section"
-import { ProspectsPanel } from "./prospects-panel"
-import { CompanySelection } from "./company-selection/company-selection"
-import { CampaignSegmentDigest } from "./campaign-segment-digest"
+import { StageDetail } from "./stage-detail"
 import type { CampaignData, Draft, MailboxInfo } from "./types"
 
 /**
- * Server-fetches one campaign and composes the detail view from its parts.
- * Unknown or other-org campaigns render the root not-found page.
+ * Server-fetches one campaign and composes the detail view from its parts:
+ * header, mailbox line, the process card (five stages), then the picked
+ * stage's detail. Unknown or other-org campaigns render the root not-found page.
+ *
+ * Parked, as on the Campaigns page: the segment performance digest
+ * (CampaignSegmentDigest -> SegmentDigestCard, with Recompute digest) used to
+ * render last here. Its component (./campaign-segment-digest.tsx), routes and
+ * cron are unchanged; to bring it back, render <CampaignSegmentDigest /> after
+ * <StageDetail />.
  */
 export async function CampaignDetail({ campaignId }: { campaignId: string }) {
   const { organizationId } = await getTenantContext()
@@ -39,16 +42,14 @@ export async function CampaignDetail({ campaignId }: { campaignId: string }) {
       initialData={asJson<CampaignData>({ ...detail, inngestConnectivity })}
       initialDrafts={asJson<Draft[]>(drafts)}
       initialMailbox={asJson<MailboxInfo | null>(mailbox)}
-      className="mx-auto max-w-5xl space-y-8"
+      className="flex flex-col gap-6"
     >
-      <CampaignDetailHeader />
-      <PipelineStatusBanner />
-      <MailboxStatusBar />
-      <StageStepper />
-      <DraftReviewSection />
-      <CompanySelection />
-      <ProspectsPanel />
-      <CampaignSegmentDigest />
+      <div className="flex flex-col gap-3">
+        <CampaignDetailHeader />
+        <MailboxStatusBar />
+      </div>
+      <CampaignProcessCard />
+      <StageDetail />
     </CampaignDetailRoot>
   )
 }
