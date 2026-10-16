@@ -81,6 +81,11 @@ type CampaignDetailRootProps = React.ComponentProps<"div"> & {
   initialData: CampaignData
   initialDrafts: Draft[]
   initialMailbox: MailboxInfo | null
+  /**
+   * Testing route only: no polling and every action is a no-op, so fixture
+   * data is never replaced and nothing real is approved, sent or disconnected.
+   */
+  fixture?: boolean
 }
 
 /**
@@ -93,6 +98,7 @@ export function CampaignDetailRoot({
   initialData,
   initialDrafts,
   initialMailbox,
+  fixture = false,
   children,
   ...props
 }: CampaignDetailRootProps) {
@@ -131,9 +137,10 @@ export function CampaignDetailRoot({
   }, [campaignId])
 
   React.useEffect(() => {
+    if (fixture) return
     const interval = setInterval(refresh, POLL_INTERVAL_MS)
     return () => clearInterval(interval)
-  }, [refresh])
+  }, [refresh, fixture])
 
   const reviewDraft: CampaignDetailContextValue["reviewDraft"] = async (
     draftId,
@@ -254,6 +261,10 @@ export function CampaignDetailRoot({
     stalledForMs: staleness.isStalled ? staleness.elapsedMs : null,
   })
 
+  const inert = async () => {
+    toast.info("Testing route: nothing was changed.")
+  }
+
   const value: CampaignDetailContextValue = {
     data,
     drafts,
@@ -266,13 +277,13 @@ export function CampaignDetailRoot({
     isDispatching,
     isRestarting,
     isUpdating,
-    refresh,
-    reviewDraft,
-    approveAllDrafts,
-    restartStage,
-    restartPipeline,
-    startSending,
-    disconnectMailbox,
+    refresh: fixture ? inert : refresh,
+    reviewDraft: fixture ? async () => (await inert(), false) : reviewDraft,
+    approveAllDrafts: fixture ? inert : approveAllDrafts,
+    restartStage: fixture ? inert : restartStage,
+    restartPipeline: fixture ? inert : restartPipeline,
+    startSending: fixture ? inert : startSending,
+    disconnectMailbox: fixture ? inert : disconnectMailbox,
   }
 
   return (

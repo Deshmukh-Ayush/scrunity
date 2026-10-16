@@ -36,7 +36,7 @@ export interface StatesRow {
   render: (props: ForcedStateProps) => ReactNode
 }
 
-export type ShowcaseGroup = "Foundations" | "Actions" | "Forms" | "Display" | "Overlays" | "Shell" | "Mailbox"
+export type ShowcaseGroup = "Foundations" | "Actions" | "Forms" | "Display" | "Overlays" | "Shell" | "Mailbox" | "Flows"
 
 export interface ShowcaseEntry {
   id: string

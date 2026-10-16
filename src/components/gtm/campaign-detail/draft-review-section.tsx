@@ -28,7 +28,11 @@ export function DraftReviewSection() {
           size={process.state === "no-results" ? "default" : "sm"}
           role={process.state === "no-results" ? "status" : undefined}
           title="No emails to review"
-          description={process.noResultsReason ?? "Emails appear here once they're written. Nothing is sent until you approve it."}
+          description={
+            process.state === "no-results"
+              ? "No contact had a verified email, so no emails were written. See Verified contacts for who was checked."
+              : "Emails appear here once they're written. Nothing is sent until you approve it."
+          }
           actions={
             process.state === "no-results" ? (
               <Link href="/dashboard/campaigns/new" className={buttonVariants()}>

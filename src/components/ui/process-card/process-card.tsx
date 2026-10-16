@@ -108,7 +108,7 @@ export function ProcessCard({
   /** Short count, e.g. "Step 2 of 3" or "3 of 10 verified". */
   pill?: string
   meta?: React.ReactNode
-  /** When the current run started; shows a ticking timer while running or stalled. */
+  /** When the current run started; shows a ticking timer while running (a stall is described in the footer instead). */
   startedAt?: string | null
   /** Plain sentence read politely on stage changes and completion only. */
   announcement?: string
@@ -118,8 +118,7 @@ export function ProcessCard({
   children?: React.ReactNode
 }) {
   const titleId = React.useId()
-  const showTimer = state === "running" || state === "stalled"
-  const elapsed = useElapsed(showTimer ? startedAt : null, state === "running")
+  const elapsed = useElapsed(state === "running" ? startedAt : null, state === "running")
   const spoken = useThrottledAnnouncement(announcement)
 
   return (
@@ -181,6 +180,8 @@ export interface ProcessStage {
   selected?: boolean
   /** id of the region the tile's button shows. */
   controls?: string
+  /** Testing route only: force hover or focus on an interactive tile. */
+  force?: "hover" | "focus-visible"
 }
 
 const STATUS_WORDS: Record<StageStatus, string> = {
@@ -267,7 +268,7 @@ export function ProcessStages({
             </span>
           </>
         )
-        const interactiveClass = "pc-hit ui-focus:focus-ring"
+        const interactiveClass = "pc-hit ui-hover:bg-muted ui-focus:focus-ring"
 
         return (
           <li
@@ -283,7 +284,7 @@ export function ProcessStages({
               <span className="pc-connector" data-filled={status === "done" || undefined} aria-hidden="true" />
             )}
             {stage.href ? (
-              <Link href={stage.href} className={interactiveClass}>
+              <Link href={stage.href} className={interactiveClass} data-force={stage.force}>
                 {tileContent}
               </Link>
             ) : stage.onSelect ? (
@@ -293,6 +294,7 @@ export function ProcessStages({
                 aria-pressed={stage.selected ?? false}
                 aria-controls={stage.controls}
                 className={interactiveClass}
+                data-force={stage.force}
               >
                 {tileContent}
               </button>

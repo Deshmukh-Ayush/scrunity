@@ -1,5 +1,5 @@
 import type { ProcessActivityItem, ProcessState } from "@/components/ui/process-card"
-import { formatElapsedHuman } from "@/lib/gtm-staleness"
+import { plainDuration } from "./plain-duration"
 
 /**
  * A research run's stored row -> ProcessCard state, in plain words. Pure and
@@ -33,12 +33,9 @@ const FAILURE_TEXT: Record<string, string> = {
 
 const FALLBACK_FAILURE = "Research stopped because of an error. Try again, or contact support if it keeps happening."
 
-/** A failure reason the UI can show: known codes become sentences, unknown codes never leak. */
+/** Known codes become sentences; anything else (internal codes, engineer-facing text) never leaks. */
 export function researchFailureText(reason: string | null | undefined) {
-  if (!reason) return FALLBACK_FAILURE
-  if (FAILURE_TEXT[reason]) return FAILURE_TEXT[reason]
-  // Unknown snake_case codes are internal; sentences from the server are already plain.
-  return /^[a-z0-9_]+$/.test(reason) ? FALLBACK_FAILURE : reason
+  return (reason && FAILURE_TEXT[reason]) || FALLBACK_FAILURE
 }
 
 export interface ResearchProcessInput {
@@ -80,7 +77,7 @@ export function deriveResearchProcess(input: ResearchProcessInput) {
       status = researchFailureText(input.failureReason)
       break
     case "stalled":
-      status = `No progress for ${formatElapsedHuman(input.stalledForMs ?? 0)}. Restart this step to try again.`
+      status = `No progress for ${plainDuration(input.stalledForMs ?? 0)}. Restart this step to try again.`
       break
     case "no-results":
       status = "No customer segments came out of this research. Edit your description and run it again."

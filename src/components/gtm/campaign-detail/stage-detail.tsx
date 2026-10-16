@@ -35,7 +35,12 @@ function CompaniesStage() {
   if (data.companies.length === 0) {
     return process.state === "no-results" ? (
       <div className="rounded-xl border border-transparent bg-surface shadow-surface">
-        <EmptyState role="status" title="No companies found" description={process.noResultsReason ?? undefined} actions={newRunLink} />
+        <EmptyState
+          role="status"
+          title="No companies found"
+          description={data.campaign.discoveryNote ?? "Nothing matched this segment in the target region."}
+          actions={newRunLink}
+        />
       </div>
     ) : (
       <NotYet title="No companies yet" description="Companies that match this segment appear here as they're found." />
@@ -70,10 +75,7 @@ function ContactsStage() {
           <EmptyState
             role="status"
             title="No verified contacts"
-            description={
-              process.noResultsReason ??
-              `${plural(summary.reviewed, "person was", "people were")} checked and none had a verified email yet.`
-            }
+            description={`${plural(summary.reviewed, "person was", "people were")} checked and none had a verified email. Unverified addresses are never used.`}
             actions={process.state === "no-results" ? newRunLink : undefined}
           />
         </div>
@@ -120,10 +122,14 @@ function WriteStage() {
 }
 
 function SendingStage() {
-  const { drafts, counts, mailbox } = useCampaignDetail()
+  const { drafts, counts, mailbox, process } = useCampaignDetail()
   const queue = drafts.filter((d) => d.status === "approved" || d.status === "sent" || d.status === "failed")
   if (queue.length === 0)
-    return <NotYet title="Nothing to send yet" description="Approve emails in Your review, then send them from here." />
+    return process.state === "done" ? (
+      <NotYet title="Nothing was sent" description="This campaign finished without sending any emails." />
+    ) : (
+      <NotYet title="Nothing to send yet" description="Approve emails in Your review, then send them from here." />
+    )
   return (
     <>
       <p className="text-body text-fg-muted tabular-nums">

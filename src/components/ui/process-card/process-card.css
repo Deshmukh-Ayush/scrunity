@@ -48,12 +48,6 @@ a.pc-hit,
 button.pc-hit {
   cursor: pointer;
 }
-@media (hover: hover) {
-  a.pc-hit:hover,
-  button.pc-hit:hover {
-    background: var(--muted-fill);
-  }
-}
 .pc-stage[data-selected] .pc-hit {
   background: var(--muted-fill);
 }

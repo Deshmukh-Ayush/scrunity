@@ -10,7 +10,7 @@ import {
   ProcessProgress,
   ProcessStages,
 } from "@/components/ui/process-card"
-import { CAMPAIGN_STAGES } from "../process/campaign-process"
+import { CAMPAIGN_STAGES, isCreditsPause } from "../process/campaign-process"
 import { useCampaignDetail } from "./campaign-detail-root"
 
 export const STAGE_DETAIL_ID = "campaign-stage-detail"
@@ -76,7 +76,7 @@ export function CampaignProcessCard({ motion }: { motion?: "auto" | "reduce" }) 
             Start a new research run
           </Link>
         )}
-        {process.state === "paused" && (
+        {process.state === "paused" && isCreditsPause(campaign.failureReason) && (
           <Link href="/dashboard/billing" className={buttonVariants()}>
             Go to billing
           </Link>

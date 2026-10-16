@@ -32,8 +32,10 @@ const SIZES: { value: CompanySize; label: string }[] = [
   { value: "200+", label: "More than 200 people" },
 ]
 
-const sectionClass = "gap-4 border-t border-border pt-6 first:border-t-0 first:pt-0"
-const legendClass = "mb-0 text-section text-fg-strong"
+// A fieldset legend sits in the fieldset's top border, so the divider goes on a wrapper.
+const dividerClass = "border-t border-border pt-6 first:border-t-0 first:pt-0"
+const sectionClass = "gap-4"
+const legendClass = "mb-4 text-section text-fg-strong"
 
 /**
  * Step 1 of a new research run: three sections (your company, who you want
@@ -76,6 +78,7 @@ export function CompanyDetailsForm({
         className="flex flex-col gap-6 rounded-xl border border-transparent bg-surface p-4 shadow-surface sm:p-6"
       >
         <FieldGroup className="gap-6">
+          <div className={dividerClass}>
           <FieldSet className={sectionClass}>
             <FieldLegend className={legendClass}>Your company</FieldLegend>
             <Field data-invalid={Boolean(errors.websiteUrl) || undefined}>
@@ -141,12 +144,16 @@ export function CompanyDetailsForm({
               </Field>
             </div>
           </FieldSet>
+          </div>
 
+          <div className={dividerClass}>
           <FieldSet className={sectionClass}>
             <FieldLegend className={legendClass}>Who you want to reach</FieldLegend>
             <TargetMarketFields values={values} onChange={onChange} countryError={errors.targetCountry} />
           </FieldSet>
+          </div>
 
+          <div className={dividerClass}>
           <FieldSet className={sectionClass}>
             <FieldLegend className={legendClass}>Context</FieldLegend>
             <Field data-invalid={Boolean(errors.companyDescription) || undefined}>
@@ -174,6 +181,7 @@ export function CompanyDetailsForm({
               onClear={() => onChange({ fileName: "", contextDoc: "" })}
             />
           </FieldSet>
+          </div>
         </FieldGroup>
 
         {errorMessage && <FieldError scope="form">{errorMessage}</FieldError>}

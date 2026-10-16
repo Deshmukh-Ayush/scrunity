@@ -1,5 +1,5 @@
 import type { ProcessActivityItem, ProcessState } from "@/components/ui/process-card"
-import { formatElapsedHuman } from "@/lib/gtm-staleness"
+import { plainDuration } from "./plain-duration"
 import { leadSearchMessage } from "@/lib/lead-search-message"
 import type { CampaignData, Draft } from "../campaign-detail/types"
 
@@ -69,14 +69,18 @@ const FAILURE_TEXT: Record<string, string> = {
     "Finding companies needs a target country. Start a new research run and choose one.",
 }
 
-const FALLBACK_FAILURE = "This step stopped because of an error. Retry it, or contact support if it keeps happening."
+const CREDITS_PAUSED = "Sending is paused because your AI credits ran out. Top up credits in Billing to continue."
 
-export function campaignFailureText(reason: string | null | undefined) {
-  if (!reason) return FALLBACK_FAILURE
-  if (FAILURE_TEXT[reason]) return FAILURE_TEXT[reason]
-  if (/credits/i.test(reason) && /paused/i.test(reason))
-    return "Sending is paused because your AI credits ran out. Top up credits in Billing to continue."
-  return /^[a-z0-9_]+$/.test(reason) ? FALLBACK_FAILURE : reason
+export const isCreditsPause = (reason: string | null | undefined) => Boolean(reason && /credit/i.test(reason))
+
+/**
+ * Known codes become their sentence. Anything else (internal codes, or server
+ * text written for engineers) becomes a plain sentence naming the step.
+ */
+export function campaignFailureText(reason: string | null | undefined, stageLabel = "This step") {
+  if (reason && FAILURE_TEXT[reason]) return FAILURE_TEXT[reason]
+  if (isCreditsPause(reason)) return CREDITS_PAUSED
+  return `${stageLabel} stopped because of an error. Retry the campaign, or contact support if it keeps happening.`
 }
 
 const plural = (n: number, one: string, many: string) =>
@@ -105,7 +109,7 @@ export interface CampaignProcess {
 
 export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: CampaignProcessInput): CampaignProcess {
   const { campaign, companies } = data
-  const current = STAGE_INDEX[campaign.currentStage] ?? 0
+  const stageIndex = STAGE_INDEX[campaign.currentStage] ?? 0
   const verified = data.leadSummary?.verified ?? data.contacts.length
   const reviewed = data.leadSummary?.reviewed ?? 0
   const outcome = campaign.leadSearchOutcome
@@ -118,6 +122,9 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
     noResultsReason = "No companies matched this segment. Try a wider region or a different segment."
   else if (atReview && drafts.length === 0)
     noResultsReason = outcome ? leadSearchMessage(outcome) : "No verified contacts were found, so there are no emails to review."
+
+  // A review with nothing to review ended at Verified contacts, not at Your review.
+  const current = noResultsReason && atReview && verified === 0 ? 1 : stageIndex
 
   let state: ProcessState
   if (campaign.status === "failed") state = "failed"
@@ -139,13 +146,15 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
   let status: string
   switch (state) {
     case "failed":
-      status = campaignFailureText(campaign.failureReason)
+      status = campaignFailureText(campaign.failureReason, stage.label)
       break
     case "paused":
-      status = "Sending is paused because your AI credits ran out. Top up credits in Billing to continue."
+      status = isCreditsPause(campaign.failureReason)
+        ? CREDITS_PAUSED
+        : "Sending is paused for this campaign. Contact support to resume it."
       break
     case "stalled":
-      status = `No progress for ${formatElapsedHuman(stalledForMs ?? 0)}. Restart this step to try again.`
+      status = `No progress for ${plainDuration(stalledForMs ?? 0)}. Restart this step to try again.`
       break
     case "no-results":
       status = noResultsReason ?? ""

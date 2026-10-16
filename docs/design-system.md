@@ -419,6 +419,70 @@ decoded by a small explicit decoder (no `innerHTML`), so `&#39;` reads as an apo
 text. Line breaks are kept; only `http(s)` URLs become links (`target="_blank" rel="noopener noreferrer"`); quoted
 history ("On … wrote:" and `>` lines) collapses behind "Show quoted text".
 
+## Process card
+
+`src/components/ui/process-card/` (`ProcessCard`, `ProcessStages`, `ProcessProgress`, `ProcessActivity`,
+`ProcessFooter`; CSS in `process-card.css`). One card for any multi-stage process: the research run (3 stages) and
+the outreach campaign (5). Shown on the testing route with every state, a "Next state" sequence and a reduced-motion
+toggle.
+
+- **State machine** (`process-state.ts`): `idle` (nothing running, or waiting for you), `running`, `stalled`, `failed`,
+  `done`, `no-results`, `paused` (real: sending pauses when AI credits run out or an admin pauses it; nothing lets a
+  person pause or resume, so there is no pause control). `PROCESS_TRANSITIONS` lists the legal moves; tile states come
+  from `stageStatuses(total, current, state)`. Callers derive the state from stored rows
+  (`components/gtm/process/research-process.ts`, `campaign-process.ts`), never from timers.
+- **Surface:** white, `shadow-surface`, radius 12, no borders except the footer's single-side divider and dashed idle
+  tiles. Header: title, count pill ("Step 2 of 5"), timer (`tabular-nums`, only while running).
+- **Tiles:** 32px, radius 10. Idle: dashed outline. Active: neutral ink fill, with a soft breathing halo only while
+  running. Done: emerald tint + a check badge that pops in once (only when it changes after first paint). Stalled amber,
+  failed red, no-results (`empty`) and paused neutral; each with an icon and a screen-reader status word. The connector
+  after a done stage fills (`scaleX`, emerald border tint). Tiles are buttons or links only with a real destination
+  (the campaign page: show that stage's detail, `aria-pressed` + `aria-controls`). Below a 34rem card width the track
+  becomes a vertical list (container query).
+- **Progress:** determinate (`aria-valuenow`) only with real counts ("1 of 3 emails reviewed", "2 of 5 sent").
+  Otherwise indeterminate: a short segment glides only while running; still and empty when stalled or finished. Done
+  fills emerald. Motion is `transform` only.
+- **Activity:** only facts derived from stored rows ("Found 12 companies", "Checked 9 people, 3 verified", "Sent to
+  Priya at Acme" with the real `sentAt`). Oldest first, about 6 lines visible, collapsed behind "Show details" past 3
+  lines, counter "6 updates" (plural rules). New lines fade and rise 6px; the list follows new lines only when you are
+  at the bottom. Never announced. Not available, so not shown: per-step timings (`stage_timings` is stripped from client
+  responses on purpose) and any step/event log for research runs or campaigns.
+- **Footer:** one plain sentence about now, with the real controls (Restart step when stalled, Retry campaign / Run
+  research again when failed, a link for no-results or a credits pause).
+- **Motion:** CSS only (no Motion library): 250ms smooth-out fills, 500ms bounce for the check, 250ms line rise.
+  Plays only on change. `prefers-reduced-motion: reduce` or `motion="reduce"`: no animation or transition at all.
+- **Announcements:** one polite live region, updated on stage change and completion only, at most every 3 seconds; the
+  starting state is never read.
+
+## New research run and campaign page
+
+**Copy rules for both flows:** no vendor or machinery words (Inngest, Firecrawl, Apollo, FullEnrich, pipeline,
+autonomous, ICP, agent), no snake_case, no ids, no monospace, no "successfully", no exclamation marks. Unknown failure
+codes and engineer-facing server text become a plain sentence naming the step ("Write emails stopped because of an
+error. Retry the campaign, or contact support if it keeps happening."). Stage names: Research your company, Find
+competitors, Build customer segments; Find companies, Verified contacts, Write emails, Your review, Sending. Optional
+fields say "(optional)"; unmarked fields are required.
+
+**Segments, outer vs opened.** Outer row answers "pick it or not": checkbox, name (semibold when selected), estimated
+size labelled "estimate", one line of the main pain. Opened answers "why does it fit": the full pain, how a company
+qualifies (criteria chips), examples research found. The checkbox is a native input in the row's label (Space
+toggles); expand is a separate button (accordion transition). Sticky footer: the count and the one brand button.
+
+**Campaign stages, outer vs opened.** The tile (outer) carries the stage name and one real count. The detail below
+(opened) carries the rest:
+
+| Stage | Detail |
+|---|---|
+| Find companies | Gate table with fit (database mode) or a companies DataTable: name, website, location, size, followers. Zero: empty state with the reason and "Start a new research run" |
+| Verified contacts | The ending in plain words, "Reviewed N people · M verified", contacts DataTable (name/LinkedIn, title, company, verified email), Skipped (collapsed, plain reasons). Zero: empty state with the counts |
+| Write emails | Count and a DataTable of drafts (contact, company, subject, status) |
+| Your review | Counts, Approve all, one card per email with Edit / Reject / Approve (neutral: repeated rows) |
+| Sending | Sent of approved, and a DataTable with sent times |
+
+The mailbox line is "Sending from … · N of 50 sent today" (50 is the server default; `GMAIL_DAILY_SEND_CAP` is not
+visible to the client). Disconnect lives in a "Mailbox options" menu behind a confirm dialog. The segment digest
+(Recompute digest) is parked here as on the Campaigns page.
+
 ## Interface rules
 
 **Accessibility**
