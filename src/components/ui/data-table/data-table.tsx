@@ -4,6 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowDown, ArrowUp, ArrowUpDown } from "@/components/ui/icons"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import type {
@@ -383,14 +384,15 @@ export function DataTableMessage({
   action?: React.ReactNode
   role?: "alert"
 }) {
+  // The design-system empty state, compact: the surface already gives it room.
   return (
-    <div
+    <EmptyState
+      size="sm"
       role={role}
-      className="mx-auto flex max-w-sm flex-col items-center gap-1 text-center whitespace-normal"
-    >
-      <p className="text-section text-fg-strong">{title}</p>
-      {description && <p className="text-body text-fg-muted">{description}</p>}
-      {action && <div className="mt-3">{action}</div>}
-    </div>
+      title={title}
+      description={description}
+      actions={action}
+      className="py-0"
+    />
   )
 }
