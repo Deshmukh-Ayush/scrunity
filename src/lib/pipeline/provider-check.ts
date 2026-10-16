@@ -1,4 +1,5 @@
 import { getDiscoveryMode, getProviderMode } from "@/lib/providers/config"
+import { hasFirecrawlApiKey } from "@/lib/vendors/firecrawl/client"
 import {
   companyProviderKeyEnv,
   getCompanyDiscoveryProvider,
@@ -43,7 +44,7 @@ export function checkCampaignProviders(): ProviderCheck {
     if (!fixture && keyEnv && !process.env[keyEnv]) {
       return unavailable("company_provider_unavailable", "company search")
     }
-  } else if (!fixture && !process.env.FIRECRAWL_API_KEY) {
+  } else if (!fixture && !hasFirecrawlApiKey()) {
     return unavailable("people_provider_unavailable", "web search")
   }
   try {

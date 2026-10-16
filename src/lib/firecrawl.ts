@@ -14,6 +14,14 @@ export interface ScrapeResult {
   links?: string[];
 }
 
+/** The fields read from one raw /v1/search result. */
+interface RawSearchItem {
+  title?: string;
+  description?: string;
+  url?: string;
+  markdown?: string;
+}
+
 export interface SearchResultItem {
   title: string;
   description: string;
@@ -210,6 +218,7 @@ export function findAboutPageUrl(
   return scored[0].url;
 }
 
+import { getFirecrawlApiKey } from "@/lib/vendors/firecrawl/client";
 import type { InngestStep } from "@/inngest/functions/shared";
 import { getFirecrawlLimiter } from "@/lib/firecrawl-limiter";
 import {
@@ -373,10 +382,10 @@ export async function sleepWithStep(
  */
 export async function firecrawlFetchWithRetry(
   url: string,
-  payload: any,
+  payload: unknown,
   options?: FirecrawlRetryOptions
 ): Promise<Response> {
-  const apiKey = process.env.FIRECRAWL_API_KEY;
+  const apiKey = getFirecrawlApiKey();
   const maxRetries = options?.maxRetries ?? 2;
   const step = options?.step;
   const stepPrefix = options?.stepPrefix || "firecrawl";
@@ -406,10 +415,10 @@ export async function firecrawlFetchWithRetry(
           clearTimeout(timeoutId);
         }
       });
-    } catch (netErr: any) {
+    } catch (netErr) {
       if (attempt < maxRetries) {
         console.warn(
-          `[Firecrawl] Network error on attempt ${attempt + 1}: ${netErr.message}. Retrying...`
+          `[Firecrawl] Network error on attempt ${attempt + 1}: ${netErr instanceof Error ? netErr.message : String(netErr)}. Retrying...`
         );
         const waitMs = 1000 * Math.pow(2, attempt);
         await sleepWithStep(
@@ -464,7 +473,7 @@ export async function scrapeUrl(
   url: string,
   options?: FirecrawlRetryOptions
 ): Promise<ScrapeResult> {
-  const apiKey = process.env.FIRECRAWL_API_KEY;
+  const apiKey = getFirecrawlApiKey();
   const formattedUrl = normalizeWebsiteUrl(url);
 
   if (apiKey) {
@@ -597,7 +606,7 @@ export async function searchFirecrawl(
   limit: number = 5,
   options?: FirecrawlRetryOptions
 ): Promise<SearchResultItem[]> {
-  const apiKey = process.env.FIRECRAWL_API_KEY;
+  const apiKey = getFirecrawlApiKey();
   if (!apiKey) {
     console.warn("[Firecrawl Search] FIRECRAWL_API_KEY not configured.");
     return [];
@@ -632,7 +641,7 @@ export async function searchFirecrawl(
         ? json.data.web
         : [];
 
-      return rawList.map((item: any) => ({
+      return rawList.map((item: RawSearchItem) => ({
         title: item.title || "Web Result",
         description:
           item.description ||

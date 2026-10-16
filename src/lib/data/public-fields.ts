@@ -24,6 +24,10 @@ const FAILURE_CODES: Record<string, string> = {
   web_search_budget: "web_search_attempt_limit",
   people_search_failed: "web_search_attempt_limit",
   company_provider_unavailable: "company_search_unavailable",
+  data_terms_required: "data_source_needs_approval",
+  data_credits_exhausted: "data_credits_used_up",
+  provider_run_credit_cap_reached: "campaign_data_limit",
+  search_filters_invalid: "search_filters_failed",
 }
 
 const GENERIC_FAILURE = "This step failed. Retry it, or contact support if it keeps failing."

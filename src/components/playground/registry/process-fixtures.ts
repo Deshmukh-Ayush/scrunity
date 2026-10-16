@@ -192,4 +192,25 @@ export const ZERO_VERIFIED_CAMPAIGN: CampaignData = {
   leadSummary: { reviewed: 7, verified: 0 },
 }
 
+/** Find companies stopped before or during the people search. Codes are the public (neutral) ones. */
+const searchStopped = (failureReason: string): CampaignData => ({
+  ...baseCampaign,
+  campaign: {
+    ...baseCampaign.campaign,
+    id: `fixture-campaign-${failureReason}`,
+    status: "failed",
+    currentStage: "find_companies",
+    failureReason,
+    discoveryNote: null,
+  },
+})
+
+export const SEARCH_STOPPED_CAMPAIGNS: Array<{ label: string; data: CampaignData }> = [
+  { label: "A data source needs approval", data: searchStopped("data_source_needs_approval") },
+  { label: "Out of data credits", data: searchStopped("data_credits_used_up") },
+  { label: "Search is busy (rate-limited)", data: searchStopped("provider_rate_limited") },
+  { label: "Campaign data limit reached", data: searchStopped("campaign_data_limit") },
+  { label: "Search filters could not be built", data: searchStopped("search_filters_failed") },
+]
+
 export const NO_DRAFTS: Draft[] = []

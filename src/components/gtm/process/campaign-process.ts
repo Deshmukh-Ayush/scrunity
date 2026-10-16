@@ -67,6 +67,14 @@ const FAILURE_TEXT: Record<string, string> = {
     "This month's email checks are used up. No addresses were guessed.",
   target_country_missing:
     "Finding companies needs a target country. Start a new research run and choose one.",
+  data_source_needs_approval:
+    "A data source needs approval from an admin before searching can start. Nothing was searched or charged. Contact support, then retry the campaign.",
+  data_credits_used_up:
+    "The search ran out of data credits and stopped. Nothing more was charged. Contact support to add credits, then retry the campaign.",
+  campaign_data_limit:
+    "This campaign reached its data limit, which protects your credits. Start a new campaign from the same research to search again.",
+  search_filters_failed:
+    "This segment couldn't be turned into search filters, so nothing was searched or charged. Retry the campaign. If it fails again, contact support.",
 }
 
 const CREDITS_PAUSED = "Sending is paused because your AI credits ran out. Top up credits in Billing to continue."

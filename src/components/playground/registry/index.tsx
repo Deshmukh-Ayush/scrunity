@@ -17,6 +17,7 @@ import {
   threadRowEntry,
 } from "./mailbox"
 import {
+  campaignSearchStoppedEntry,
   campaignZeroCompaniesEntry,
   campaignZeroVerifiedEntry,
   processCardEntry,
@@ -70,6 +71,7 @@ export const SHOWCASE: ShowcaseEntry[] = [
   researchSegmentsEntry,
   researchDoneEntry,
   campaignZeroCompaniesEntry,
+  campaignSearchStoppedEntry,
   campaignZeroVerifiedEntry,
 ]
 

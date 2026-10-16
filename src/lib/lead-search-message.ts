@@ -20,6 +20,8 @@ const LIMIT_WORDS: Record<string, string> = {
   web_search_budget: "the web search limit for this run was reached",
   people_search_failed: "the web search limit for this run was reached",
   web_search_attempt_limit: "the web search limit for this run was reached",
+  data_terms_required: "a data source needs approval from an admin",
+  data_source_needs_approval: "a data source needs approval from an admin",
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`

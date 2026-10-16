@@ -7,7 +7,7 @@ import {
   ResearchSegmentsDemo,
 } from "./flow-demos"
 import { ProcessCardStates } from "./process-demos"
-import { ZERO_COMPANIES_CAMPAIGN, ZERO_VERIFIED_CAMPAIGN } from "./process-fixtures"
+import { SEARCH_STOPPED_CAMPAIGNS, ZERO_COMPANIES_CAMPAIGN, ZERO_VERIFIED_CAMPAIGN } from "./process-fixtures"
 import type { ShowcaseEntry } from "./types"
 
 export const processCardEntry: ShowcaseEntry = {
@@ -67,6 +67,24 @@ export const campaignZeroCompaniesEntry: ShowcaseEntry = {
   group: "Flows",
   description: "The real campaign parts on a fixture where Find companies returned nothing. Fixture mode: no polling, every action is a no-op.",
   render: () => <CampaignFixtureDemo data={ZERO_COMPANIES_CAMPAIGN} />,
+}
+
+export const campaignSearchStoppedEntry: ShowcaseEntry = {
+  id: "campaign-search-stopped",
+  name: "Campaign page: search stopped",
+  group: "Flows",
+  description:
+    "Find companies failed before anything was found: a data source needs approval, out of data credits, rate-limited, the campaign's data limit, and filters that could not be built. Zero results is the 'no companies found' entry.",
+  render: () => (
+    <div className="flex w-full flex-col gap-10">
+      {SEARCH_STOPPED_CAMPAIGNS.map(({ label, data }) => (
+        <div key={data.campaign.id} className="flex flex-col gap-2" data-demo-state={data.campaign.failureReason}>
+          <p className="text-meta text-fg-muted">{label}</p>
+          <CampaignFixtureDemo data={data} />
+        </div>
+      ))}
+    </div>
+  ),
 }
 
 export const campaignZeroVerifiedEntry: ShowcaseEntry = {
