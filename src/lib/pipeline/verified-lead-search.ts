@@ -1,7 +1,5 @@
-import crypto from "crypto"
-import { eq } from "drizzle-orm"
 import { db } from "@/utils/db"
-import { gtmContact, gtmOutreachCampaign, type LeadSearchCampaignState } from "@/db/schema"
+import { gtmContact, type LeadSearchCampaignState } from "@/db/schema"
 import { deriveTargetJobFunction } from "@/lib/gtm-ai"
 import { countryNameFromCode } from "@/lib/geo/countries"
 import { checkLinkedInProfileGate } from "@/lib/gtm-qualification-gates"
@@ -12,6 +10,7 @@ import { RETRY_PASS_COOLDOWN_MS } from "@/inngest/functions/find-contacts-lookup
 import { getEmailEnrichmentProvider, getLeadSearchPeopleProvider } from "@/lib/providers/registry"
 import type { EmailEnrichmentProvider, PeopleDiscoveryProvider } from "@/lib/providers/types"
 import { LeadSearchStop, pollEmailLookup, startEmailLookup, type LookupMetadata } from "./email-lookup"
+import { releaseQueued, runEmailBatch } from "./email-lookup-batch"
 import {
   leadSearchBudget,
   WEB_PEOPLE_CALLS_PER_COMPANY,
@@ -22,7 +21,6 @@ import {
   candidateName,
   companyState,
   countsAsLookup,
-  finishLeadSearch,
   firecrawlCallsLeft,
   hasOpenLookup,
   isCompanyNameNotPerson,
@@ -113,7 +111,7 @@ export async function runLeadSearchStep(
   const email = deps.email ?? getEmailEnrichmentProvider()
   const people = deps.people ?? getLeadSearchPeopleProvider()
   const attemptStart = campaign.stageAttemptStartedAt?.getTime() ?? stepStart
-  const budget = leadSearchBudget(campaign.targetVerifiedLeads, attemptStart, deps.budget)
+  const budget = leadSearchBudget(campaign.targetVerifiedLeads, attemptStart, deps.budget, email.maxBatchSize)
   const spend = { organizationId: researchRun.organizationId, researchRunId: researchRun.id, campaignId }
 
   // Target titles: derived once (one LLM call) and kept across steps and attempts.
@@ -156,8 +154,23 @@ export async function runLeadSearchStep(
   const companyOf = (contact: Contact) => companies.find((c) => c.id === contact.prospectCompanyId)!
 
   try {
-    // 1. Collect results of lookups already running (each polled once per step).
-    for (const contact of contacts.filter(pollable)) {
+    // 1. Batch providers: send one batch of queued people (or release them once stopped).
+    if (email.lookupBatch) {
+      const queued = contacts.filter(pollable)
+      stats.polled += queued.length
+      if (queued.length > 0 && (stopped() || Date.now() >= budget.deadline)) await releaseQueued(queued)
+      else if (queued.length > 0) {
+        try {
+          const batch = queued.map((contact) => ({ contact, company: companyOf(contact), input: inputOf(contact, companyOf(contact)) }))
+          const sent = await runEmailBatch({ queued: batch, provider: email, spend, attemptId, log })
+          for (const company of sent.verifiedCompanies) await setCompanyStatus(company, "found")
+        } catch (err) {
+          await onStop(err)
+        }
+      }
+    }
+    // 1. Otherwise collect results of lookups already running (each polled once per step).
+    for (const contact of email.lookupBatch ? [] : contacts.filter(pollable)) {
       const company = companyOf(contact)
       stats.polled++
       try {
@@ -273,8 +286,10 @@ export async function runLeadSearchStep(
         return setCompanyStatus(company, "no_decision_maker_found")
       }
       let found: Awaited<ReturnType<PeopleDiscoveryProvider["findDecisionMakers"]>>
+      // People search providers stored this company's people in Stage 4: no second search.
+      const prefetched = companyState(company).prefetched
       try {
-        found = await people.findDecisionMakers(
+        found = prefetched ? { people: prefetched, creditsUsed: 0 } : await people.findDecisionMakers(
           {
             company: { name: company.name, domain: company.domain, providerId: company.providerId },
             titles, country, state: region, limit: budget.maxCandidatesPerCompany * 2, patient,
@@ -310,7 +325,7 @@ export async function runLeadSearchStep(
         if (isCompany) log(`${p.firstName} ${p.lastName} (${company.domain}): the company's own name, not a person; skipped`)
         return !isCompany
       })
-      await saveCompanyState(company, { candidates, deferredUntil: null, gaveUpAttemptId: null })
+      await saveCompanyState(company, { ...previous, candidates, deferredUntil: null, gaveUpAttemptId: null })
       await advanceCompany(company)
     }
 
@@ -370,35 +385,4 @@ export async function runLeadSearchStep(
     .map((s) => Date.parse(s.deferredUntil!))
   if (slots && deferred.length > 0) return result("waiting", Math.max(1000, Math.min(...deferred) - Date.now()))
   return result("done")
-}
-
-/**
- * The in-process executor's Stage 5: the same steps in sequence, with plain
- * sleeps between them, then the outcome. Returns null when another attempt
- * took the stage over (nothing is finished or advanced then).
- */
-export async function executeVerifiedLeadSearch(campaignId: string, deps: LeadSearchDeps = {}) {
-  const [row] = await db
-    .select({ attemptId: gtmOutreachCampaign.stageAttemptId })
-    .from(gtmOutreachCampaign)
-    .where(eq(gtmOutreachCampaign.id, campaignId))
-  let attemptId = row?.attemptId
-  if (!attemptId) {
-    // Called without a claim (scripts): take ownership for this run.
-    attemptId = crypto.randomUUID()
-    await db
-      .update(gtmOutreachCampaign)
-      .set({ stageAttemptId: attemptId, stageAttemptStartedAt: new Date() })
-      .where(eq(gtmOutreachCampaign.id, campaignId))
-  }
-  for (let step = 0; ; step++) {
-    const r = await runLeadSearchStep(campaignId, attemptId, deps)
-    ;(deps.log ?? console.log)(`[Lead search ${campaignId}] step ${step}: ${r.status} in ${r.ms} ms (polled ${r.polled}, started ${r.started}, searched ${r.searched})`)
-    if (r.status === "superseded") return null
-    if (r.status === "done") break
-    if (r.waitMs > 0) await new Promise((resolve) => setTimeout(resolve, r.waitMs))
-  }
-  const outcome = await finishLeadSearch(campaignId, deps.email ?? getEmailEnrichmentProvider())
-  ;(deps.log ?? console.log)(`[Lead search ${campaignId}] done: ${JSON.stringify(outcome)}`)
-  return outcome
 }

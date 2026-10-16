@@ -386,6 +386,12 @@ export interface CompanySearchFilters {
   totalMatches?: number | null
   /** Companies fetched (one page). */
   fetched?: number
+  /** People search only (PEOPLE_DATA_PROVIDER=firecrawl): current job titles searched for. */
+  titles?: string[]
+  /** People search only: seniority levels. */
+  seniority?: string[]
+  /** People search only: person locations, e.g. ["Madhya Pradesh, India"]. */
+  locations?: string[]
 }
 
 /** A decision maker found for a company, kept until the search has tried them. */
@@ -403,6 +409,11 @@ export interface LeadCandidate {
 export interface LeadSearchCompanyState {
   /** Ranked people from the people search; null until the search ran. */
   candidates?: LeadCandidate[] | null
+  /**
+   * People Stage 4's people search already found at this company
+   * (PEOPLE_DATA_PROVIDER=firecrawl). Stage 5 uses them instead of searching again.
+   */
+  prefetched?: LeadCandidate[] | null
   /** The people search was rate-limited: retry (patiently) after this time (ISO). */
   deferredUntil?: string | null
   /** The patient retry was also rate-limited in this attempt. */
@@ -803,7 +814,7 @@ export const gtmSuppressionEntry = pgTable(
       bounceMessageId?: string;
       occurredAt?: string;
       reasonDescription?: string;
-      [key: string]: any;
+      [key: string]: unknown;
     }>(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
@@ -984,7 +995,7 @@ export const gtmEmailEvent = pgTable(
       agentReplyBody?: string;
       turnNumber?: number;
       intentReasoning?: string;
-      [key: string]: any;
+      [key: string]: unknown;
     }>(),
     occurredAt: timestamp("occurred_at").defaultNow().notNull(),
   },

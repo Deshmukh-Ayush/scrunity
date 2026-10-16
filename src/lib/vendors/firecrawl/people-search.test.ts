@@ -138,6 +138,20 @@ describe("pagination", () => {
     assert.equal(result.returned, 21)
   })
 
+  it("stops early once the caller has enough", async () => {
+    let requests = 0
+    await collectPeople({
+      cap: 150,
+      pagesPerRequest: 5,
+      runGroup: async (pages) => {
+        requests++
+        return pages.map((p) => fullPage(p.limit))
+      },
+      enough: () => requests >= 2,
+    })
+    assert.equal(requests, 2)
+  })
+
   it("stops when the reported total is read", async () => {
     let requests = 0
     await collectPeople({

@@ -1,5 +1,5 @@
 import crypto from "crypto"
-import { and, eq, gte, sql } from "drizzle-orm"
+import { and, eq, gte, like, sql } from "drizzle-orm"
 import { db } from "@/utils/db"
 import { gtmVendorUsage } from "@/db/schema"
 import { VendorCreditCapError, type VendorSpendContext } from "./types"
@@ -116,11 +116,20 @@ export async function settleVendorCredits(reservationId: string, creditsUsed: nu
     .where(eq(gtmVendorUsage.id, reservationId))
 }
 
-/** Credits recorded for a vendor against one campaign (all months). */
-export async function getCampaignVendorCredits(vendor: string, campaignId: string): Promise<number> {
+/**
+ * Credits recorded for a vendor against one campaign (all months), optionally
+ * only for endpoints starting with `endpointPrefix` (e.g. "contacts/work-email").
+ */
+export async function getCampaignVendorCredits(vendor: string, campaignId: string, endpointPrefix?: string): Promise<number> {
   const [row] = await db
     .select({ total: sql<number>`coalesce(sum(${gtmVendorUsage.creditsUsed}), 0)::int` })
     .from(gtmVendorUsage)
-    .where(and(eq(gtmVendorUsage.vendor, vendor), eq(gtmVendorUsage.campaignId, campaignId)))
+    .where(
+      and(
+        eq(gtmVendorUsage.vendor, vendor),
+        eq(gtmVendorUsage.campaignId, campaignId),
+        endpointPrefix ? like(gtmVendorUsage.endpoint, `${endpointPrefix}%`) : undefined
+      )
+    )
   return Number(row?.total ?? 0)
 }

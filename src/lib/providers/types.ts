@@ -20,6 +20,21 @@ export interface NormalizedCompany {
   description: string | null
   /** Provider key, e.g. "apollo". */
   source: string
+  /** Free-text headquarters location, when the provider gives one string instead of parts. */
+  location?: string | null
+  /** Decision makers the search already found here (people-search providers only). */
+  people?: NormalizedPerson[]
+}
+
+/** People-search filters (PEOPLE_DATA_PROVIDER=firecrawl). */
+export interface PeopleSearchFilters {
+  titles: string[]
+  seniority: string[]
+  /** person_locations values, e.g. "Madhya Pradesh, India". */
+  locations: string[]
+  industries: string[]
+  headcountMin: number | null
+  headcountMax: number | null
 }
 
 export interface CompanyDiscoveryQuery {
@@ -34,6 +49,12 @@ export interface CompanyDiscoveryQuery {
   industries?: string[]
   headcountRange?: { min: number; max: number } | null
   limit: number
+  /** People-search providers search people with these filters and group them by company. */
+  people?: PeopleSearchFilters
+  /** People-search providers: most people to read (each one is billed). */
+  candidateCap?: number
+  /** People-search providers: personKeys of people the organization already has; they are dropped. */
+  excludePersonKeys?: ReadonlySet<string>
 }
 
 /** Who the spend is attributed to in the vendor ledger. */
@@ -48,6 +69,8 @@ export interface CompanyDiscoveryResult {
   /** Total matches the provider reports for these filters, when it says. */
   totalAvailable: number | null
   creditsUsed: number
+  /** People-search providers: what was dropped before grouping, for the gate's note. */
+  skipped?: { noCompanyDomain: number; duplicates: number; alreadyKnown: number }
 }
 
 export interface CompanyDiscoveryProvider {
@@ -202,7 +225,20 @@ export interface EmailEnrichmentProvider {
   start(input: EmailLookupInput): Promise<{ ref: string }>
   /** null while the vendor is still working. */
   poll(ref: string, input: EmailLookupInput): Promise<EmailLookupResult | null>
+  /**
+   * Batch providers answer synchronously: `start` only queues a person (no
+   * call, no credits) and the verified-lead search sends queued people in
+   * batches of `maxBatchSize`, one batch per step. The provider reserves and
+   * settles its own credits.
+   */
+  readonly maxBatchSize?: number
+  lookupBatch?(inputs: EmailLookupInput[], context: VendorSpendContext): Promise<BatchLookupOutcome[]>
 }
+
+/** One person's result in a batch: a result, or the error of that one call. */
+export type BatchLookupOutcome =
+  | { result: EmailLookupResult; error: null }
+  | { result: null; error: Error & { failureReason: string } }
 
 /** No email vendor is configured (missing API key). Never falls back to guessing. */
 export class EmailProviderUnavailableError extends Error {

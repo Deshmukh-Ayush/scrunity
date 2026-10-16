@@ -17,7 +17,7 @@ import { assertCampaignProviders } from "@/lib/pipeline/provider-check"
 import { extractDomain } from "@/lib/firecrawl"
 import { checkSuppression } from "@/lib/gtm-suppression"
 import { countryNameFromCode, formatTargetMarket } from "@/lib/geo/countries"
-import { getMaxCompaniesPerRun } from "@/lib/providers/config"
+import { getMaxCompaniesPerRun, getPeopleDataProvider } from "@/lib/providers/config"
 import { getCompanyDiscoveryProvider } from "@/lib/providers/registry"
 import {
   FIT_PRESELECT_THRESHOLD,
@@ -25,6 +25,8 @@ import {
   type FitInputCompany,
 } from "@/lib/gtm-company-fit"
 import { generateCompanySearchFilters, matchedExcludedTerm } from "@/lib/gtm-company-search"
+import { generatePeopleSearchFilters, toPeopleSearchFilters } from "@/lib/gtm-people-search"
+import { loadKnownPersonKeys } from "@/lib/pipeline/known-people"
 import type { NormalizedCompany } from "@/lib/providers/types"
 import { safeRealtimePublish } from "./shared"
 import type { FindCompaniesResult, ProspectCompanyData } from "./find-companies"
@@ -40,6 +42,7 @@ class MissingTargetCountryError extends Error {
 
 function locationLabel(company: NormalizedCompany): string {
   return (
+    company.location ||
     [company.city, company.state, company.country].filter(Boolean).join(", ") ||
     "Unknown"
   )
@@ -103,10 +106,15 @@ export function buildDiscoveryNote({
 }
 
 /**
- * Stage 4 (GTM_DISCOVERY_MODE=database): one company-database search built from
- * the segment (LLM-generated include/exclude keywords and industries, the size
- * band) and the campaign's target market. No Firecrawl calls. Every company is
- * scored 0-100 for fit; the good fits are pre-selected at the gate.
+ * Stage 4 (database discovery): one provider search built from the segment and
+ * the campaign's target market. Every company is scored 0-100 for fit; the good
+ * fits are pre-selected at the gate.
+ *
+ * PEOPLE_DATA_PROVIDER=firecrawl (default): an LLM turns the segment into
+ * people-search filters (titles, seniority, industries; location and size band
+ * come from the campaign and segment), the people found are grouped by current
+ * company, and each company stores its people for Stage 5.
+ * Legacy: a company-database search on LLM-generated include/exclude keywords.
  */
 export async function executeFindCompaniesFromDatabase(
   outreachCampaignId: string
@@ -141,14 +149,23 @@ export async function executeFindCompaniesFromDatabase(
   await touchCampaignProgress(outreachCampaignId)
 
   // Filters are generated once and stored, so a restart searches the same way.
+  // Keyword filters stored by the legacy search are not reused for people search.
+  const peopleSearch = getPeopleDataProvider() === "firecrawl"
+  const stored = peopleSearch && !campaign.searchFilters?.titles?.length ? null : campaign.searchFilters
   const filters: CompanySearchFilters =
-    campaign.searchFilters ??
-    (await generateCompanySearchFilters({
-      segment,
-      sellerDescription: researchRun.companyDescription,
-      market,
-    }))
-  if (!campaign.searchFilters) {
+    stored ??
+    (peopleSearch
+      ? await generatePeopleSearchFilters({
+          segment,
+          sellerDescription: researchRun.companyDescription,
+          market: { country, region },
+        })
+      : await generateCompanySearchFilters({
+          segment,
+          sellerDescription: researchRun.companyDescription,
+          market,
+        }))
+  if (!stored) {
     await db
       .update(gtmOutreachCampaign)
       .set({ searchFilters: filters })
@@ -170,6 +187,9 @@ export async function executeFindCompaniesFromDatabase(
       industries: filters.industries,
       headcountRange,
       limit,
+      ...(peopleSearch
+        ? { people: toPeopleSearchFilters(filters), excludePersonKeys: await loadKnownPersonKeys(researchRun.organizationId) }
+        : {}),
     },
     {
       organizationId: researchRun.organizationId,
@@ -178,6 +198,9 @@ export async function executeFindCompaniesFromDatabase(
     }
   )
   await touchCampaignProgress(outreachCampaignId)
+  if (result.skipped) {
+    console.log(`[Find companies ${outreachCampaignId}] people skipped: ${JSON.stringify(result.skipped)}, ${result.creditsUsed} credits`)
+  }
 
   const ownDomain = extractDomain(researchRun.websiteUrl)
   const seenDomains = new Set<string>()
@@ -223,6 +246,8 @@ export async function executeFindCompaniesFromDatabase(
         industry: company.industry,
         headcount: company.headcount,
         revenueRange: company.revenueRange,
+        // People search: the people found here, so Stage 5 never searches again.
+        leadSearchState: company.people ? { prefetched: company.people } : null,
       })
       .returning()
 

@@ -14,6 +14,8 @@ import {
   type EmailLookupResult,
   type VendorSpendContext,
 } from "@/lib/providers/types"
+import { FirecrawlDataError } from "@/lib/vendors/firecrawl/errors"
+import { firecrawlLedgerVendor } from "@/lib/vendors/firecrawl/runtime"
 
 /**
  * One email lookup for one stored contact, in two calls so the wait between
@@ -62,15 +64,25 @@ export type LookupOutcome =
 /**
  * Ledger vendor name. Fixture lookups are recorded under "<key>_fixture" so
  * tests exercise the same cap logic without eating into the real vendor's
- * monthly cap.
+ * monthly cap. Firecrawl data credits have their own vendor ("firecrawl_data"),
+ * apart from the "firecrawl" rows that count web calls.
  */
 export function ledgerVendor(provider: Pick<EmailEnrichmentProvider, "key">): string {
+  if (provider.key === "firecrawl") return firecrawlLedgerVendor()
   return getProviderMode() === "fixture" ? `${provider.key}_fixture` : provider.key
 }
 
-function toStop(err: unknown): LeadSearchStop | null {
+export function toStop(err: unknown): LeadSearchStop | null {
   if (err instanceof LeadSearchStop) return err
-  if (err instanceof VendorCreditCapError) return new LeadSearchStop("email_credit_cap_reached", err.message)
+  if (err instanceof VendorCreditCapError) {
+    return new LeadSearchStop(err.scope === "run" ? "email_run_budget" : "email_credit_cap_reached", err.message)
+  }
+  if (err instanceof FirecrawlDataError) {
+    if (err.failureReason === "data_terms_required") return new LeadSearchStop("data_terms_required", err.message)
+    if (err.failureReason === "data_credits_exhausted") return new LeadSearchStop("email_credits_exhausted", err.message)
+    if (err.failureReason === "provider_access_denied") return new LeadSearchStop("email_provider_unavailable", err.message)
+    return null
+  }
   if (err instanceof VendorCreditsExhaustedError) return new LeadSearchStop("email_credits_exhausted", err.message)
   if (err instanceof EmailProviderUnavailableError) return new LeadSearchStop("email_provider_unavailable", err.message)
   if (err instanceof VendorRequestError && (err.status === 401 || err.status === 403)) {
@@ -79,7 +91,7 @@ function toStop(err: unknown): LeadSearchStop | null {
   return null
 }
 
-async function saveOutcome(contactId: string, result: EmailLookupResult, metadata: LookupMetadata) {
+export async function saveOutcome(contactId: string, result: EmailLookupResult, metadata: LookupMetadata) {
   const verified = result.status === "verified" && Boolean(result.email)
   await db
     .update(gtmContact)
@@ -146,6 +158,21 @@ export async function startEmailLookup({
   attemptId: string | null
   previous?: LookupMetadata | null
 }): Promise<LookupOutcome> {
+  if (provider.lookupBatch) {
+    // Batch providers: queue only (no call, no credits); the batch step reserves and sends.
+    const { ref } = await provider.start(input)
+    const queued: LookupMetadata = { ...(previous ?? {}), provider: provider.key, pollAttemptId: attemptId, startFailedAttemptId: null }
+    await db
+      .update(gtmContact)
+      .set({
+        emailLookupRef: ref,
+        enrichMetadata: queued,
+        lookupStatus: "complete",
+        skipReason: null,
+      })
+      .where(eq(gtmContact.id, contactId))
+    return { kind: "pending" }
+  }
   let reservationId: string
   try {
     reservationId = await reserveVendorCredits({

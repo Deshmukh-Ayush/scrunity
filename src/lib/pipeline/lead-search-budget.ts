@@ -40,10 +40,15 @@ export interface LeadSearchBudget {
  */
 export const WEB_PEOPLE_CALLS_PER_COMPANY = 3
 
+/**
+ * `batchSize`: batch email providers send queued people together, so up to a
+ * batch of companies run at once (still never more than leads still needed).
+ */
 export function leadSearchBudget(
   campaignTarget: number | null | undefined,
   attemptStartedAt: number = Date.now(),
-  overrides: Partial<LeadSearchBudget> = {}
+  overrides: Partial<LeadSearchBudget> = {},
+  batchSize?: number
 ): LeadSearchBudget {
   // Fixture jobs answer at once; live FullEnrich jobs typically take 30-90 s.
   const fixture = getProviderMode() === "fixture"
@@ -52,7 +57,7 @@ export function leadSearchBudget(
     maxCandidatesPerCompany: getMaxCandidatesPerCompany(),
     maxCompaniesExamined: getMaxCompaniesExamined(),
     maxEmailLookups: getEmailLookupsPerCampaign(),
-    concurrency: getLeadSearchConcurrency(),
+    concurrency: Math.max(getLeadSearchConcurrency(), batchSize ?? 0),
     maxWaitMs: getEmailLookupMaxWaitMs(),
     pollIntervalMs: fixture && !process.env.GTM_EMAIL_POLL_INTERVAL_MS ? 5 : getEmailPollIntervalMs(),
     deadline: attemptStartedAt + getLeadSearchMaxMs(),
@@ -69,5 +74,6 @@ export type LeadSearchStopReason =
   | "email_credits_exhausted"
   | "email_provider_unavailable"
   | "web_search_budget"
+  | "data_terms_required"
 
 export { leadSearchMessage } from "@/lib/lead-search-message"

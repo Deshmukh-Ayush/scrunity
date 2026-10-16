@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { FirecrawlDataError } from "./errors"
+import type { PeopleSearchFilters } from "@/lib/providers/types"
 import type { AlexandriaCall } from "./client"
 
 /**
@@ -25,15 +26,7 @@ export const PEOPLE_SEARCH_CAPABILITY = "people/search"
 export const PEOPLE_SEARCH_PAGE_SIZE = 6
 export const PEOPLE_SEARCH_CREDITS_PER_RECORD = 5
 
-export interface PeopleSearchFilters {
-  titles: string[]
-  seniority: string[]
-  /** Values for person_locations, e.g. "Madhya Pradesh, India". */
-  locations: string[]
-  industries: string[]
-  headcountMin: number | null
-  headcountMax: number | null
-}
+export type { PeopleSearchFilters }
 
 export interface FoundCompany {
   id: string | null
@@ -241,18 +234,21 @@ export function planPages(cap: number, pageSize = PEOPLE_SEARCH_PAGE_SIZE): Arra
 
 /**
  * Reads pages in groups (one request each, at most `pagesPerRequest` calls)
- * until `cap` records, a short page, or the reported total. `runGroup` makes
- * the request (and enforces credit caps before it); a later group never starts
- * once a page came back short, so the search never pays for pages past the end.
+ * until `cap` records, a short page, the reported total, or `enough` says the
+ * people so far suffice. `runGroup` makes the request (and enforces credit caps
+ * before it); a later group never starts once a page came back short, so the
+ * search never pays for pages past the end.
  */
 export async function collectPeople({
   cap,
   pagesPerRequest,
   runGroup,
+  enough,
 }: {
   cap: number
   pagesPerRequest: number
   runGroup: (pages: Array<{ limit: number; offset: number }>) => Promise<PeopleSearchPage[]>
+  enough?: (people: FoundPerson[]) => boolean
 }): Promise<{ people: FoundPerson[]; returned: number; total: number | null; requests: number }> {
   const pages = planPages(cap)
   const people: FoundPerson[] = []
@@ -270,7 +266,7 @@ export async function collectPeople({
       total = page.total ?? total
       if (page.returned < group[index].limit) ended = true
     }
-    if (ended || returned >= cap || (total !== null && returned >= total)) break
+    if (ended || returned >= cap || (total !== null && returned >= total) || enough?.(people)) break
   }
   return { people: people.slice(0, cap), returned, total, requests }
 }

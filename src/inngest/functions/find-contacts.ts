@@ -1,6 +1,7 @@
 import { outreachCampaignChannel } from "../client"
 import { advanceCampaign } from "@/lib/pipeline/stage-state"
-import { executeVerifiedLeadSearch, type LeadSearchDeps } from "@/lib/pipeline/verified-lead-search"
+import { executeVerifiedLeadSearch } from "@/lib/pipeline/lead-search-executor"
+import type { LeadSearchDeps } from "@/lib/pipeline/verified-lead-search"
 import { leadSearchMessage } from "@/lib/pipeline/lead-search-budget"
 import type { LeadSearchOutcome } from "@/db/schema"
 import { safeRealtimePublish } from "./shared"
