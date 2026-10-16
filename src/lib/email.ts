@@ -1,6 +1,5 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>'"]/g, (character) => ({
@@ -30,6 +29,9 @@ export async function sendOrgInvitationEmail(
   orgLogo?: string | null
 ) {
   try {
+    // Created per send, not at import: without RESEND_API_KEY the app still
+    // builds and starts, and this send fails inside its own error handling.
+    const resend = new Resend(process.env.RESEND_API_KEY);
     const safeOrgName = escapeHtml(orgName);
     const safeInviteLink = escapeHtml(inviteLink);
     const safeLogoUrl = safeImageUrl(orgLogo);
