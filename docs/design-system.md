@@ -236,6 +236,14 @@ Use them for interactive styles in `components/ui`.
   `FieldError` (`role="alert"`, de-duplicated messages). Errors use `--danger`; a checked choice card gets a
   `--text-strong` border on the canvas fill (a selected state, so not brand); links in descriptions turn strong and
   underlined on hover.
+- **EmptyState** (`components/ui/empty-state.tsx`): optional illustration, a bold `text-section` title, at most two
+  lines of description, actions, and an optional "Learn more" card (a white `shadow-surface` link card; only with a
+  real destination). `size="sm"` for tight places; DataTable's empty and error messages use it. `role="alert"` for
+  errors, `role="status"` when it replaces content after an action.
+- **Illustrations** (`components/ui/illustrations/`): original single-color line drawings in inline SVG, strokes in
+  `currentColor` (set with `text-fg-subtle` or `text-fg-muted`), 1.5px non-scaling strokes, `aria-hidden`, about 160px
+  wide and fine at any size. `MailThreadsIllustration`: an open envelope with a letter and a short stack of thread
+  lines.
 - **Primitives library:** Base UI (`@base-ui/react`). Do not add a second primitive library.
 
 ## Data table
@@ -348,6 +356,68 @@ sources feed them (`lib/data/home.ts`); never placeholder rows.
 a React `<ViewTransition name="agent-composer">`, so the card moves to its chat position (250ms, smooth-out) while
 the rest of the page cross-fades (150ms out, 250ms in). Reduced motion: instant swap. The chat page has no Suspense
 boundary on purpose: the pair only forms when the new page commits with the navigation.
+
+## Mailbox
+
+`/dashboard/mailbox` (`components/mailbox/`). Sent outreach threads and classified replies from Scrunity campaigns
+only, never the person's whole inbox. Every empty and syncing message says so.
+
+### Information hierarchy
+
+The list answers "open this or not?" in a glance; the thread answers "what happened and what do I do?". A row is two
+lines.
+
+| Information | Where | Why |
+|---|---|---|
+| Thread status (bounced, reply class, or "Sent" with no reply yet) | Row line 2 (icon + label) and thread header | The single deciding fact. One status per thread, by priority: bounced > reply class > sent |
+| Unread (has a reply or bounce) | Row: dot + semibold name | What changed. No read state is stored, so "unread" means "has inbound activity" |
+| Contact name | Row line 1, thread header | Who it is |
+| Company | Row line 1 (muted, truncates first), thread header | Who it is, second |
+| Last activity time | Row line 1 (compact: time today, weekday this week, else date) | How recent |
+| Latest message snippet (decoded) | Row line 2, after the status | What they said |
+| Subject | Thread header | Outreach subjects repeat across a campaign, so they do not help scanning |
+| Title (role) | Thread header | Useful once open, noise in a 50-row scan |
+| Campaign | Thread header, as a "View campaign" link | Context, not a reason to open |
+| Contact email | Thread header (muted) | Needed to act, not to scan |
+| From/to addresses | Message card (muted, under the sender) | Only matters per message |
+| Exact send time | Message card | Minute precision only matters per message |
+| Message count, first-sent date | Thread header meta line | Context once open |
+| Bounce reason | Thread body banner, in plain words | Explains the status |
+| Message bodies | Thread body, plain text | The content |
+| Actions | Thread header: View campaign, Open lead | Act on the thread once it is open; rows carry no actions |
+
+Not available (fields we would want): a stored read state (so no "mark read"), full reply bodies (replies keep the
+provider snippet only), other participants (cc), sync status or last-synced time, attachments, a per-thread
+reply/compose path.
+
+### Status badges
+
+| Thread status | Badge | Icon |
+|---|---|---|
+| Bounced | danger | solid x-circle |
+| Interested | neutral | sparkles |
+| Question | neutral | message |
+| Not interested | neutral | x-circle (outline) |
+| Auto-reply | neutral | bot |
+| Unclear | neutral | help-circle |
+| Sent, no reply yet | neutral | send |
+
+Green stays reserved for verified and completed states, so no reply class is green. No per-category hues: the icon
+and label carry the meaning.
+
+### States
+
+Not connected (Connect Gmail, the existing OAuth flow) · syncing (skeleton rows, no fake progress; announced politely
+when done; no backend signal yet, so it is a component state only) · connected with no threads · populated · needs
+attention (mailbox revoked: banner with Reconnect) · no search/filter results · loading. All of them render from
+fixtures on the testing route.
+
+### Email bodies are untrusted
+
+Bodies and snippets are rendered as **plain text, never HTML** (`lib/email-text.ts` + `EmailBody`): HTML entities are
+decoded by a small explicit decoder (no `innerHTML`), so `&#39;` reads as an apostrophe and `<script>` stays visible
+text. Line breaks are kept; only `http(s)` URLs become links (`target="_blank" rel="noopener noreferrer"`); quoted
+history ("On … wrote:" and `>` lines) collapses behind "Show quoted text".
 
 ## Interface rules
 

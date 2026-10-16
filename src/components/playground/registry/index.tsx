@@ -8,6 +8,14 @@ import {
 import { Foundations } from "./foundations"
 import { cardEntry, dialogEntry, dropdownMenuEntry } from "./overlays"
 import { dataTableEntry } from "./data-table"
+import {
+  emptyStateEntry,
+  mailboxBannerEntry,
+  mailboxFilterEntry,
+  mailboxPageEntry,
+  messageCardEntry,
+  threadRowEntry,
+} from "./mailbox"
 import { composerEntry, feedRowEntry, sidebarEntry } from "./shell"
 import type { ShowcaseEntry } from "./types"
 
@@ -34,11 +42,17 @@ export const SHOWCASE: ShowcaseEntry[] = [
   exampleFormEntry,
   cardEntry,
   dataTableEntry,
+  emptyStateEntry,
   dialogEntry,
   dropdownMenuEntry,
   sidebarEntry,
   composerEntry,
   feedRowEntry,
+  threadRowEntry,
+  messageCardEntry,
+  mailboxFilterEntry,
+  mailboxBannerEntry,
+  mailboxPageEntry,
 ]
 
 export * from "./types"
