@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { AlertCircle, CheckCircle2, Edit2, XCircle } from "lucide-react"
+import { AlertCircle, CheckCircle2, Edit2, XCircle } from "@/components/ui/icons"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -16,11 +16,11 @@ import type { Draft } from "./types"
 function DraftError({ message }: { message: string }) {
   const formatted = formatErrorMessage(message)
   return (
-    <div className="mt-2 space-y-1.5 rounded-md border border-destructive/25 bg-destructive/10 p-2.5 text-xs">
+    <div className="mt-2 space-y-1.5 rounded-md bg-danger-tint p-2.5 text-xs shadow-surface">
       <div className="flex items-start gap-2">
-        <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-rose-600 dark:text-rose-400" />
+        <AlertCircle className="mt-0.5 size-3.5 shrink-0 text-danger" />
         <div className="flex-1 space-y-0.5">
-          <p className="font-semibold text-rose-700 dark:text-rose-300">
+          <p className="font-semibold text-danger">
             {formatted.headline}
           </p>
           {formatted.actionableStep && (
@@ -70,10 +70,10 @@ export function DraftCard({ draft }: { draft: Draft }) {
       data-status={draft.status}
       className={cn(
         "border transition-all",
-        "data-[status=sent]:border-emerald-500/50 data-[status=sent]:bg-emerald-500/5",
-        "data-[status=failed]:border-rose-500/50 data-[status=failed]:bg-rose-500/5",
-        "data-[status=approved]:border-emerald-500/30 data-[status=approved]:bg-emerald-500/5",
-        "data-[status=rejected]:border-rose-500/20 data-[status=rejected]:bg-rose-500/5 data-[status=rejected]:opacity-70"
+        "data-[status=sent]:border-success-border data-[status=sent]:bg-success-tint",
+        "data-[status=failed]:border-danger-border data-[status=failed]:bg-danger-tint",
+        "data-[status=approved]:border-success-border data-[status=approved]:bg-success-tint",
+        "data-[status=rejected]:border-danger-border data-[status=rejected]:bg-danger-tint data-[status=rejected]:opacity-70"
       )}
     >
       <CardHeader className="p-4 pb-2">
@@ -139,7 +139,6 @@ export function DraftCard({ draft }: { draft: Draft }) {
                 size="sm"
                 variant="ghost"
                 onClick={() => setIsEditing(false)}
-                className="h-7 text-xs"
               >
                 Cancel
               </Button>
@@ -147,7 +146,6 @@ export function DraftCard({ draft }: { draft: Draft }) {
                 size="sm"
                 disabled={isUpdating}
                 onClick={saveAndApprove}
-                className="h-7 text-xs"
               >
                 Save & Approve
               </Button>
@@ -155,7 +153,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
           </div>
         ) : (
           <>
-            <div className="space-y-2 rounded-md border bg-muted/20 p-3 text-xs">
+            <div className="space-y-2 rounded-md bg-muted/20 p-3 text-xs shadow-surface">
               <div className="font-medium text-foreground">
                 Subject: {draft.subject}
               </div>
@@ -169,7 +167,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-7 gap-1 text-xs text-muted-foreground"
+                  className="gap-1 text-muted-foreground"
                   onClick={startEditing}
                 >
                   <Edit2 className="size-3" />
@@ -182,7 +180,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
                     variant="outline"
                     disabled={isUpdating}
                     onClick={() => reviewDraft(draft.id, "reject")}
-                    className="h-7 gap-1 text-xs text-rose-600 hover:text-rose-700"
+                    className="gap-1"
                   >
                     <XCircle className="size-3" />
                     Reject
@@ -191,7 +189,7 @@ export function DraftCard({ draft }: { draft: Draft }) {
                     size="sm"
                     disabled={isUpdating || draft.status === "approved"}
                     onClick={() => reviewDraft(draft.id, "approve")}
-                    className="h-7 gap-1 bg-emerald-600 text-xs text-white hover:bg-emerald-700"
+                    className="gap-1"
                   >
                     <CheckCircle2 className="size-3" />
                     Approve

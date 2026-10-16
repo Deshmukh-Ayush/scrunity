@@ -7,14 +7,20 @@ import {
   gtmOutreachCampaign,
   gtmResearchRun,
 } from "@/db/schema"
-import { desc, eq } from "drizzle-orm"
+import { desc, eq, getTableColumns, sql } from "drizzle-orm"
 import { verifyResearchRunAccess } from "@/lib/gtm-auth"
 import { publicPipelineRow } from "./public-fields"
 
 /** Every research run in the organization, newest first. */
 export async function listOrgResearchRuns(organizationId: string) {
   const runs = await db
-    .select()
+    .select({
+      ...getTableColumns(gtmResearchRun),
+      // Display-only extra for the Research table (same rows, same order). The outer
+      // column is spelled out: in a one-table select Drizzle renders ${gtmResearchRun.id}
+      // as a bare "id", which inside the subquery would mean gtm_icp_segment.id.
+      segmentCount: sql<number>`(SELECT count(*)::int FROM gtm_icp_segment s WHERE s.research_run_id = "gtm_research_run"."id")`,
+    })
     .from(gtmResearchRun)
     .where(eq(gtmResearchRun.organizationId, organizationId))
     .orderBy(desc(gtmResearchRun.createdAt))

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, ShieldCheck, Sparkles, Users, Zap } from "lucide-react"
+import { Plus, ShieldCheck, Sparkles, Users, Zap } from "@/components/ui/icons"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -42,7 +42,7 @@ function PlanOption({
       data-selected={isSelected || undefined}
       data-current={isCurrent || undefined}
       className={cn(
-        "relative flex cursor-pointer flex-col justify-between rounded-xl border p-4 transition-all",
+        "relative flex cursor-pointer flex-col justify-between rounded-xl p-4 transition-all shadow-surface",
         // "Most popular" styling takes precedence over the selection highlight.
         config.isPopular
           ? "border-primary/60 bg-primary/5 shadow-sm"
@@ -53,15 +53,14 @@ function PlanOption({
       )}
     >
       {config.isPopular && (
-        <Badge className="absolute -top-2.5 right-3 h-5 bg-primary text-[10px] font-semibold text-primary-foreground">
+        <Badge className="absolute -top-2.5 right-3 h-5 bg-primary text-primary-foreground">
           Most Popular
         </Badge>
       )}
       {isCurrent && (
         <Badge
-          variant="secondary"
-          className="absolute -top-2.5 left-3 h-5 text-[10px] font-medium"
-        >
+          variant="neutral"
+          className="absolute -top-2.5 left-3 h-5">
           Current Plan
         </Badge>
       )}
@@ -79,7 +78,7 @@ function PlanOption({
 
         <div className="mt-3 space-y-2 border-t border-border/40 pt-3 text-[11px]">
           <div className="flex items-center gap-1.5 font-medium text-foreground">
-            <Zap className="h-3.5 w-3.5 shrink-0 fill-amber-400 text-amber-500" />
+            <Zap className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <span>{config.aiCredits.toLocaleString("en-US")} AI credits</span>
           </div>
           <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -102,11 +101,11 @@ function PlanOption({
 
       <div className="mt-4 border-t border-border/40 pt-3">
         <Button
-          size="sm"
+          size="md"
           variant={
-            isCurrent ? "outline" : config.isPopular ? "default" : "secondary"
+            isCurrent ? "ghost" : "secondary"
           }
-          className="h-8 w-full text-xs"
+          className="w-full"
           disabled={isCurrent || disabled}
           onClick={(e) => {
             e.stopPropagation()
@@ -159,7 +158,7 @@ export function UpgradePlanModal({
           size="sm"
           variant="outline"
           onClick={() => setOpen(true)}
-          className="gap-1.5 text-xs"
+          className="gap-1.5"
         >
           <Sparkles className="h-3.5 w-3.5 text-primary" />
           Change Plan

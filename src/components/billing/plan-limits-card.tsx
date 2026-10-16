@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { getPlanLimits, getTotalAllowedSeats, getMaxActiveCampaigns, type PlanTier } from "@/config/billing";
 import { AddSeatsModal } from "./add-seats-modal";
 import { UpgradePlanModal } from "./upgrade-plan-modal";
-import { Target, Users, Search, CheckCircle2, ShieldCheck, Plus } from "lucide-react";
+import { Target, Users, Search, CheckCircle2, ShieldCheck, Plus } from "@/components/ui/icons";
 
 export async function PlanLimitsCard() {
   const { organizationId } = await getTenantContext();
@@ -74,7 +74,7 @@ export async function PlanLimitsCard() {
 
       <CardContent className="p-0 grid grid-cols-1 lg:grid-cols-3 gap-4 pt-1">
         {/* Active Campaigns */}
-        <div className="rounded-xl border border-border/60 bg-muted/20 p-4 flex flex-col justify-between">
+        <div className="rounded-xl bg-muted/20 p-4 flex flex-col justify-between shadow-surface">
           <div>
             <div className="flex items-center justify-between text-muted-foreground">
               <span className="text-xs font-medium">Active Campaigns</span>
@@ -93,7 +93,7 @@ export async function PlanLimitsCard() {
             </p>
           </div>
           {maxActiveCampaigns !== "unlimited" && activeCampaignsCount >= maxActiveCampaigns && (
-            <div className="mt-3 pt-2 border-t border-border/40 text-[11px] text-amber-500 font-medium break-words">
+            <div className="mt-3 pt-2 border-t border-border/40 text-[11px] text-warning font-medium break-words">
               {maxActiveCampaigns === 0
                 ? "Subscribe to a plan to launch active outreach campaigns."
                 : "Capacity reached. Upgrade to launch more."}
@@ -102,7 +102,7 @@ export async function PlanLimitsCard() {
         </div>
 
         {/* Team Seats */}
-        <div className="rounded-xl border border-border/60 bg-muted/20 p-4 flex flex-col justify-between">
+        <div className="rounded-xl bg-muted/20 p-4 flex flex-col justify-between shadow-surface">
           <div>
             <div className="flex items-center justify-between text-muted-foreground">
               <span className="text-xs font-medium">Team Seats</span>
@@ -127,15 +127,15 @@ export async function PlanLimitsCard() {
         </div>
 
         {/* Stages 1-3 Research */}
-        <div className="rounded-xl border border-border/60 bg-muted/20 p-4 flex flex-col justify-between">
+        <div className="rounded-xl bg-muted/20 p-4 flex flex-col justify-between shadow-surface">
           <div>
             <div className="flex items-center justify-between text-muted-foreground">
               <span className="text-xs font-medium">Stages 1-3 Research</span>
-              <Search className="h-4 w-4 text-emerald-500 shrink-0" />
+              <Search className="h-4 w-4 text-success shrink-0" />
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="text-2xl font-bold text-foreground">Unlimited</span>
-              <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px] font-semibold whitespace-nowrap">
+              <Badge variant="neutral" className="whitespace-nowrap">
                 Free & Uncapped
               </Badge>
             </div>
@@ -143,7 +143,7 @@ export async function PlanLimitsCard() {
               Company research, competitor scans & ICP segmentation are never billed or credit-gated
             </p>
           </div>
-          <div className="mt-3 pt-2 border-t border-border/40 flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400">
+          <div className="mt-3 pt-2 border-t border-border/40 flex items-center gap-1.5 text-[11px] text-success">
             <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
             <span className="break-words">Always available even with 0 credits</span>
           </div>

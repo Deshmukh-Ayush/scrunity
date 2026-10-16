@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ExternalLink } from "lucide-react"
+import { ExternalLink } from "@/components/ui/icons"
 import { TableCell, TableRow } from "@/components/ui/table"
 import { LeadAction } from "./lead-action"
 import { LeadStatusBadge, LinkedinIcon, VerificationBadge } from "./lead-badges"
@@ -34,7 +34,7 @@ export function LeadRow({
               href={lead.linkedinUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex shrink-0 text-muted-foreground transition-colors hover:text-blue-500"
+              className="inline-flex shrink-0 text-muted-foreground transition-colors hover:text-foreground"
               title="Open LinkedIn profile"
               aria-label={`${lead.name} on LinkedIn`}
             >

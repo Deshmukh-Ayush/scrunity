@@ -1,11 +1,5 @@
-import {
-  AlertCircle,
-  AlertTriangle,
-  Check,
-  HelpCircle,
-  ShieldCheck,
-  XCircle,
-} from "lucide-react"
+import { AlertTriangleSolid, CheckCircleSolid, XCircleSolid } from "@/components/icons/status"
+import { Check, HelpCircle, ShieldCheck } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
 import type { DraftStatus } from "./types"
 
@@ -14,47 +8,37 @@ export function EmailSourceBadge({ source }: { source: string }) {
   switch (source) {
     case "verified":
       return (
-        <Badge variant="default" className="gap-1 bg-emerald-600 text-[10px]">
-          <ShieldCheck className="size-3" /> Verified
+        <Badge variant="success" className="gap-1">
+          <CheckCircleSolid className="size-3" /> Verified
         </Badge>
       )
     case "found_on_site":
       return (
-        <Badge variant="default" className="gap-1 bg-emerald-600 text-[10px]">
-          <ShieldCheck className="size-3" /> Found on Site
+        <Badge variant="neutral" className="gap-1">
+          <ShieldCheck className="size-3" /> Found on site
         </Badge>
       )
     case "pattern_guessed_mx_valid":
-      return (
-        <Badge
-          variant="outline"
-          className="gap-1 border-tertiary/40 bg-tertiary/10 text-[10px] text-tertiary"
-        >
-          <ShieldCheck className="size-3" /> Pattern Guessed (MX Valid)
-        </Badge>
-      )
     case "pattern_guessed_unverified":
       return (
         <Badge
-          variant="outline"
-          className="gap-1 border-amber-500/50 text-[10px] text-amber-600 dark:text-amber-400"
-        >
-          <AlertCircle className="size-3" /> Pattern Guessed (Unverified)
+          variant="warning"
+          className="gap-1">
+          <AlertTriangleSolid className="size-3" /> Pattern guessed (unverified)
         </Badge>
       )
     case "company_fallback":
       return (
         <Badge
-          variant="outline"
-          className="gap-1 text-[10px] text-muted-foreground"
-        >
-          <HelpCircle className="size-3" /> Company Fallback
+          variant="neutral"
+          className="gap-1 text-muted-foreground">
+          <HelpCircle className="size-3" /> Company fallback
         </Badge>
       )
     default:
       return (
-        <Badge variant="secondary" className="text-[10px]">
-          No Email Found
+        <Badge variant="neutral">
+          No email found
         </Badge>
       )
   }
@@ -82,10 +66,9 @@ export function DraftStatusBadge({
   if (isBouncedDraft(errorMessage, hasBounced)) {
     return (
       <Badge
-        variant="destructive"
-        className="gap-1 border-rose-500/30 bg-rose-500/15 text-xs text-rose-700 capitalize dark:text-rose-300"
-      >
-        <AlertTriangle className="size-3" /> Bounced
+        variant="danger"
+        className="gap-1">
+        <XCircleSolid className="size-3" /> Bounced
       </Badge>
     )
   }
@@ -93,34 +76,31 @@ export function DraftStatusBadge({
   switch (status) {
     case "sent":
       return (
-        <Badge className="gap-1 bg-emerald-600 text-xs text-white capitalize hover:bg-emerald-700">
+        <Badge variant="neutral" className="gap-1">
           <Check className="size-3" /> Sent
         </Badge>
       )
     case "failed":
       return (
-        <Badge variant="destructive" className="gap-1 text-xs capitalize">
-          <XCircle className="size-3" /> Failed
+        <Badge variant="danger" className="gap-1">
+          <XCircleSolid className="size-3" /> Failed
         </Badge>
       )
     case "approved":
       return (
-        <Badge
-          variant="default"
-          className="border-emerald-500/30 bg-emerald-500/15 text-xs text-emerald-700 capitalize dark:text-emerald-300"
-        >
+        <Badge variant="neutral">
           Approved
         </Badge>
       )
     case "rejected":
       return (
-        <Badge variant="destructive" className="text-xs capitalize">
+        <Badge variant="danger">
           Rejected
         </Badge>
       )
     default:
       return (
-        <Badge variant="outline" className="text-xs capitalize">
+        <Badge variant="neutral">
           Draft
         </Badge>
       )

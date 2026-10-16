@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { AlertTriangleSolid, CheckCircleSolid } from "@/components/icons/status"
 import Link from "next/link"
 import { Button, buttonVariants } from "@/components/ui/button"
 import {
@@ -14,17 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
-import {
-  Plus,
-  RefreshCw,
-  ArrowRight,
-  Target,
-  Sparkles,
-  CheckCircle2,
-  AlertCircle,
-  Send,
-  Building2,
-} from "lucide-react"
+import { Plus, RefreshCw, ArrowRight, Target, Sparkles, Send, Building2 } from "@/components/ui/icons"
 import { checkStageStaleness } from "@/lib/gtm-staleness"
 import { useHydrated } from "@/hooks/use-hydrated"
 import { LocalDate } from "@/components/ui/local-date"
@@ -102,10 +93,9 @@ export function CampaignsListClient({
     if (isStalled(campaign)) {
       return (
         <Badge
-          variant="outline"
-          className="gap-1 border-amber-500/50 bg-amber-500/10 text-xs font-medium text-amber-600 dark:text-amber-400"
-        >
-          <AlertCircle className="size-3 text-amber-500" /> Stalled (
+          variant="warning"
+          className="gap-1">
+          <AlertTriangleSolid className="size-3 text-warning" /> Stalled (
           {campaign.currentStage.replace(/_/g, " ")})
         </Badge>
       )
@@ -114,43 +104,41 @@ export function CampaignsListClient({
     switch (campaign.currentStage) {
       case "find_companies":
         return (
-          <Badge variant="secondary" className="gap-1 text-xs">
+          <Badge variant="neutral" className="gap-1">
             <Building2 className="size-3" /> Finding Companies
           </Badge>
         )
       case "awaiting_company_selection":
         return (
-          <Badge variant="outline" className="gap-1 border-amber-500/40 text-xs text-amber-700 dark:text-amber-300">
-            <AlertCircle className="size-3" /> Choose Companies
+          <Badge variant="warning" className="gap-1">
+            <AlertTriangleSolid className="size-3" /> Choose Companies
           </Badge>
         )
       case "find_contacts":
         return (
-          <Badge variant="secondary" className="gap-1 text-xs">
+          <Badge variant="neutral" className="gap-1">
             <Target className="size-3" /> Finding Contacts
           </Badge>
         )
       case "write_emails":
         return (
-          <Badge variant="secondary" className="gap-1 text-xs">
+          <Badge variant="neutral" className="gap-1">
             <Sparkles className="size-3" /> Drafting Emails
           </Badge>
         )
       case "awaiting_approval":
         return (
           <Badge
-            variant="default"
-            className="animate-pulse gap-1 bg-amber-600 text-xs font-medium text-white hover:bg-amber-700"
-          >
-            <AlertCircle className="size-3" /> Awaiting Review
+            variant="warning"
+            className="gap-1">
+            <AlertTriangleSolid className="size-3" /> Awaiting Review
           </Badge>
         )
       case "send_emails":
         return (
           <Badge
-            variant="outline"
-            className="gap-1 border-tertiary/30 bg-tertiary/10 text-xs text-tertiary"
-          >
+            variant="neutral"
+            className="gap-1 text-primary">
             <Send className="size-3" /> Sending Emails
           </Badge>
         )
@@ -158,15 +146,14 @@ export function CampaignsListClient({
       case "done_for_now":
         return (
           <Badge
-            variant="outline"
-            className="gap-1 border-emerald-500/30 text-xs text-emerald-600"
-          >
-            <CheckCircle2 className="size-3" /> Completed
+            variant="success"
+            className="gap-1">
+            <CheckCircleSolid className="size-3" /> Completed
           </Badge>
         )
       default:
         return (
-          <Badge variant="outline" className="text-xs capitalize">
+          <Badge variant="neutral" className="capitalize">
             {campaign.currentStage.replace(/_/g, " ")}
           </Badge>
         )
@@ -228,7 +215,7 @@ export function CampaignsListClient({
             </div>
             <Link
               href="/dashboard/campaigns/new"
-              className={cn(buttonVariants({ size: "default" }), "mt-2 gap-2")}
+              className={cn(buttonVariants({ size: "md" }), "mt-2 gap-2")}
             >
               <Plus className="size-4" />
               Create First Campaign
@@ -236,7 +223,7 @@ export function CampaignsListClient({
           </CardContent>
         </Card>
       ) : (
-        <div className="rounded-md border bg-card">
+        <div className="rounded-md bg-card shadow-surface">
           <Table>
             <TableHeader>
               <TableRow>
@@ -269,13 +256,12 @@ export function CampaignsListClient({
                     <TableCell>
                       {isStalled(campaign) ? (
                         <Badge
-                          variant="outline"
-                          className="border-amber-500/50 bg-amber-500/10 text-xs font-medium text-amber-600 capitalize dark:text-amber-400"
-                        >
+                          variant="warning"
+                          className="capitalize">
                           stalled
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-xs capitalize">
+                        <Badge variant="neutral" className="capitalize">
                           {campaign.status}
                         </Badge>
                       )}
@@ -297,9 +283,8 @@ export function CampaignsListClient({
                           className={cn(
                             buttonVariants({
                               size: "sm",
-                              variant: "default",
                             }),
-                            "gap-1 bg-amber-600 text-xs font-medium text-white hover:bg-amber-700"
+                            "gap-1"
                           )}
                         >
                           Review Drafts (Stage 6)

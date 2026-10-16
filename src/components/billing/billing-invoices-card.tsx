@@ -1,4 +1,4 @@
-import { Receipt, Download } from "lucide-react"
+import { Receipt, Download } from "@/components/ui/icons"
 import { Card, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { getTenantContext } from "@/lib/tenant-context"
@@ -32,11 +32,11 @@ export async function BillingInvoicesCard() {
 
       <CardContent className="p-0">
         {invoices.length === 0 ? (
-          <div className="rounded-lg border border-border/40 bg-muted/20 py-8 text-center text-xs text-muted-foreground">
+          <div className="rounded-lg bg-muted/20 py-8 text-center text-xs text-muted-foreground shadow-surface">
             No payments through Dodo yet. Invoices for card payments will appear here.
           </div>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-border/50">
+          <div className="overflow-hidden rounded-lg shadow-surface">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[600px] text-left text-xs">
                 <thead className="border-b border-border/50 bg-muted/40 text-muted-foreground">
@@ -71,8 +71,7 @@ export async function BillingInvoicesCard() {
                         <td className="px-3 py-2.5 whitespace-nowrap">
                           <Badge
                             data-paid={isPaid || undefined}
-                            className="h-4 bg-muted text-[10px] font-medium text-muted-foreground data-[paid]:border-emerald-500/20 data-[paid]:bg-emerald-500/15 data-[paid]:text-emerald-600 dark:data-[paid]:text-emerald-400"
-                          >
+                            className="h-4 bg-muted text-muted-foreground data-[paid]:border-success-border data-[paid]:bg-success-tint data-[paid]:text-success">
                             {inv.status}
                           </Badge>
                         </td>

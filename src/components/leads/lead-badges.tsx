@@ -1,4 +1,6 @@
-import { AlertTriangle } from "lucide-react"
+import { MailReply } from "@/components/ui/icons"
+import { AlertTriangleSolid, CheckCircleSolid, XCircleSolid } from "@/components/icons/status"
+import { isVerifiedStatus } from "@/lib/email-verification"
 import { Badge } from "@/components/ui/badge"
 import { isValidPersonName } from "@/lib/gtm-contact-matcher"
 
@@ -30,11 +32,10 @@ export function LeadStatusBadge({
   if (status === "lookup_incomplete") {
     return (
       <Badge
-        variant="outline"
+        variant="warning"
         title="Web lookups for this contact were rate-limited. It was not disqualified."
-        className="inline-flex items-center gap-1 border-amber-500/40 bg-amber-500/10 text-[11px] font-medium text-amber-600 dark:text-amber-400"
-      >
-        <AlertTriangle className="size-3 shrink-0 text-amber-500" />
+        className="inline-flex items-center gap-1">
+        <AlertTriangleSolid className="size-3 shrink-0 text-warning" />
         Lookup Incomplete
       </Badge>
     )
@@ -48,10 +49,9 @@ export function LeadStatusBadge({
   if (isPendingRediscovery) {
     return (
       <Badge
-        variant="outline"
-        className="inline-flex items-center gap-1 border-amber-500/40 bg-amber-500/10 text-[11px] font-medium text-amber-600 dark:text-amber-400"
-      >
-        <AlertTriangle className="size-3 shrink-0 text-amber-500" />
+        variant="warning"
+        className="inline-flex items-center gap-1">
+        <AlertTriangleSolid className="size-3 shrink-0 text-warning" />
         Pending Re-discovery
       </Badge>
     )
@@ -59,76 +59,73 @@ export function LeadStatusBadge({
 
   switch (status) {
     case "meeting_booked":
-      return <Badge variant="default">Meeting Booked</Badge>
+      return <Badge variant="neutral">Meeting Booked</Badge>
     case "replied":
-      return <Badge variant="default">Replied</Badge>
+      return (
+        <Badge variant="neutral">
+          <MailReply data-icon="inline-start" />
+          Replied
+        </Badge>
+      )
     case "sent":
-      return <Badge variant="secondary">Sent</Badge>
+      return <Badge variant="neutral">Sent</Badge>
     case "bounced":
       return (
         <Badge
-          variant="outline"
-          className="inline-flex items-center gap-1 border-rose-500/40 bg-rose-500/10 text-[11px] font-medium text-rose-600 dark:text-rose-400"
-        >
-          <AlertTriangle className="size-3 shrink-0 text-rose-500" />
+          variant="danger"
+          className="inline-flex items-center gap-1">
+          <XCircleSolid className="size-3 shrink-0 text-danger" />
           Bounced
         </Badge>
       )
     case "approved":
-      return <Badge variant="outline">Approved</Badge>
+      return <Badge variant="neutral">Approved</Badge>
     case "drafted":
-      return <Badge variant="outline">Drafted</Badge>
+      return <Badge variant="neutral">Drafted</Badge>
     case "disqualified":
-      return <Badge variant="destructive">Disqualified</Badge>
+      return <Badge variant="danger">Disqualified</Badge>
     case "failed":
-      return <Badge variant="destructive">Failed</Badge>
+      return <Badge variant="danger">Failed</Badge>
     case "discovered":
     default:
-      return <Badge variant="secondary">Discovered</Badge>
+      return <Badge variant="neutral">Discovered</Badge>
   }
 }
 
 /** How confident we are in the lead's email address. */
 export function VerificationBadge({ status }: { status: string }) {
+  if (isVerifiedStatus(status)) {
+    return (
+      <Badge variant="success">
+        <CheckCircleSolid data-icon="inline-start" />
+        Verified
+      </Badge>
+    )
+  }
+
   switch (status) {
-    case "verified":
-    case "enrich_verified":
-      return (
-        <Badge variant="default" className="text-[10px]">
-          Verified
-        </Badge>
-      )
-    case "pattern_guessed_mx_valid":
-      return (
-        <Badge
-          variant="outline"
-          className="border-emerald-500/40 text-[10px] text-emerald-600"
-        >
-          MX Valid
-        </Badge>
-      )
     case "pattern_guessed_unverified":
       return (
-        <Badge variant="secondary" className="text-[10px]">
+        <Badge variant="neutral">
           Pattern Guessed
         </Badge>
       )
     case "found_on_site":
       return (
-        <Badge variant="outline" className="text-[10px]">
+        <Badge variant="neutral">
           Found on Site
         </Badge>
       )
     case "company_fallback":
       return (
-        <Badge variant="secondary" className="text-[10px]">
+        <Badge variant="neutral">
           Company Fallback
         </Badge>
       )
     case "unverified":
     default:
       return (
-        <Badge variant="secondary" className="text-[10px]">
+        <Badge variant="neutral">
           Unverified
         </Badge>
       )

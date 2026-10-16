@@ -2,211 +2,177 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { toast } from "sonner"
-import { Plus, RefreshCw, Sparkles } from "lucide-react"
 import { Button, buttonVariants } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import {
+  DataTable,
+  DataTableMessage,
+  FilterChips,
+} from "@/components/ui/data-table"
+import { useUrlFilter } from "@/components/ui/data-table/use-url-filter"
+import { RefreshCw } from "@/components/ui/icons"
+import { useHydrated } from "@/hooks/use-hydrated"
 import { cn } from "@/lib/utils"
-import { SegmentDigestCard } from "../segment-digest-card"
-import { ActiveCampaignCard } from "./active-campaign-card"
-import { ResearchRunCard } from "./research-run-card"
-import { ResearchRunDetailCard } from "./research-run-detail-card"
-import type { CampaignItem, ResearchRunDetail, ResearchRunItem } from "./types"
+import {
+  CAMPAIGN_BUCKETS,
+  bucketChips,
+  campaignStatus,
+} from "../pipeline-status"
+import { campaignColumns, type CampaignTableRow } from "./campaign-columns"
+import type { CampaignRow } from "./types"
+
+/*
+ * Parked: "Segment performance & learning digests" (SegmentDigestCard per ICP
+ * segment, with Recompute digest) used to render on this page under the
+ * campaign cards. It is hidden for now, not deleted: the component
+ * (gtm/segment-digest-card.tsx), its routes (api/gtm/segments/[id]/digest,
+ * api/gtm/digests) and the generate-digest cron are unchanged. To bring it
+ * back, render <SegmentDigestCard segmentId segmentName /> once per segment.
+ */
 
 const POLL_INTERVAL_MS = 6000
+const BUCKET_VALUES = CAMPAIGN_BUCKETS.map((b) => b.value)
 
 /**
- * /dashboard/campaigns body. Starts from server-fetched runs and campaigns, then
- * polls both list routes so stage changes show up without a reload.
+ * /dashboard/campaigns: every outreach campaign as one table, filtered by
+ * status (?status=). Starts from the server-fetched rows and polls
+ * GET /api/gtm/campaigns so stage changes show up without a reload.
  */
 export function CampaignsOverviewClient({
-  initialRuns,
   initialCampaigns,
 }: {
-  initialRuns: ResearchRunItem[]
-  initialCampaigns: CampaignItem[]
+  initialCampaigns: CampaignRow[]
 }) {
-  const [runs, setRuns] = React.useState(initialRuns)
   const [campaigns, setCampaigns] = React.useState(initialCampaigns)
-  const [activeRunDetail, setActiveRunDetail] =
-    React.useState<ResearchRunDetail | null>(null)
-  const [startingSegmentId, setStartingSegmentId] = React.useState<
-    string | null
-  >(null)
+  const [refreshing, setRefreshing] = React.useState(false)
+  const [loadError, setLoadError] = React.useState(false)
+  const [filter, setFilter] = useUrlFilter("status", BUCKET_VALUES)
+  const hydrated = useHydrated()
 
-  const fetchData = React.useCallback(async () => {
+  const fetchCampaigns = React.useCallback(async () => {
     try {
-      const [runsRes, campaignsRes] = await Promise.all([
-        fetch("/api/gtm/research-runs"),
-        fetch("/api/gtm/campaigns"),
-      ])
-      const [runsData, campaignsData] = await Promise.all([
-        runsRes.json(),
-        campaignsRes.json(),
-      ])
-
-      if (runsData.runs) setRuns(runsData.runs)
-      if (campaignsData.campaigns) setCampaigns(campaignsData.campaigns)
+      const res = await fetch("/api/gtm/campaigns")
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      if (data.campaigns) setCampaigns(data.campaigns)
+      setLoadError(false)
     } catch (e) {
-      console.error("Failed to load GTM data:", e)
+      console.error("Failed to load campaigns:", e)
+      setLoadError(true)
     }
   }, [])
 
   React.useEffect(() => {
-    const interval = setInterval(fetchData, POLL_INTERVAL_MS)
+    const interval = setInterval(fetchCampaigns, POLL_INTERVAL_MS)
     return () => clearInterval(interval)
-  }, [fetchData])
+  }, [fetchCampaigns])
 
-  const inspectRun = async (runId: string) => {
-    try {
-      const res = await fetch(`/api/gtm/research-runs/${runId}`)
-      const data = await res.json()
-      if (data.success) setActiveRunDetail(data)
-    } catch {
-      toast.error("Failed to load research run details")
-    }
+  const refresh = async () => {
+    setRefreshing(true)
+    await fetchCampaigns()
+    setRefreshing(false)
   }
 
-  const handleStartCampaign = async (icpSegmentId: string) => {
-    setStartingSegmentId(icpSegmentId)
-    try {
-      const res = await fetch("/api/gtm/campaigns", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ icpSegmentId }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || "Failed to start campaign")
-
-      toast.success("Outreach campaign launched for this segment!")
-      await fetchData()
-      if (activeRunDetail?.researchRun?.id) {
-        await inspectRun(activeRunDetail.researchRun.id)
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to start campaign")
-    } finally {
-      setStartingSegmentId(null)
-    }
-  }
-
-  // One digest per ICP segment, even when a segment has several campaigns.
-  const campaignPerSegment = Array.from(
-    new Map(campaigns.map((c) => [c.campaign.icpSegmentId, c])).values()
+  const rows: CampaignTableRow[] = React.useMemo(
+    () =>
+      campaigns.map((row) => ({
+        ...row,
+        status: campaignStatus(row.campaign, hydrated),
+        // The segment (ICP) names the campaign; the old "<Company> Campaign" is the fallback.
+        name: row.segmentName || `${row.researchRun.companyName} campaign`,
+        lastActivity:
+          row.campaign.lastProgressAt ||
+          row.campaign.stageStartedAt ||
+          row.campaign.createdAt,
+      })),
+    [campaigns, hydrated]
   )
 
+  const chips = bucketChips(
+    CAMPAIGN_BUCKETS,
+    rows.map((r) => r.status)
+  )
+  const visible =
+    filter === "all" ? rows : rows.filter((r) => r.status.bucket === filter)
+
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            GTM Campaigns & Research
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Autonomous market research, competitor benchmarking, ICP generation,
-            and cold outreach.
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h1 className="text-title text-fg-strong">Campaigns</h1>
+          <p className="text-body text-fg-muted">
+            Every outreach campaign, where it is in the pipeline and what it
+            needs from you.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchData}
-            className="gap-1.5"
-          >
-            <RefreshCw className="size-3.5" />
+        <div className="flex items-center gap-2">
+          <Button onClick={refresh} loading={refreshing}>
+            <RefreshCw data-icon="inline-start" />
             Refresh
           </Button>
-          <Link
-            href="/dashboard/campaigns/new"
-            className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}
-          >
-            <Plus className="size-4" />
-            New Research Run
+          {/* Campaigns start from a research run's segments; this is the way in. */}
+          <Link href="/dashboard/campaigns/new" className={buttonVariants()}>
+            New research run
           </Link>
         </div>
       </div>
 
       {campaigns.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="text-sm font-semibold tracking-wide text-foreground uppercase">
-            Active Outreach Campaigns
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {campaigns.map((item) => (
-              <ActiveCampaignCard key={item.campaign.id} {...item} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {campaigns.length > 0 && (
-        <div className="space-y-3">
-          <div>
-            <h2 className="text-sm font-semibold tracking-wide text-foreground uppercase">
-              Segment Performance & Learning Digests
-            </h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Periodic performance digests to evaluate ICP conversion and double
-              down on what works.
-            </p>
-          </div>
-          <div className="space-y-3">
-            {campaignPerSegment.map(({ campaign, researchRun }) => (
-              <SegmentDigestCard
-                key={campaign.icpSegmentId}
-                segmentId={campaign.icpSegmentId}
-                segmentName={`${researchRun.companyName} ICP Segment`}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold tracking-wide text-foreground uppercase">
-          Company Research Runs
-        </h2>
-        {runs.length === 0 ? (
-          <Card className="border-dashed p-8 text-center">
-            <div className="flex flex-col items-center justify-center space-y-3">
-              <Sparkles className="size-8 text-muted-foreground" />
-              <div className="space-y-1">
-                <h3 className="text-sm font-medium text-foreground">
-                  No research runs yet
-                </h3>
-                <p className="max-w-sm text-xs text-muted-foreground">
-                  Start by providing your company website. Our autonomous agent
-                  will analyze your product, map competitors, and propose
-                  verified ICP segments.
-                </p>
-              </div>
-              <Link
-                href="/dashboard/campaigns/new"
-                className={cn(buttonVariants({ size: "sm" }), "mt-2 gap-1.5")}
-              >
-                <Plus className="size-4" />
-                Launch First Research Run
-              </Link>
-            </div>
-          </Card>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {runs.map((run) => (
-              <ResearchRunCard key={run.id} run={run} onSelect={inspectRun} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {activeRunDetail && (
-        <ResearchRunDetailCard
-          detail={activeRunDetail}
-          startingSegmentId={startingSegmentId}
-          onStartCampaign={handleStartCampaign}
-          onClose={() => setActiveRunDetail(null)}
+        <FilterChips
+          label="Filter campaigns by status"
+          chips={chips}
+          value={filter}
+          onChange={setFilter}
+          total={rows.length}
         />
       )}
+
+      <DataTable
+        label="Campaigns"
+        columns={campaignColumns}
+        rows={visible}
+        rowKey={(row) => row.campaign.id}
+        rowHref={(row) => `/dashboard/campaigns/${row.campaign.id}`}
+        defaultSort={{ columnId: "activity", direction: "desc" }}
+        error={
+          loadError && campaigns.length === 0 ? (
+            <DataTableMessage
+              role="alert"
+              title="Campaigns didn't load"
+              description="Check your connection, then refresh."
+              action={
+                <Button size="sm" onClick={refresh}>
+                  Refresh
+                </Button>
+              }
+            />
+          ) : undefined
+        }
+        empty={
+          campaigns.length === 0 ? (
+            <DataTableMessage
+              title="No campaigns yet"
+              description="Campaigns start from the segments of a research run."
+              action={
+                <Link
+                  href="/dashboard/research"
+                  className={cn(buttonVariants({ size: "sm" }))}
+                >
+                  Go to research
+                </Link>
+              }
+            />
+          ) : (
+            <DataTableMessage
+              title="No campaigns with this status"
+              action={
+                <Button size="sm" onClick={() => setFilter("all")}>
+                  Show all campaigns
+                </Button>
+              }
+            />
+          )
+        }
+      />
     </div>
   )
 }

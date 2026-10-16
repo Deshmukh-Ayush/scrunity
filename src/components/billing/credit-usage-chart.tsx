@@ -34,7 +34,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   RotateCcw,
-} from "lucide-react"
+} from "@/components/ui/icons"
 
 export type RangeType = "daily" | "weekly" | "monthly"
 
@@ -57,7 +57,7 @@ export interface RecentTx {
 const chartConfig: ChartConfig = {
   prospectsSent: {
     label: "Prospects Sent",
-    color: "var(--color-primary, #6366f1)",
+    color: "var(--chart-4)",
   },
 }
 
@@ -130,27 +130,24 @@ export function CreditUsageChart({
         </div>
 
         {/* Filter buttons: Daily, Weekly, Monthly */}
-        <div className="flex shrink-0 flex-wrap items-center gap-1 rounded-lg border border-border/50 bg-muted/60 p-1">
+        <div className="flex shrink-0 flex-wrap items-center gap-1 rounded-lg bg-muted/60 p-1 shadow-surface">
           <Button
-            variant={range === "daily" ? "default" : "ghost"}
+            variant={range === "daily" ? "secondary" : "ghost"}
             size="sm"
-            className="h-7 px-2.5 text-xs"
             onClick={() => setRange("daily")}
           >
             Daily (14d)
           </Button>
           <Button
-            variant={range === "weekly" ? "default" : "ghost"}
+            variant={range === "weekly" ? "secondary" : "ghost"}
             size="sm"
-            className="h-7 px-2.5 text-xs"
             onClick={() => setRange("weekly")}
           >
             Weekly (8w)
           </Button>
           <Button
-            variant={range === "monthly" ? "default" : "ghost"}
+            variant={range === "monthly" ? "secondary" : "ghost"}
             size="sm"
-            className="h-7 px-2.5 text-xs"
             onClick={() => setRange("monthly")}
           >
             Monthly (6m)
@@ -193,8 +190,8 @@ export function CreditUsageChart({
               >
                 <defs>
                   <linearGradient id="colorUsage" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0.0} />
+                    <stop offset="5%" stopColor="var(--chart-4)" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="var(--chart-4)" stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid
@@ -208,14 +205,14 @@ export function CreditUsageChart({
                   axisLine={false}
                   tickMargin={8}
                   fontSize={11}
-                  stroke="#888888"
+                  stroke="var(--text-muted)"
                 />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
                   tickMargin={8}
                   fontSize={11}
-                  stroke="#888888"
+                  stroke="var(--text-muted)"
                   allowDecimals={false}
                   width={36}
                 />
@@ -224,7 +221,7 @@ export function CreditUsageChart({
                     if (active && payload && payload.length) {
                       const item = payload[0].payload as UsageDataPoint
                       return (
-                        <div className="rounded-lg border border-border bg-popover p-2.5 text-xs shadow-md">
+                        <div className="rounded-lg bg-popover p-2.5 text-xs shadow-md shadow-floating">
                           <p className="font-semibold text-foreground">
                             {item.label}
                           </p>
@@ -244,7 +241,7 @@ export function CreditUsageChart({
                 <Area
                   type="monotone"
                   dataKey="prospectsSent"
-                  stroke="#6366f1"
+                  stroke="var(--chart-4)"
                   strokeWidth={2}
                   fillOpacity={1}
                   fill="url(#colorUsage)"
@@ -270,7 +267,7 @@ export function CreditUsageChart({
             in Stage 7.
           </p>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-border/50">
+          <div className="overflow-hidden rounded-lg shadow-surface">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[540px] text-left text-xs">
                 <thead className="border-b border-border/50 bg-muted/40 text-muted-foreground">
@@ -295,20 +292,18 @@ export function CreditUsageChart({
 
                     const badge = isDebit ? (
                       <Badge
-                        variant="outline"
-                        className="h-4 text-[10px] text-muted-foreground"
-                      >
+                        variant="neutral"
+                        className="h-4 text-muted-foreground">
                         Debit
                       </Badge>
                     ) : isTopup ? (
-                      <Badge className="h-4 border-emerald-500/20 bg-emerald-500/15 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                      <Badge variant="neutral" className="h-4">
                         {isGrant ? "Granted" : "Top-Up"}
                       </Badge>
                     ) : (
                       <Badge
-                        variant="secondary"
-                        className="h-4 text-[10px] font-medium"
-                      >
+                        variant="neutral"
+                        className="h-4">
                         Period Reset
                       </Badge>
                     )
@@ -342,9 +337,9 @@ export function CreditUsageChart({
                         </td>
                         <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">
                           {isDebit ? (
-                            <span className="text-red-500">-{tx.amount}</span>
+                            <span className="text-danger">-{tx.amount}</span>
                           ) : isTopup ? (
-                            <span className="text-emerald-500">
+                            <span className="text-success">
                               +{tx.amount}
                             </span>
                           ) : (

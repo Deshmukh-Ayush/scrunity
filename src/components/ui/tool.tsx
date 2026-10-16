@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { CheckCircleSolid } from "@/components/icons/status"
 import { useState } from "react";
 import {
   Collapsible,
@@ -9,7 +10,6 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import {
-  CheckCircle2,
   ChevronDown,
   Loader2,
   AlertCircle,
@@ -20,10 +20,8 @@ import {
   RotateCcw,
   Mail,
   Sparkles,
-  ExternalLink,
   Building2,
-  BadgeCheck,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { Badge } from "@/components/ui/badge";
 
 export type ToolPart = {
@@ -108,14 +106,14 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
         <div className="flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2 min-w-0">
             <div className="size-6 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
-              <Sparkles className="size-3.5 animate-pulse text-primary" />
+              <Sparkles className="size-3.5 text-primary" />
             </div>
-            <span className="text-xs font-medium text-foreground tracking-tight animate-pulse truncate">
+            <span className="text-xs font-medium text-foreground tracking-tight truncate">
               {meta.inProgressLabel}
             </span>
           </div>
 
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/20 animate-pulse shrink-0">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/20 shrink-0">
             <Loader2 className="size-2.5 animate-spin" />
             Working…
           </span>
@@ -129,9 +127,8 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
     if (state === "output-error") {
       return (
         <Badge
-          variant="outline"
-          className="text-[10px] h-4.5 px-1.5 border-destructive/30 bg-destructive/10 text-destructive gap-1"
-        >
+          variant="neutral"
+          className="h-4.5 px-1.5 border-destructive/30 bg-danger-tint text-danger gap-1">
           <AlertCircle className="size-2.5" />
           Failed
         </Badge>
@@ -143,9 +140,8 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
       const count = (output as any)?.count ?? (Array.isArray(camps) ? camps.length : 0);
       return (
         <Badge
-          variant="outline"
-          className="text-[10px] h-4.5 px-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-        >
+          variant="success"
+          className="h-4.5 px-1.5">
           {count > 0 ? `${count} campaigns found` : "No active campaigns"}
         </Badge>
       );
@@ -156,9 +152,8 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
       const count = (output as any)?.count ?? (Array.isArray(results) ? results.length : 0);
       return (
         <Badge
-          variant="outline"
-          className="text-[10px] h-4.5 px-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-        >
+          variant="success"
+          className="h-4.5 px-1.5">
           {count > 0 ? `${count} companies found` : "0 prospects found"}
         </Badge>
       );
@@ -166,10 +161,9 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
 
     return (
       <Badge
-        variant="outline"
-        className="text-[10px] h-4.5 px-1.5 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 gap-1"
-      >
-        <CheckCircle2 className="size-2.5" />
+        variant="success"
+        className="h-4.5 px-1.5 gap-1">
+        <CheckCircleSolid className="size-2.5" />
         Completed
       </Badge>
     );
@@ -195,8 +189,8 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
               className={cn(
                 "size-6 rounded-lg flex items-center justify-center shrink-0",
                 state === "output-error"
-                  ? "bg-destructive/10 text-destructive"
-                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  ? "bg-danger-tint text-danger"
+                  : "bg-success-tint text-success"
               )}
             >
               {state === "output-error" ? (
@@ -224,7 +218,7 @@ export function Tool({ toolPart, defaultOpen = false, className }: ToolProps) {
         <CollapsibleContent className="p-3 space-y-3 bg-muted/10">
           {/* Error View */}
           {state === "output-error" && (
-            <div className="p-2.5 rounded-lg border border-destructive/20 bg-destructive/5 text-xs text-destructive flex items-start gap-2">
+            <div className="p-2.5 rounded-lg border border-destructive/20 bg-destructive/5 text-xs text-danger flex items-start gap-2">
               <AlertCircle className="size-4 shrink-0 mt-0.5" />
               <div className="min-w-0">
                 <p className="font-medium">Execution Error</p>
@@ -308,16 +302,15 @@ function CampaignOverviewRenderer({ output }: { output?: Record<string, unknown>
             </div>
 
             <Badge
-              variant="outline"
+              variant="neutral"
               className={cn(
                 "text-[9px] px-1.5 py-0 capitalize font-mono shrink-0",
                 camp.status === "in_progress"
-                  ? "border-tertiary/30 bg-tertiary/10 text-tertiary"
+                  ? "border-primary/30 bg-primary/10 text-primary"
                   : camp.status === "done"
-                  ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                  ? "border-success-border bg-success-tint text-success"
                   : "border-border text-muted-foreground"
-              )}
-            >
+              )}>
               {camp.status.replace(/_/g, " ")}
             </Badge>
           </div>
@@ -329,7 +322,7 @@ function CampaignOverviewRenderer({ output }: { output?: Record<string, unknown>
             <span>👥 {camp.prospectCount ?? 0} prospects</span>
             <span>✉️ {camp.draftCount ?? 0} drafts</span>
             {camp.pendingDrafts > 0 && (
-              <span className="text-amber-600 dark:text-amber-400 font-medium">
+              <span className="text-warning font-medium">
                 ⚠️ {camp.pendingDrafts} review needed
               </span>
             )}
@@ -394,17 +387,15 @@ function ProspectsRenderer({ output }: { output?: Record<string, unknown> }) {
                     </span>
                     {contact.verified ? (
                       <Badge
-                        variant="outline"
-                        className="text-[9px] px-1 py-0 border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 gap-0.5"
-                      >
-                        <BadgeCheck className="size-2.5" />
+                        variant="success"
+                        className="px-1 py-0 gap-0.5">
+                        <CheckCircleSolid className="size-2.5" />
                         Verified
                       </Badge>
                     ) : (
                       <Badge
-                        variant="outline"
-                        className="text-[9px] px-1 py-0 border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                      >
+                        variant="warning"
+                        className="px-1 py-0">
                         Guessed
                       </Badge>
                     )}

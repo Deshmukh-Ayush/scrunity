@@ -1,4 +1,4 @@
-import { Building2, Globe, Loader2, Mail } from "lucide-react"
+import { Building2, Globe, Loader2, Mail } from "@/components/ui/icons"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -57,7 +57,7 @@ export function ResearchRunDetailCard({
               {competitors.map((c) => (
                 <div
                   key={c.id}
-                  className="space-y-1 rounded-md border bg-muted/20 p-2.5 text-xs"
+                  className="space-y-1 rounded-md bg-muted/20 p-2.5 text-xs shadow-surface"
                 >
                   <div className="flex items-center justify-between font-medium text-foreground">
                     <span>{c.name}</span>
@@ -89,7 +89,7 @@ export function ResearchRunDetailCard({
               {segments.map((seg) => (
                 <div
                   key={seg.id}
-                  className="space-y-2.5 rounded-lg border bg-card p-3.5 transition-all hover:border-foreground/30"
+                  className="space-y-2.5 rounded-lg bg-card p-3.5 shadow-surface transition-all"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -102,7 +102,7 @@ export function ResearchRunDetailCard({
                       size="sm"
                       disabled={startingSegmentId === seg.id}
                       onClick={() => onStartCampaign(seg.id)}
-                      className="h-7 gap-1.5 text-xs"
+                      className="gap-1.5"
                     >
                       {startingSegmentId === seg.id ? (
                         <Loader2 className="size-3 animate-spin" />
@@ -121,11 +121,7 @@ export function ResearchRunDetailCard({
                     {seg.criteria && seg.criteria.length > 0 && (
                       <div className="flex flex-wrap gap-1 pt-1">
                         {seg.criteria.map((cr, i) => (
-                          <Badge
-                            key={i}
-                            variant="outline"
-                            className="py-0 text-[10px]"
-                          >
+                          <Badge key={i} variant="neutral" className="py-0">
                             {cr}
                           </Badge>
                         ))}

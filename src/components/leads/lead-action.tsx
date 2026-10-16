@@ -9,7 +9,7 @@ import {
   RefreshCw,
   Send,
   Sparkles,
-} from "lucide-react"
+} from "@/components/ui/icons"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { isValidPersonName } from "@/lib/gtm-contact-matcher"
@@ -33,8 +33,8 @@ function InlineNote({
       className={cn(
         "inline-flex max-w-[150px] items-center gap-1 truncate text-[11px] italic",
         "data-[tone=muted]:text-muted-foreground",
-        "data-[tone=warning]:font-medium data-[tone=warning]:text-amber-600 dark:data-[tone=warning]:text-amber-400",
-        "data-[tone=danger]:font-medium data-[tone=danger]:text-rose-600 dark:data-[tone=danger]:text-rose-400"
+        "data-[tone=warning]:font-medium data-[tone=warning]:text-warning",
+        "data-[tone=danger]:font-medium data-[tone=danger]:text-danger"
       )}
     >
       {children}
@@ -74,7 +74,7 @@ export function LeadAction({
         title={formatted.formattedMessage}
       >
         {isPendingRediscovery && (
-          <AlertTriangle className="size-3 shrink-0 text-amber-500" />
+          <AlertTriangle className="size-3 shrink-0 text-warning" />
         )}
         <span className="truncate">{formatted.formattedMessage}</span>
       </InlineNote>
@@ -87,7 +87,7 @@ export function LeadAction({
         tone="danger"
         title="Email delivery failed (bounced) — pending re-discovery"
       >
-        <AlertCircle className="size-3 shrink-0 text-rose-500" />
+        <AlertCircle className="size-3 shrink-0 text-danger" />
         <span className="truncate">Pending Re-discovery</span>
       </InlineNote>
     )
@@ -99,10 +99,10 @@ export function LeadAction({
         variant="outline"
         size="sm"
         disabled
-        className="h-7 cursor-not-allowed gap-1.5 border-amber-500/40 bg-amber-500/5 px-2.5 text-xs text-amber-600 opacity-60 dark:text-amber-400"
+        className="cursor-not-allowed gap-1.5 opacity-60"
         title="Contact name is a job title — pending re-discovery"
       >
-        <AlertCircle className="size-3 text-amber-500" />
+        <AlertCircle className="size-3 text-warning" />
         Pending Re-discovery
       </Button>
     )
@@ -112,7 +112,7 @@ export function LeadAction({
   if (!gateCheck.qualified) {
     return (
       <InlineNote tone="warning" title={gateCheck.reason || ""}>
-        <AlertTriangle className="size-3 shrink-0 text-amber-500" />
+        <AlertTriangle className="size-3 shrink-0 text-warning" />
         <span className="truncate">{gateCheck.reason}</span>
       </InlineNote>
     )
@@ -150,7 +150,7 @@ export function LeadAction({
         variant="outline"
         size="sm"
         onClick={() => onReview(lead)}
-        className="h-7 gap-1.5 border-emerald-500/40 px-2.5 text-xs font-medium text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
+        className="gap-1.5"
       >
         <Send className="size-3" />
         Review & Send
@@ -165,7 +165,7 @@ export function LeadAction({
     return (
       <div className="flex items-center justify-end gap-1.5">
         <span
-          className="max-w-[120px] truncate text-[11px] font-medium text-rose-600 italic dark:text-rose-400"
+          className="max-w-[120px] truncate text-[11px] font-medium text-danger italic"
           title={formatted.formattedMessage}
         >
           {formatted.headline}
@@ -175,7 +175,7 @@ export function LeadAction({
           size="sm"
           onClick={() => onDraft(lead)}
           disabled={isDrafting}
-          className="h-7 gap-1 px-2 text-xs text-rose-600 hover:bg-rose-500/10 hover:text-rose-700"
+          className="gap-1"
           title="Retry drafting"
         >
           {isDrafting ? (
@@ -195,7 +195,7 @@ export function LeadAction({
       size="sm"
       onClick={() => onDraft(lead)}
       disabled={isDrafting}
-      className="h-7 gap-1.5 border-primary/40 px-2.5 text-xs font-medium text-primary hover:bg-primary/10 hover:text-primary"
+      className="gap-1.5"
     >
       {isDrafting ? (
         <Loader2 className="size-3 animate-spin" />

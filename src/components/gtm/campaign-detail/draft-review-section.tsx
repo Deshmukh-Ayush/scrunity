@@ -1,6 +1,6 @@
 "use client"
 
-import { AlertTriangle, CheckCircle2, Loader2, Mail } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Loader2, Mail } from "@/components/ui/icons"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { useCampaignDetail } from "./campaign-detail-root"
@@ -21,7 +21,7 @@ function EmptyDrafts() {
     "Run the autonomous research pipeline to discover ICP companies, scrape key decision-makers, and draft emails."
 
   if (campaign.status === "in_progress" && staleness.isStalled) {
-    icon = <AlertTriangle className="size-6 text-amber-500" />
+    icon = <AlertTriangle className="size-6 text-warning" />
     title = "Pipeline Execution Stalled"
     body = staleness.explanation
   } else if (campaign.status === "in_progress") {
@@ -81,10 +81,10 @@ export function DraftReviewSection() {
           {counts.pending > 0 && (
             <Button
               variant="outline"
-              size="sm"
+              size="md"
               onClick={approveAllDrafts}
               disabled={isUpdating}
-              className="h-8 gap-1.5 border-emerald-500/40 text-xs text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
+              className="gap-1.5"
             >
               {isUpdating ? (
                 <Loader2 className="size-3.5 animate-spin" />

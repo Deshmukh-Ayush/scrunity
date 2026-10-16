@@ -8,7 +8,7 @@ import {
   Mail,
   Send,
   XCircle,
-} from "lucide-react"
+} from "@/components/ui/icons"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -57,7 +57,7 @@ async function postJson(url: string, body: unknown, fallbackError: string) {
 
 function BlockedNotice({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-2.5 text-xs text-destructive">
+    <div className="flex items-center gap-2 rounded-md bg-danger-tint p-2.5 text-xs text-danger shadow-surface">
       <AlertCircle className="size-4 shrink-0" />
       <span>{children}</span>
     </div>
@@ -188,7 +188,7 @@ export function LeadReviewDialog({
 
         {lead && (
           <div className="space-y-4 pt-2">
-            <div className="space-y-2 rounded-lg border border-border/60 bg-muted/40 p-3 text-xs">
+            <div className="space-y-2 rounded-lg bg-muted/40 p-3 text-xs shadow-surface">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-foreground">
@@ -276,10 +276,10 @@ export function LeadReviewDialog({
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
+                size="md"
                 onClick={reject}
                 disabled={isPending}
-                className="h-8 w-full gap-1.5 border-rose-500/30 text-xs text-rose-600 hover:bg-rose-500/10 hover:text-rose-700 sm:w-auto"
+                className="w-full gap-1.5 sm:w-auto"
               >
                 <XCircle className="size-3.5" />
                 Reject Draft
@@ -288,17 +288,17 @@ export function LeadReviewDialog({
               <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
+                  variant="brand"
+                  size="md"
                   onClick={approve}
                   disabled={isPending}
-                  className="h-8 gap-1.5 border-emerald-500/40 text-xs text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
+                  className="gap-1.5"
                 >
                   <CheckCircle2 className="size-3.5" />
                   Save & Approve
                 </Button>
 
-                <div className="flex items-center gap-1.5 rounded border border-border/40 bg-muted/60 px-2 py-1 text-xs">
+                <div className="flex items-center gap-1.5 rounded bg-muted/60 px-2 py-1 text-xs shadow-surface">
                   <span className="text-[11px] font-medium text-muted-foreground">
                     Confidence:
                   </span>
@@ -307,12 +307,12 @@ export function LeadReviewDialog({
 
                 <Button
                   type="button"
-                  size="sm"
+                  size="md"
                   onClick={send}
                   disabled={
                     isPending || !lead.email || !nameValid || !gate.qualified
                   }
-                  className="h-8 gap-1.5 text-xs shadow-sm"
+                  className="gap-1.5"
                   title={
                     !nameValid
                       ? "Sending blocked: Contact name is invalid (pending re-discovery)"

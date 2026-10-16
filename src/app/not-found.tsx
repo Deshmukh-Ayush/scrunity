@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { FileQuestion } from "lucide-react";
+import { FileQuestion } from "@/components/ui/icons";
 
 export default function GlobalNotFound() {
   return (
@@ -13,7 +13,7 @@ export default function GlobalNotFound() {
         We couldn't find the page you were looking for. It might have been moved or deleted.
       </p>
       <Link href="/dashboard">
-        <Button variant="default">Return to Dashboard</Button>
+        <Button>Return to Dashboard</Button>
       </Link>
     </div>
   );

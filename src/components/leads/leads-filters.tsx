@@ -1,6 +1,6 @@
 "use client"
 
-import { Search, X } from "lucide-react"
+import { Search, X } from "@/components/ui/icons"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -49,7 +49,7 @@ export function LeadsFilters({
   onReset: () => void
 }) {
   return (
-    <div className="flex flex-col items-stretch gap-3 rounded-lg border border-border/60 bg-card p-3 sm:flex-row sm:items-center">
+    <div className="flex flex-col items-stretch gap-3 rounded-lg bg-card p-3 sm:flex-row sm:items-center shadow-surface">
       <div className="relative min-w-[220px] flex-1">
         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -58,7 +58,7 @@ export function LeadsFilters({
           aria-label="Search leads"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="h-8 bg-background pr-7 pl-8 text-xs"
+          className="pr-7 pl-8"
         />
         {search && (
           <Button
@@ -83,7 +83,7 @@ export function LeadsFilters({
           }
         >
           <SelectTrigger
-            className="h-8 w-full bg-background text-xs"
+            className="w-full"
             aria-label="Campaign"
           >
             <SelectValue placeholder="All Campaigns" />
@@ -107,7 +107,7 @@ export function LeadsFilters({
           }
         >
           <SelectTrigger
-            className="h-8 w-full bg-background text-xs"
+            className="w-full"
             aria-label="Status"
           >
             <SelectValue placeholder="All Statuses" />
@@ -125,9 +125,9 @@ export function LeadsFilters({
       {hasActiveFilters && (
         <Button
           variant="ghost"
-          size="sm"
+          size="md"
           onClick={onReset}
-          className="h-8 shrink-0 px-2 text-xs text-muted-foreground hover:text-foreground"
+          className="shrink-0 text-muted-foreground hover:text-foreground"
         >
           <X className="mr-1 size-3" />
           Reset

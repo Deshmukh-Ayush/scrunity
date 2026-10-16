@@ -11,7 +11,7 @@ import {
   Tag,
   UserRound,
   Users,
-} from "lucide-react"
+} from "@/components/ui/icons"
 import { Button } from "@/components/ui/button"
 import {
   Table,
@@ -76,7 +76,7 @@ export function CompanySelectionToolbar() {
       {discoveryNote && (
         <p
           role="status"
-          className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-foreground"
+          className="rounded-md border border-warning-border bg-warning-tint p-2.5 text-xs text-foreground"
         >
           {discoveryNote}
         </p>
@@ -101,7 +101,6 @@ export function CompanySelectionToolbar() {
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs"
               onClick={selectAll}
             >
               Select all
@@ -109,7 +108,6 @@ export function CompanySelectionToolbar() {
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs"
               onClick={clear}
             >
               Clear
@@ -141,7 +139,7 @@ export function CompanySelectionGrid() {
     companies.length > 0 && selectedIds.size === companies.length
 
   return (
-    <div className="rounded-lg border bg-card">
+    <div className="rounded-lg bg-card shadow-surface">
       <Table className="min-w-[960px]">
         <TableHeader>
           <TableRow className="hover:bg-transparent">
@@ -285,7 +283,7 @@ export function CompanySelectionFooter() {
   const prospects = selectedIds.size * perCompany
 
   return (
-    <div className="sticky bottom-0 z-10 flex flex-col gap-3 rounded-lg border bg-background/95 px-4 py-3 text-xs backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+    <div className="sticky bottom-0 z-10 flex flex-col gap-3 rounded-lg bg-background/95 px-4 py-3 text-xs backdrop-blur sm:flex-row sm:items-center sm:justify-between shadow-surface">
       <p className="text-muted-foreground" aria-live="polite">
         <span className="font-medium text-foreground">{companies.length}</span>{" "}
         {companies.length === 1 ? "company" : "companies"} in view ·{" "}
@@ -313,11 +311,11 @@ export function CompanySelectionFooter() {
         )}
       </p>
       {isEditable && (
-        <Button
-          size="sm"
+        <Button variant="brand"
+          size="md"
           onClick={confirm}
           disabled={selectedIds.size === 0 || isConfirming}
-          className="h-8 gap-1.5 self-end text-xs sm:self-auto"
+          className="gap-1.5 self-end sm:self-auto"
         >
           {isConfirming ? (
             <Loader2 className="size-3.5 animate-spin" />

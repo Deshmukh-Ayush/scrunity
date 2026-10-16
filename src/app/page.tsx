@@ -49,7 +49,7 @@ export default function Page() {
           </p>
         </header>
         <Link href="/sign-in" className="mt-4 inline-block">
-          <Button>Get Started</Button>
+          <Button variant="brand">Get Started</Button>
         </Link>
         <div className="mt-8 sm:mt-12">
         <footer className="mt-12 sm:absolute sm:bottom-4 flex items-center justify-between w-full">

@@ -46,7 +46,7 @@ export function Code({ children }: { children: React.ReactNode }) {
 
 export function CodeBlock({ children }: { children: string }) {
   return (
-    <pre className="my-3 overflow-x-auto rounded-[10px] border border-border/40 bg-muted/20 p-4 font-mono text-[12.5px] leading-[1.7] text-foreground/90">
+    <pre className="my-3 overflow-x-auto rounded-[10px] bg-muted/20 p-4 font-mono text-[12.5px] leading-[1.7] text-foreground/90 shadow-surface">
       <code>{children}</code>
     </pre>
   )
@@ -60,7 +60,7 @@ export function Table({
   rows: string[][]
 }) {
   return (
-    <div className="my-3 overflow-x-auto rounded-[10px] border border-border/40">
+    <div className="my-3 overflow-x-auto rounded-[10px] shadow-surface">
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr>
@@ -95,11 +95,11 @@ export function Table({
 
 export function Callout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="my-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-[13px] leading-[1.6] text-amber-600 dark:text-amber-500">
-      <strong className="font-semibold text-amber-700 dark:text-amber-400">
+    <div className="my-3 rounded-lg border border-warning-border bg-warning-tint px-4 py-3 text-[13px] leading-[1.6] text-warning">
+      <strong className="font-semibold text-warning">
         Note:{" "}
       </strong>
-      <span className="text-amber-700/80 dark:text-amber-400/80">
+      <span className="text-warning">
         {children}
       </span>
     </div>

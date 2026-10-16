@@ -81,13 +81,8 @@ export default function RootLayout({
     >
       <body suppressHydrationWarning>
         <PostHogProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <TooltipProvider delayDuration={200}>
+          <ThemeProvider>
+            <TooltipProvider delayDuration={80}>
               {children}
               <SpeedInsights />
               <Analytics />

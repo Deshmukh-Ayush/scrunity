@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { AlertTriangle, Check, Info, Loader2, Server } from "lucide-react"
+import { AlertTriangle, Check, Info, Loader2, Server } from "@/components/ui/icons"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -57,7 +57,7 @@ function Field({
       <label htmlFor={id} className="text-[11px] font-medium text-foreground">
         {label}
       </label>
-      <Input id={id} className="h-8 bg-background text-xs" {...inputProps} />
+      <Input id={id} className="w-full" {...inputProps} />
     </div>
   )
 }
@@ -110,7 +110,7 @@ export function ImapSmtpForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="animate-in space-y-5 rounded-xl border border-border/90 bg-card/60 p-6 duration-200 fade-in-50"
+      className="animate-in space-y-5 rounded-xl bg-card/60 p-6 duration-200 fade-in-50 shadow-surface"
     >
       <div className="flex items-start justify-between border-b border-border/60 pb-3">
         <div>
@@ -125,8 +125,8 @@ export function ImapSmtpForm({
         </div>
       </div>
 
-      <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/25 bg-amber-500/10 p-3.5 text-xs text-amber-900 dark:text-amber-200">
-        <Info className="mt-0.5 size-4 shrink-0 text-amber-600" />
+      <div className="flex items-start gap-2.5 rounded-lg border border-warning-border bg-warning-tint p-3.5 text-xs text-warning">
+        <Info className="mt-0.5 size-4 shrink-0 text-warning" />
         <div className="space-y-1 text-[11px] leading-relaxed">
           <p className="font-semibold">
             App-Specific Passwords Required for 2FA Accounts
@@ -143,9 +143,9 @@ export function ImapSmtpForm({
       {error && (
         <div
           role="alert"
-          className="flex items-start gap-2.5 rounded-lg border border-rose-500/25 bg-rose-500/10 p-3.5 text-xs text-rose-800 dark:text-rose-200"
+          className="flex items-start gap-2.5 rounded-lg border border-danger-border bg-danger-tint p-3.5 text-xs text-danger"
         >
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-rose-600" />
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-danger" />
           <div className="space-y-0.5 text-[11px]">
             <p className="font-semibold">Connection Verification Failed</p>
             <p className="text-muted-foreground">{error}</p>
@@ -289,17 +289,16 @@ export function ImapSmtpForm({
         <Button
           type="button"
           variant="ghost"
-          size="sm"
+          size="md"
           onClick={onCancel}
-          className="h-8 text-xs"
         >
           Cancel
         </Button>
         <Button
           type="submit"
-          size="sm"
+          size="md"
           disabled={isSubmitting}
-          className="h-8 gap-1.5 text-xs"
+          className="gap-1.5"
         >
           {isSubmitting ? (
             <>

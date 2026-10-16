@@ -10,7 +10,7 @@ import {
   RotateCcw,
   Search,
   Target,
-} from "lucide-react"
+} from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -142,7 +142,7 @@ export function ResearchProgress({
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center justify-between text-base">
             <span>Pipeline Execution Timeline</span>
-            <Badge variant="outline" className="gap-1 text-xs font-normal">
+            <Badge variant="neutral" className="gap-1 font-normal">
               <Loader2 className="size-3 animate-spin text-primary" />
               Live Inngest Pipeline
             </Badge>
@@ -174,7 +174,7 @@ export function ResearchProgress({
                       className={cn(
                         "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors",
                         state === "complete" &&
-                          "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                          "border-success-border bg-success-tint text-success",
                         state === "active" &&
                           "border-primary/40 bg-primary/10 text-primary",
                         state === "pending" &&
@@ -195,7 +195,7 @@ export function ResearchProgress({
                         className={cn(
                           "absolute top-8 bottom-0 left-1/2 w-px -translate-x-1/2 border-l border-dashed transition-colors",
                           step.isComplete
-                            ? "border-emerald-500/40"
+                            ? "border-success-border"
                             : "border-border/60"
                         )}
                       />
@@ -212,22 +212,20 @@ export function ResearchProgress({
                       {step.isActive && (
                         <Badge
                           variant={
-                            staleness.isStalled ? "outline" : "secondary"
+                            staleness.isStalled ? "neutral" : "neutral"
                           }
                           className={cn(
                             "py-0 text-[10px]",
                             staleness.isStalled &&
-                              "border-amber-500/50 bg-amber-500/10 font-medium text-amber-600 dark:text-amber-400"
-                          )}
-                        >
+                              "border-warning-border bg-warning-tint font-medium text-warning"
+                          )}>
                           {staleness.isStalled ? "Stalled" : "In Progress"}
                         </Badge>
                       )}
                       {step.isComplete && (
                         <Badge
-                          variant="outline"
-                          className="border-emerald-500/30 py-0 text-[10px] text-emerald-600 dark:text-emerald-400"
-                        >
+                          variant="success"
+                          className="py-0">
                           Completed
                         </Badge>
                       )}
@@ -235,7 +233,7 @@ export function ResearchProgress({
                     <p className="mt-1 text-xs text-muted-foreground">
                       {step.description}
                     </p>
-                    <div className="mt-2 rounded border border-border/40 bg-muted/30 p-2 font-mono text-xs text-foreground">
+                    <div className="mt-2 rounded bg-muted/30 p-2 font-mono text-xs text-foreground shadow-surface">
                       {step.summary}
                     </div>
 
@@ -245,15 +243,14 @@ export function ResearchProgress({
                           {competitors.slice(0, 5).map((c) => (
                             <Badge
                               key={c.id}
-                              variant="outline"
-                              className="gap-1 text-[11px]"
-                            >
+                              variant="neutral"
+                              className="gap-1">
                               <Globe className="size-3 text-muted-foreground" />
                               {c.name}
                             </Badge>
                           ))}
                           {competitors.length > 5 && (
-                            <Badge variant="outline" className="text-[11px]">
+                            <Badge variant="neutral">
                               +{competitors.length - 5} more
                             </Badge>
                           )}
@@ -266,19 +263,19 @@ export function ResearchProgress({
           </ol>
 
           {staleness.isStalled && !hasFailed && (
-            <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-center">
-              <div className="flex items-center gap-2 text-xs font-medium text-amber-800 dark:text-amber-200">
-                <AlertTriangle className="size-4 shrink-0 text-amber-500" />
+            <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-lg border border-warning-border bg-warning-tint p-4 text-center">
+              <div className="flex items-center gap-2 text-xs font-medium text-warning">
+                <AlertTriangle className="size-4 shrink-0 text-warning" />
                 <span>
                   Autonomous Pipeline Stalled: {staleness.explanation}
                 </span>
               </div>
               <Button
                 variant="outline"
-                size="sm"
+                size="md"
                 onClick={onRestartStage}
                 disabled={isRestarting}
-                className="h-8 gap-1.5 text-xs"
+                className="gap-1.5"
               >
                 {isRestarting ? (
                   <Loader2 className="size-3.5 animate-spin" />
@@ -291,8 +288,8 @@ export function ResearchProgress({
           )}
 
           {hasFailed && (
-            <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-center">
-              <div className="flex items-center gap-2 text-xs font-medium text-destructive">
+            <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-lg bg-danger-tint p-4 text-center shadow-surface">
+              <div className="flex items-center gap-2 text-xs font-medium text-danger">
                 <AlertCircle className="size-4 shrink-0" />
                 <span>
                   {errorMessage ||
@@ -301,10 +298,10 @@ export function ResearchProgress({
               </div>
               <Button
                 variant="outline"
-                size="sm"
+                size="md"
                 onClick={onRetryResearch}
                 disabled={isRestarting}
-                className="h-8 gap-1.5 text-xs"
+                className="gap-1.5"
               >
                 {isRestarting ? (
                   <Loader2 className="size-3.5 animate-spin" />

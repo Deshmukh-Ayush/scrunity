@@ -1,6 +1,6 @@
 "use client"
 
-import { ExternalLink } from "lucide-react"
+import { ExternalLink } from "@/components/ui/icons"
 import { useCampaignDetail } from "./campaign-detail-root"
 import { EmailSourceBadge } from "./status-badges"
 
@@ -21,7 +21,7 @@ export function ProspectsPanel() {
         {discoveryNote && (
           <p
             role="status"
-            className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-foreground"
+            className="rounded-md border border-warning-border bg-warning-tint p-2.5 text-xs text-foreground"
           >
             {discoveryNote}
           </p>
@@ -32,7 +32,7 @@ export function ProspectsPanel() {
             return (
               <div
                 key={c.id}
-                className="space-y-1.5 rounded-md border bg-card p-3 text-xs"
+                className="space-y-1.5 rounded-md bg-card p-3 text-xs shadow-surface"
               >
                 <div className="flex items-center justify-between font-medium text-foreground">
                   <span>{c.name}</span>
@@ -75,7 +75,7 @@ export function ProspectsPanel() {
           {contacts.map((ct) => (
             <div
               key={ct.id}
-              className="space-y-1.5 rounded-md border bg-card p-3 text-xs"
+              className="space-y-1.5 rounded-md bg-card p-3 text-xs shadow-surface"
             >
               <div className="flex items-center justify-between">
                 <span className="font-medium text-foreground">{ct.name}</span>

@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowRight, CheckCircle2, Users } from "lucide-react"
+import { ArrowRight, CheckCircle2, Users } from "@/components/ui/icons"
 import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -8,7 +8,7 @@ export function CampaignsCreated({ campaignIds }: { campaignIds: string[] }) {
   return (
     <div className="mx-auto max-w-xl space-y-6 py-6 text-center">
       <div className="flex justify-center">
-        <div className="flex size-12 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+        <div className="flex size-12 items-center justify-center rounded-full border border-success-border bg-success-tint text-success">
           <CheckCircle2 className="size-7" />
         </div>
       </div>
@@ -28,7 +28,7 @@ export function CampaignsCreated({ campaignIds }: { campaignIds: string[] }) {
         <Link
           href="/dashboard/campaigns"
           className={cn(
-            buttonVariants({ variant: "default" }),
+            buttonVariants({ }),
             "w-full gap-2 sm:w-auto"
           )}
         >

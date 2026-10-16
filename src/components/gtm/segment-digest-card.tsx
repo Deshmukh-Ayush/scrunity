@@ -25,7 +25,7 @@ import {
   XCircle,
   MessageSquare,
   Building2,
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 export interface SegmentDigestCardProps {
   segmentId: string;
@@ -121,11 +121,11 @@ export function SegmentDigestCard({
               Segment Performance Digest
             </CardTitle>
             <Button
-              size="sm"
+              size="md"
               variant="outline"
               onClick={handleGenerate}
               disabled={isGenerating}
-              className="gap-1.5 text-xs h-8"
+              className="gap-1.5"
             >
               <RefreshCw
                 className={`size-3.5 ${isGenerating ? "animate-spin" : ""}`}
@@ -154,11 +154,11 @@ export function SegmentDigestCard({
                 Performance & Learning Digest
               </CardTitle>
               {digest ? (
-                <Badge variant="outline" className="text-[10px] py-0">
+                <Badge variant="neutral" className="py-0">
                   Stored Digest
                 </Badge>
               ) : (
-                <Badge variant="secondary" className="text-[10px] py-0">
+                <Badge variant="neutral" className="py-0">
                   Live Snapshot
                 </Badge>
               )}
@@ -174,11 +174,11 @@ export function SegmentDigestCard({
           </div>
 
           <Button
-            size="sm"
+            size="md"
             variant="outline"
             onClick={handleGenerate}
             disabled={isGenerating}
-            className="gap-1.5 text-xs h-8"
+            className="gap-1.5"
           >
             <RefreshCw
               className={`size-3.5 ${isGenerating ? "animate-spin" : ""}`}
@@ -191,12 +191,12 @@ export function SegmentDigestCard({
       <CardContent className="p-4 pt-3 space-y-4">
         {/* Small Sample Warning Alert */}
         {isSmallSample && (
-          <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-900 dark:text-amber-200 py-2.5">
-            <AlertCircle className="size-4 text-amber-600 dark:text-amber-400" />
+          <Alert className="border-warning-border bg-warning-tint text-warning py-2.5">
+            <AlertCircle className="size-4 text-warning" />
             <AlertTitle className="text-xs font-semibold">
               Small Sample Size ({metrics.sentCount} emails sent)
             </AlertTitle>
-            <AlertDescription className="text-xs text-amber-800/90 dark:text-amber-300/90">
+            <AlertDescription className="text-xs text-warning">
               {metrics.sampleSizeWarning ||
                 "Under 20 sent emails. Conversion and booking rates are early directional indicators only and not statistically significant yet."}
             </AlertDescription>
@@ -205,7 +205,7 @@ export function SegmentDigestCard({
 
         {/* Headline Numbers Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-          <div className="border rounded-md p-2.5 bg-muted/20">
+          <div className="rounded-md p-2.5 bg-muted/20 shadow-surface">
             <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
               <Mail className="size-3" /> Emails Sent
             </span>
@@ -215,7 +215,7 @@ export function SegmentDigestCard({
             <span className="text-[10px] text-muted-foreground">Total dispatched</span>
           </div>
 
-          <div className="border rounded-md p-2.5 bg-muted/20">
+          <div className="rounded-md p-2.5 bg-muted/20 shadow-surface">
             <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
               <MessageSquare className="size-3" /> Replies
             </span>
@@ -228,11 +228,11 @@ export function SegmentDigestCard({
             <span className="text-[10px] text-muted-foreground">Overall reply rate</span>
           </div>
 
-          <div className="border rounded-md p-2.5 bg-muted/20">
-            <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+          <div className="rounded-md p-2.5 bg-muted/20 shadow-surface">
+            <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1 text-success">
               <CheckCircle2 className="size-3" /> Interested
             </span>
-            <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-baseline gap-1.5">
+            <div className="text-lg font-bold text-success mt-0.5 flex items-baseline gap-1.5">
               <span>{metrics.replyBreakdown?.interested ?? 0}</span>
               <span className="text-xs font-normal text-muted-foreground">
                 ({metrics.interestedReplyRate}%)
@@ -241,7 +241,7 @@ export function SegmentDigestCard({
             <span className="text-[10px] text-muted-foreground">Interested rate</span>
           </div>
 
-          <div className="border rounded-md p-2.5 bg-muted/20">
+          <div className="rounded-md p-2.5 bg-muted/20 shadow-surface">
             <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1 text-primary">
               <Calendar className="size-3" /> Booked Calls
             </span>
@@ -254,7 +254,7 @@ export function SegmentDigestCard({
             <span className="text-[10px] text-muted-foreground">Meeting booking rate</span>
           </div>
 
-          <div className="border rounded-md p-2.5 bg-muted/20 col-span-2 sm:col-span-1">
+          <div className="rounded-md p-2.5 bg-muted/20 col-span-2 sm:col-span-1 shadow-surface">
             <span className="text-[11px] text-muted-foreground font-medium flex items-center gap-1">
               <XCircle className="size-3" /> Bounces
             </span>
@@ -266,39 +266,34 @@ export function SegmentDigestCard({
         </div>
 
         {/* Reply Intent Breakdown */}
-        <div className="border rounded-md p-3 bg-muted/10 space-y-1.5">
+        <div className="rounded-md p-3 bg-muted/10 space-y-1.5 shadow-surface">
           <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
             Classified Reply Breakdown
           </span>
           <div className="flex flex-wrap gap-2 pt-0.5">
             <Badge
-              variant="outline"
-              className="text-xs gap-1 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 bg-emerald-500/10"
-            >
+              variant="neutral"
+              className="gap-1">
               Interested: {metrics.replyBreakdown?.interested ?? 0}
             </Badge>
             <Badge
-              variant="outline"
-              className="text-xs gap-1 border-tertiary/40 text-tertiary bg-tertiary/10"
-            >
+              variant="neutral"
+              className="gap-1 text-primary">
               Questions: {metrics.replyBreakdown?.question ?? 0}
             </Badge>
             <Badge
-              variant="outline"
-              className="text-xs gap-1 text-muted-foreground bg-muted/30"
-            >
+              variant="neutral"
+              className="gap-1 text-muted-foreground bg-muted/30">
               Auto-replies: {metrics.replyBreakdown?.autoReply ?? 0}
             </Badge>
             <Badge
-              variant="outline"
-              className="text-xs gap-1 border-rose-500/30 text-rose-700 dark:text-rose-300 bg-rose-500/10"
-            >
+              variant="danger"
+              className="gap-1">
               Not interested: {metrics.replyBreakdown?.notInterested ?? 0}
             </Badge>
             <Badge
-              variant="outline"
-              className="text-xs gap-1 text-muted-foreground"
-            >
+              variant="neutral"
+              className="gap-1 text-muted-foreground">
               Unclear: {metrics.replyBreakdown?.unclear ?? 0}
             </Badge>
           </div>
@@ -306,7 +301,7 @@ export function SegmentDigestCard({
 
         {/* Generated Summary Section */}
         {digest?.summary ? (
-          <div className="border rounded-md p-3.5 bg-card space-y-2">
+          <div className="rounded-md p-3.5 bg-card space-y-2 shadow-surface">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
               <Sparkles className="size-3.5 text-primary" />
               <span>GTM Learning Summary</span>

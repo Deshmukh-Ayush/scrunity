@@ -1,21 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import {
   applyStreamPart,
   readSseEvents,
   type StreamAccumulator,
 } from "./chat-stream"
+import { emitConversationsChanged, takePendingPrompt } from "./chat-events"
 import type { ChatMessage, InitialConversation, LinkedCampaign } from "./types"
-
-const CONVERSATIONS_CHANGED = "gtm:conversations-changed"
-const CONVERSATION_SELECTED = "gtm:conversation-selected"
-
-const emit = (name: string, detail?: unknown) =>
-  window.dispatchEvent(
-    new CustomEvent(name, detail === undefined ? undefined : { detail })
-  )
 
 function persistMessage(body: Record<string, unknown>) {
   return fetch("/api/gtm/chat/messages", {
@@ -26,11 +19,11 @@ function persistMessage(body: Record<string, unknown>) {
 }
 
 /**
- * State and actions for the agent chat: the open conversation (from the URL or
- * the sidebar's selection event), sending a prompt, and streaming the reply.
+ * State and actions for the agent chat: the conversation named in ?id=,
+ * sending a prompt, and streaming the reply. A prompt sent from Home arrives
+ * through takePendingPrompt and is sent once, on mount.
  */
 export function useAgentChat(initialConversation: InitialConversation | null) {
-  const router = useRouter()
   const urlConvId = useSearchParams().get("id")
 
   const [activeConversationId, setActiveConversationId] = React.useState<
@@ -50,6 +43,8 @@ export function useAgentChat(initialConversation: InitialConversation | null) {
     React.useState(false)
   const [isGenerating, setIsGenerating] = React.useState(false)
   const abortControllerRef = React.useRef<AbortController | null>(null)
+  // The conversation whose Home prompt was already sent (survives Strict Mode's re-run).
+  const sentPendingForRef = React.useRef<string | null>(null)
 
   const clearConversation = React.useCallback(() => {
     setActiveConversationId(null)
@@ -62,6 +57,9 @@ export function useAgentChat(initialConversation: InitialConversation | null) {
     try {
       setIsLoadingConversation(true)
       setActiveConversationId(id)
+      // Don't show the previous chat's title or campaign while this one loads.
+      setActiveTitle(null)
+      setLinkedCampaign(null)
       const res = await fetch(`/api/gtm/chat/conversations/${id}`)
       if (res.ok) {
         const data = await res.json()
@@ -77,8 +75,16 @@ export function useAgentChat(initialConversation: InitialConversation | null) {
   }, [])
 
   // Follow ?id= changes. The server already loaded the initial conversation, so
-  // this only fetches when the URL points somewhere else.
+  // this only fetches when the URL points somewhere else. A fresh chat from
+  // Home sends its pending prompt instead of loading (it has no messages yet).
   React.useEffect(() => {
+    const pending = takePendingPrompt(urlConvId)
+    if (pending && urlConvId) {
+      sentPendingForRef.current = urlConvId
+      sendMessage(pending)
+      return
+    }
+    if (urlConvId && sentPendingForRef.current === urlConvId) return
     if (!urlConvId) {
       clearConversation()
     } else if (urlConvId !== activeConversationId || messages.length === 0) {
@@ -86,24 +92,6 @@ export function useAgentChat(initialConversation: InitialConversation | null) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlConvId, loadConversation])
-
-  // The sidebar announces selections with a window event instead of navigating.
-  React.useEffect(() => {
-    const handleSelected = (e: Event) => {
-      const id = (e as CustomEvent<{ id?: string | null }>).detail?.id
-      if (id) loadConversation(id)
-      else clearConversation()
-    }
-    window.addEventListener(CONVERSATION_SELECTED, handleSelected)
-    return () =>
-      window.removeEventListener(CONVERSATION_SELECTED, handleSelected)
-  }, [loadConversation, clearConversation])
-
-  const startNewChat = React.useCallback(() => {
-    clearConversation()
-    router.push("/dashboard/chat")
-    emit(CONVERSATION_SELECTED, { id: null })
-  }, [router, clearConversation])
 
   /** Creates a conversation titled after the first prompt and points the URL at it. */
   const createConversation = async (title: string) => {
@@ -119,8 +107,7 @@ export function useAgentChat(initialConversation: InitialConversation | null) {
       setActiveConversationId(id)
       setActiveTitle(data.conversation.title)
       window.history.replaceState(null, "", `/dashboard/chat?id=${id}`)
-      emit(CONVERSATIONS_CHANGED)
-      emit(CONVERSATION_SELECTED, { id })
+      emitConversationsChanged()
       return id
     } catch (e) {
       console.error("Error creating conversation:", e)
@@ -161,7 +148,10 @@ export function useAgentChat(initialConversation: InitialConversation | null) {
         id: userMessage.id,
         role: "user",
         content: prompt,
-      }).catch((err) => console.error("Error saving user message:", err))
+      })
+        // The chat now has a message, so it can appear in the sidebar.
+        .then(() => emitConversationsChanged())
+        .catch((err) => console.error("Error saving user message:", err))
     }
 
     const updateAssistant = (
@@ -223,7 +213,7 @@ export function useAgentChat(initialConversation: InitialConversation | null) {
           content: finalContent,
           toolCalls: acc.toolSteps.length > 0 ? acc.toolSteps : undefined,
         }).catch((err) => console.error("Error saving assistant message:", err))
-        emit(CONVERSATIONS_CHANGED)
+        emitConversationsChanged()
       }
     } catch (err: any) {
       if (err.name !== "AbortError") {
@@ -255,6 +245,5 @@ export function useAgentChat(initialConversation: InitialConversation | null) {
     isGenerating,
     sendMessage,
     stopGenerating,
-    startNewChat,
   }
 }

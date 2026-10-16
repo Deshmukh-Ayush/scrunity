@@ -1,41 +1,51 @@
 "use client"
 
 import * as React from "react"
-import { useSearchParams } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useUrlFilter } from "@/components/ui/data-table/use-url-filter"
+import { MAILBOX_FILTERS } from "@/lib/mailbox-filters"
 import type { MailboxThread } from "@/lib/mailbox-thread-types"
-import { MailboxHeader } from "./mailbox-header"
 import { MailboxSettings } from "./mailbox-settings"
-import { ThreadDetail } from "./thread-detail"
-import { ThreadList } from "./thread-list"
+import { MailboxView, type MailboxConnection } from "./mailbox-view"
 import type { ConnectedMailboxInfo, MailboxTab } from "./types"
 
-/**
- * Keeps the current selection if it still exists, otherwise prefers the thread
- * the URL points at (?contactId= or ?threadId=), then the newest thread.
- */
-function pickSelectedThread(
+const FILTER_IDS = MAILBOX_FILTERS.map((f) => f.id)
+
+/** Older deep links (?contactId=, ?threadId=, used by Home and Leads) point at a thread too. */
+function resolveLegacyTarget(
   threads: MailboxThread[],
-  previous: string | null,
-  target: { contactId: string | null; threadId: string | null }
+  contactId: string | null,
+  threadId: string | null
 ) {
-  if (target.contactId) {
-    const match = threads.find((t) => t.contact.id === target.contactId)
-    if (match) return match.id
-  }
-  if (target.threadId) {
-    const match = threads.find(
-      (t) => t.id === target.threadId || t.threadId === target.threadId || t.draftId === target.threadId
+  if (contactId)
+    return threads.find((t) => t.contact.id === contactId)?.id ?? null
+  if (threadId)
+    return (
+      threads.find(
+        (t) =>
+          t.id === threadId || t.threadId === threadId || t.draftId === threadId
+      )?.id ?? null
     )
-    if (match) return match.id
-  }
-  if (previous && threads.some((t) => t.id === previous)) return previous
-  return threads[0]?.id || null
+  return null
+}
+
+function connectionOf(mailbox: ConnectedMailboxInfo | null): MailboxConnection {
+  if (!mailbox) return { state: "not-connected" }
+  if (mailbox.status !== "connected")
+    return {
+      state: "attention",
+      email: mailbox.email,
+      reason: "revoked",
+      provider: mailbox.provider,
+    }
+  return { state: "connected", email: mailbox.email }
 }
 
 /**
- * Mailbox page body. Renders server-fetched threads immediately; the list is
- * re-queried when the search or filter changes, on refresh, and after
- * connecting or disconnecting a mailbox.
+ * Mailbox page state: the threads (server-rendered, refreshed on demand), the
+ * open thread in ?thread=, the filter in ?filter=, the tab in ?tab=. Search
+ * and filter run on the loaded list with the same predicates as the API
+ * (lib/mailbox-filters.ts), so counts are instant.
  */
 export function MailboxClient({
   initialThreads,
@@ -44,115 +54,127 @@ export function MailboxClient({
   initialThreads: MailboxThread[]
   initialMailbox: ConnectedMailboxInfo | null
 }) {
+  const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
-  const target = {
-    contactId: searchParams?.get("contactId") ?? null,
-    threadId: searchParams?.get("threadId") ?? null,
-  }
-  const tabParam = searchParams?.get("tab")
-
-  const [activeTab, setActiveTab] = React.useState<MailboxTab>(
-    tabParam === "settings" ? "settings" : "conversations"
-  )
   const [threads, setThreads] = React.useState(initialThreads)
   const [mailbox, setMailbox] = React.useState(initialMailbox)
-  const [selectedThreadId, setSelectedThreadId] = React.useState(() =>
-    pickSelectedThread(initialThreads, null, target)
-  )
-  const [searchQuery, setSearchQuery] = React.useState("")
-  const [intentFilter, setIntentFilter] = React.useState("all")
-  const [isLoading, setIsLoading] = React.useState(false)
-  const [isRefreshing, setIsRefreshing] = React.useState(false)
+  const [search, setSearch] = React.useState("")
+  const [refreshing, setRefreshing] = React.useState(false)
+  const [filter, setFilter] = useUrlFilter("filter", FILTER_IDS)
+  // Set when a thread is opened on a narrow screen, so focus moves into it.
+  const [focusThread, setFocusThread] = React.useState(false)
+  const openedFromList = React.useRef(false)
+  const lastOpenedId = React.useRef<string | null>(null)
 
-  // Follow ?tab= when the sidebar or a redirect changes it.
-  React.useEffect(() => {
-    if (tabParam === "settings" || tabParam === "conversations") setActiveTab(tabParam)
-  }, [tabParam])
+  const tab: MailboxTab =
+    searchParams.get("tab") === "settings" ? "settings" : "conversations"
+  const openThreadId = searchParams.get("thread")
 
-  const loadThreads = React.useCallback(
-    async (mode: "replace" | "refresh" = "replace") => {
-      if (mode === "refresh") setIsRefreshing(true)
-      else setIsLoading(true)
-      try {
-        const params = new URLSearchParams()
-        if (searchQuery) params.set("search", searchQuery)
-        if (intentFilter !== "all") params.set("intent", intentFilter)
-
-        const res = await fetch(`/api/gtm/mailbox/threads?${params.toString()}`)
-        if (!res.ok) throw new Error("Failed to load threads")
-        const data = await res.json()
-        const nextThreads: MailboxThread[] = data.threads || []
-
-        setThreads(nextThreads)
-        setMailbox(data.mailbox || null)
-        setSelectedThreadId((prev) => pickSelectedThread(nextThreads, prev, target))
-      } catch (err) {
-        console.error("[MailboxClient] Load error:", err)
-      } finally {
-        setIsLoading(false)
-        setIsRefreshing(false)
+  const hrefWith = React.useCallback(
+    (changes: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString())
+      for (const [key, value] of Object.entries(changes)) {
+        if (value === null) params.delete(key)
+        else params.set(key, value)
       }
+      const query = params.toString()
+      return query ? `${pathname}?${query}` : pathname
     },
-    // target is derived from the URL; re-reading it on each load is intended.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [searchQuery, intentFilter]
+    [pathname, searchParams]
   )
 
-  // The server already rendered the unfiltered list, so skip the first run and
-  // only re-query when the search or filter actually changes.
-  const hasMounted = React.useRef(false)
+  // Translate an old deep link into ?thread= once.
+  const legacy = resolveLegacyTarget(
+    threads,
+    searchParams.get("contactId"),
+    searchParams.get("threadId")
+  )
   React.useEffect(() => {
-    if (!hasMounted.current) {
-      hasMounted.current = true
-      return
-    }
-    loadThreads()
-  }, [loadThreads])
+    if (searchParams.get("contactId") || searchParams.get("threadId"))
+      router.replace(
+        hrefWith({ contactId: null, threadId: null, thread: legacy }),
+        { scroll: false }
+      )
+  }, [legacy, hrefWith, router, searchParams])
 
-  const handleDisconnect = async () => {
-    if (!confirm("Disconnect this mailbox? Outgoing email sends will pause until reconnected.")) {
-      return
-    }
-    await fetch("/api/gtm/mailbox", { method: "DELETE" })
-    await loadThreads()
+  // Back on phones: return focus to the row that was open.
+  React.useEffect(() => {
+    if (openThreadId || !lastOpenedId.current) return
+    document.getElementById(`thread-${lastOpenedId.current}`)?.focus()
+  }, [openThreadId])
+
+  const openThread = (id: string) => {
+    lastOpenedId.current = id
+    openedFromList.current = true
+    setFocusThread(window.matchMedia("(max-width: 767px)").matches)
+    router.push(hrefWith({ thread: id }), { scroll: false })
   }
 
-  const selectedThread = threads.find((t) => t.id === selectedThreadId) || threads[0] || null
+  const back = () => {
+    // Opened from the list in this tab: undo that step. Opened from a shared link: go to the list.
+    if (openedFromList.current) {
+      openedFromList.current = false
+      router.back()
+    } else {
+      router.replace(hrefWith({ thread: null }), { scroll: false })
+    }
+  }
+
+  const refresh = async () => {
+    setRefreshing(true)
+    try {
+      const res = await fetch("/api/gtm/mailbox/threads")
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setThreads(data.threads || [])
+      setMailbox(data.mailbox || null)
+    } catch (err) {
+      console.error("[Mailbox] refresh failed:", err)
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  const disconnect = async () => {
+    if (
+      !confirm(
+        "Disconnect this mailbox? Outgoing email sends will pause until reconnected."
+      )
+    )
+      return
+    await fetch("/api/gtm/mailbox", { method: "DELETE" })
+    await refresh()
+  }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-background text-foreground">
-      <MailboxHeader
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        threadCount={threads.length}
-        unreadCount={threads.filter((t) => t.isUnread).length}
-        isRefreshing={isRefreshing}
-        onRefresh={() => loadThreads("refresh")}
-      />
-
-      {activeTab === "settings" ? (
+    <MailboxView
+      tab={tab}
+      tabHrefs={{
+        conversations: hrefWith({ tab: null }),
+        settings: hrefWith({ tab: "settings", thread: null }),
+      }}
+      connection={connectionOf(mailbox)}
+      threads={threads}
+      openThreadId={openThreadId}
+      search={search}
+      onSearchChange={setSearch}
+      filter={filter}
+      onFilterChange={setFilter}
+      onOpen={openThread}
+      onBack={back}
+      refreshing={refreshing}
+      onRefresh={refresh}
+      focusThreadOnOpen={focusThread}
+      settings={
         <MailboxSettings
           mailbox={mailbox}
-          callbackConnected={Boolean(searchParams?.get("mailbox_connected"))}
-          callbackError={searchParams?.get("error") ?? null}
-          onDisconnect={handleDisconnect}
-          onConnected={() => loadThreads()}
+          callbackConnected={Boolean(searchParams.get("mailbox_connected"))}
+          callbackError={searchParams.get("error") ?? null}
+          onDisconnect={disconnect}
+          onConnected={refresh}
         />
-      ) : (
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          <ThreadList
-            threads={threads}
-            selectedThreadId={selectedThread?.id ?? null}
-            onSelect={setSelectedThreadId}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            intentFilter={intentFilter}
-            onIntentFilterChange={setIntentFilter}
-            isLoading={isLoading}
-          />
-          <ThreadDetail thread={selectedThread} />
-        </div>
-      )}
-    </div>
+      }
+    />
   )
 }

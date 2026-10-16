@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus, Users } from "lucide-react"
+import { Plus, Users } from "@/components/ui/icons"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -58,7 +58,7 @@ export function AddSeatsModal({
           size="sm"
           variant="outline"
           onClick={() => setOpen(true)}
-          className="h-7 gap-1 text-xs"
+          className="gap-1"
         >
           <Plus className="h-3 w-3" />
           Add Seats
@@ -83,7 +83,7 @@ export function AddSeatsModal({
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="space-y-3 rounded-lg border border-border/60 bg-muted/30 p-4">
+            <div className="space-y-3 rounded-lg bg-muted/30 p-4 shadow-surface">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>Currently active extra seats:</span>
                 <span className="font-semibold text-foreground">
@@ -103,9 +103,9 @@ export function AddSeatsModal({
                       key={cnt}
                       role="radio"
                       aria-checked={quantity === cnt}
-                      variant={quantity === cnt ? "default" : "outline"}
-                      size="sm"
-                      className="h-8 px-3 text-xs"
+                      variant={quantity === cnt ? "secondary" : "ghost"}
+                      size="md"
+                      className="px-3"
                       onClick={() => setQuantity(cnt)}
                     >
                       +{cnt} seat{cnt > 1 ? "s" : ""}
@@ -139,7 +139,7 @@ export function AddSeatsModal({
             <Button variant="outline" size="sm" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button size="sm" onClick={handleAddSeats} disabled={loading}>
+            <Button variant="brand" size="sm" onClick={handleAddSeats} disabled={loading}>
               {loading
                 ? "Redirecting..."
                 : `Confirm +${quantity} Seat ($${price}/mo)`}

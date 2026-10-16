@@ -1,25 +1,17 @@
 import { getTenantContext } from "@/lib/tenant-context"
 import { listOrgCampaigns } from "@/lib/data/campaigns"
-import { listOrgResearchRuns } from "@/lib/data/research-runs"
 import { asJson } from "@/lib/data/serialize"
 import { CampaignsOverviewClient } from "./campaigns-overview-client"
-import type { CampaignItem, ResearchRunItem } from "./types"
+import type { CampaignRow } from "./types"
 
-/** Server-fetches research runs and campaigns for /dashboard/campaigns. */
+/** Server-fetches the organization's campaigns for /dashboard/campaigns. */
 export async function CampaignsOverview() {
   const { organizationId } = await getTenantContext()
-
-  const [runs, campaigns] = organizationId
-    ? await Promise.all([
-        listOrgResearchRuns(organizationId),
-        listOrgCampaigns(organizationId),
-      ])
-    : [[], []]
+  const campaigns = organizationId ? await listOrgCampaigns(organizationId) : []
 
   return (
     <CampaignsOverviewClient
-      initialRuns={asJson<ResearchRunItem[]>(runs)}
-      initialCampaigns={asJson<CampaignItem[]>(campaigns)}
+      initialCampaigns={asJson<CampaignRow[]>(campaigns)}
     />
   )
 }

@@ -4,7 +4,7 @@ import { getAiCreditBalance } from "@/lib/gtm-ai-credits";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Progress, ProgressTrack, ProgressIndicator } from "@/components/ui/progress";
 import { BuyCreditsModal } from "./buy-credits-modal";
-import { Zap, Clock, ShieldCheck, AlertCircle } from "lucide-react";
+import { Zap, Clock, ShieldCheck, AlertCircle } from "@/components/ui/icons";
 
 export async function AiCreditBalanceCard() {
   const { organizationId } = await getTenantContext();
@@ -28,7 +28,7 @@ export async function AiCreditBalanceCard() {
         <CardHeader className="p-0 pb-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
             <div className="flex items-center gap-2 min-w-0">
-              <Zap className="h-4 w-4 text-amber-500 fill-amber-400 shrink-0" />
+              <Zap className="h-4 w-4 text-muted-foreground shrink-0" />
               <CardTitle className="text-base font-semibold break-words">AI Credit Balance</CardTitle>
             </div>
             <div className="shrink-0">
@@ -58,10 +58,10 @@ export async function AiCreditBalanceCard() {
               <span
                 className={`text-xs font-semibold px-2 py-0.5 rounded-full inline-block ${
                   isExhausted
-                    ? "bg-red-500/15 text-red-600 dark:text-red-400"
+                    ? "bg-danger-tint text-danger"
                     : isLow
-                    ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                    : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    ? "bg-warning-tint text-warning"
+                    : "bg-success-tint text-success"
                 }`}
               >
                 {percentRemaining}% left
@@ -75,9 +75,9 @@ export async function AiCreditBalanceCard() {
               <div
                 className={`h-full transition-all rounded-full ${
                   isExhausted
-                    ? "bg-red-500"
+                    ? "bg-danger"
                     : isLow
-                    ? "bg-amber-500"
+                    ? "bg-warning"
                     : "bg-primary"
                 }`}
                 style={{ width: `${percentRemaining}%` }}
@@ -86,7 +86,7 @@ export async function AiCreditBalanceCard() {
           </div>
 
           {isExhausted && (
-            <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-2.5 text-xs text-red-600 dark:text-red-400 flex items-start gap-2">
+            <div className="rounded-lg bg-danger-tint border border-danger-border p-2.5 text-xs text-danger flex items-start gap-2">
               <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
               <span className="break-words">
                 {totalPool === 0
@@ -103,7 +103,7 @@ export async function AiCreditBalanceCard() {
           <Clock className="h-3.5 w-3.5 shrink-0" />
           <span>Resets in {balance.daysRemaining} days (no rollover)</span>
         </div>
-        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 shrink-0">
+        <div className="flex items-center gap-1.5 text-success shrink-0">
           <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
           <span>Research stages uncapped</span>
         </div>

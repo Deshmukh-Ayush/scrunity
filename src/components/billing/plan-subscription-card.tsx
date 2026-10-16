@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { BILLING_CONFIG, getPlanLimits, type PlanTier } from "@/config/billing";
 import { UpgradePlanModal } from "./upgrade-plan-modal";
 import { ManagePortalButton } from "./manage-portal-button";
-import { CreditCard, Calendar, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
+import { CreditCard, Calendar, CheckCircle2, AlertCircle, Sparkles } from "@/components/ui/icons";
 
 export async function PlanSubscriptionCard() {
   const { organizationId } = await getTenantContext();
@@ -32,12 +32,12 @@ export async function PlanSubscriptionCard() {
   const status = org?.subscriptionStatus || (isSubscribed ? "active" : "unsubscribed");
 
   const statusBadge = {
-    active: <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[11px] font-medium">Active</Badge>,
-    past_due: <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/20 text-[11px] font-medium">Past Due</Badge>,
-    canceled: <Badge variant="destructive" className="text-[11px] font-medium">Canceled</Badge>,
-    trialing: <Badge variant="secondary" className="text-[11px] font-medium">Trialing</Badge>,
-    unsubscribed: <Badge variant="secondary" className="text-[11px] font-medium">No Active Plan</Badge>,
-  }[status] || <Badge variant="secondary" className="text-[11px] font-medium">{status}</Badge>;
+    active: <Badge variant="neutral">Active</Badge>,
+    past_due: <Badge variant="warning">Past Due</Badge>,
+    canceled: <Badge variant="danger">Canceled</Badge>,
+    trialing: <Badge variant="neutral">Trialing</Badge>,
+    unsubscribed: <Badge variant="neutral">No Active Plan</Badge>,
+  }[status] || <Badge variant="neutral">{status}</Badge>;
 
   const renewalDateStr = org?.currentPeriodEnd
     ? new Date(org.currentPeriodEnd).toLocaleDateString("en-US", {
@@ -104,7 +104,7 @@ export async function PlanSubscriptionCard() {
               </span>
             </div>
             <div className="flex items-start gap-2">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" />
               <span className="break-words">Stages 1-3 (research, competitors, ICPs) always free & uncapped</span>
             </div>
           </div>

@@ -9,7 +9,7 @@ import {
   Loader2,
   Sparkles,
   UploadCloud,
-} from "lucide-react"
+} from "@/components/ui/icons"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -103,7 +103,7 @@ export function CompanyDetailsForm({
                   required
                 />
                 {logoPreview && (
-                  <div className="absolute top-1.5 right-2.5 flex items-center gap-1.5 rounded border border-border/60 bg-muted/60 px-1.5 py-0.5">
+                  <div className="absolute top-1.5 right-2.5 flex items-center gap-1.5 rounded bg-muted/60 px-1.5 py-0.5 shadow-surface">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={logoPreview}
@@ -196,7 +196,7 @@ export function CompanyDetailsForm({
                 </label>
               </div>
               {values.contextDoc && (
-                <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                <p className="text-[11px] text-success">
                   Loaded {values.contextDoc.length} characters of context for
                   the research prompt.
                 </p>
@@ -206,7 +206,7 @@ export function CompanyDetailsForm({
             {errorMessage && (
               <div
                 role="alert"
-                className="flex items-center gap-2 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-xs text-destructive"
+                className="flex items-center gap-2 rounded-md bg-danger-tint p-3 text-xs text-danger shadow-surface"
               >
                 <AlertCircle className="size-4 shrink-0" />
                 <span>{errorMessage}</span>
@@ -214,7 +214,7 @@ export function CompanyDetailsForm({
             )}
 
             <div className="flex justify-end pt-4">
-              <Button type="submit" disabled={isSubmitting} className="gap-2">
+              <Button variant="brand" type="submit" disabled={isSubmitting} className="gap-2">
                 {isSubmitting ? (
                   <>
                     <Loader2 className="size-4 animate-spin" />

@@ -49,7 +49,7 @@ function InviteForm() {
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-2">
+    <form onSubmit={submit} className="grid gap-3 rounded-lg p-4 md:grid-cols-2 shadow-surface">
       <div className="space-y-1.5 md:col-span-2">
         <Label htmlFor="invite-emails">Emails (one or several, separated by commas or new lines)</Label>
         <Textarea
@@ -129,7 +129,7 @@ export function AdminInvitesClient({ invites }: { invites: AdminPilotInvite[] })
         </p>
       </div>
       <InviteForm />
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="overflow-x-auto rounded-lg shadow-surface">
         <table className="w-full text-left text-xs">
           <thead className="bg-muted/40 text-muted-foreground">
             <tr>

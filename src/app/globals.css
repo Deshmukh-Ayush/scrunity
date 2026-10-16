@@ -2,203 +2,280 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Light mode only for now. Existing `dark:` classes stay inert (no `.dark` palette). */
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * Interaction states that the component testing route can force with
+ * data-force="hover|pressed|focus-visible" so every state shows at once.
+ * Hover only applies on devices that can hover.
+ */
+@custom-variant ui-hover {
+  @media (hover: hover) {
+    &:hover { @slot; }
+  }
+  &[data-force~="hover"] { @slot; }
+}
+@custom-variant ui-pressed {
+  &:active { @slot; }
+  &[data-force~="pressed"] { @slot; }
+}
+@custom-variant ui-focus {
+  &:focus-visible { @slot; }
+  &[data-force~="focus-visible"] { @slot; }
+}
+
 /* ─────────────────────────────────────────────────────────────
- * Brand colors — change here to re-theme the whole app
+ * Design tokens. Semantic names describe purpose, not appearance.
+ * docs/design-system.md explains each one; scripts/report-contrast.ts
+ * checks every text/background pair (keep its hex values in sync).
  * ───────────────────────────────────────────────────────────── */
 :root {
-  --color-primary: #00aff9;
-  --color-primary-hover: #009be0;
-  --color-primary-foreground: #ffffff;
-  --color-primary-4: rgba(0, 175, 249, 0.04);
-  --color-primary-8: rgba(0, 175, 249, 0.08);
-  --color-primary-12: rgba(0, 175, 249, 0.12);
-  --color-primary-16: rgba(0, 175, 249, 0.16);
-  --color-primary-20: rgba(0, 175, 249, 0.20);
-  --color-primary-40: rgba(0, 175, 249, 0.40);
-  --color-primary-90: rgba(0, 175, 249, 0.90);
-  --color-primary-100: #00aff9;
+  /* Surfaces */
+  --canvas: #f9fafb; /* app background */
+  --surface: #ffffff; /* cards, panels, popovers, main content panel */
+  --muted-fill: #f3f4f6; /* hover and selected fills */
 
-  --color-secondary: #262626;
-  --color-secondary-foreground: #ffffff;
+  /* Borders (cool gray, to match the canvas) */
+  --border-default: #e5e7eb;
+  --border-strong: #d1d5db; /* hover or emphasis */
 
-  --color-tertiary: #fa5d19;
-  --color-tertiary-hover: #e04e10;
-  --color-tertiary-foreground: #ffffff;
-  --color-tertiary-4: rgba(250, 93, 25, 0.04);
-  --color-tertiary-8: rgba(250, 93, 25, 0.08);
-  --color-tertiary-12: rgba(250, 93, 25, 0.12);
-  --color-tertiary-16: rgba(250, 93, 25, 0.16);
-  --color-tertiary-20: rgba(250, 93, 25, 0.20);
-  --color-tertiary-40: rgba(250, 93, 25, 0.40);
-  --color-tertiary-90: rgba(250, 93, 25, 0.90);
-  --color-tertiary-100: #fa5d19;
+  /* Text */
+  --text-strong: #0a0a0a; /* page titles, primary content */
+  --text-default: #262626; /* labels, UI text, section labels */
+  --text-muted: #6b6b6b; /* descriptions, secondary text (5.33:1 white, 4.84:1 on --muted-fill) */
+  --text-subtle: #a3a3a3; /* placeholders and disabled text only (2.52:1) */
+
+  /* Brand: brand-button backgrounds and form-field focus only. Never text, icons or decoration. */
+  --brand: #00aaf7;
+  --brand-top: color-mix(in srgb, var(--brand) 92%, white);
+  --brand-bottom: color-mix(in srgb, var(--brand) 94%, black);
+  --brand-edge: color-mix(in srgb, var(--brand) 80%, black);
+  /* Selected main-nav item (founder exceptions: brand fill outside buttons, and white
+     text at 2.59:1, below AA). Text and icon are one token; near-black would be
+     var(--text-strong), 7.63:1. */
+  --nav-selected-bg: var(--brand);
+  --nav-selected-fg: var(--brand-foreground);
+  /* Focus uses --ring (= --brand); see @utility focus-ring. 2.59:1 on white is the founder's accepted decision. */
+  /* Vertical offset of icons inside badges. Tune by hand: positive moves icons down. */
+  --badge-icon-offset: -0.25px;
+  /* BRAND_BUTTON_TEXT = white (founder's call; 2.59:1). For dark text use var(--text-strong) (7.63:1). */
+  --brand-foreground: #ffffff;
+
+  /* Status: tint background + darker text from the same family, always with an icon or label */
+  --success: #047857;
+  --success-tint: #ecfdf5;
+  --success-border: #a7f3d0;
+  --danger: #b91c1c;
+  --danger-tint: #fef2f2;
+  --danger-border: #fecaca;
+  --warning: #b45309;
+  --warning-tint: #fffbeb;
+  --warning-border: #fde68a;
+
+  /* Depth: shadows instead of borders */
+  --shadow-border-sm:
+    0px 0px 0px 1px rgba(0, 0, 0, 0.06),
+    0px 1px 2px -1px rgba(0, 0, 0, 0.06),
+    0px 2px 4px 0px rgba(0, 0, 0, 0.04);
+
+  --shadow-border:
+    0px 0px 0px 1px rgba(0, 0, 0, 0.08),
+    0px 1px 2px -1px rgba(0, 0, 0, 0.08),
+    0px 2px 4px 0px rgba(0, 0, 0, 0.06);
+
+  --border-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.08);
+
+  /* Motion */
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+  --motion-slow: 300ms;
+  --ease-enter-curve: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* ── shadcn variables, mapped onto the tokens above ──
+     --primary is neutral ink (text-strong), NOT brand. Brand is only --brand. */
+  --background: var(--canvas);
+  --foreground: var(--text-strong);
+  --card: var(--surface);
+  --card-foreground: var(--text-strong);
+  --popover: var(--surface);
+  --popover-foreground: var(--text-strong);
+  --primary: var(--text-strong);
+  --primary-foreground: #ffffff;
+  --secondary: var(--surface);
+  --secondary-foreground: var(--text-default);
+  --muted: var(--muted-fill);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--muted-fill);
+  --accent-foreground: var(--text-strong);
+  --destructive: var(--danger);
+  --border: var(--border-default);
+  --input: var(--border-default);
+  --ring: var(--brand);
+  --chart-1: #d4d4d4;
+  --chart-2: #a3a3a3;
+  --chart-3: #737373;
+  --chart-4: #404040;
+  --chart-5: #262626;
+  --radius: 0.625rem;
+  --sidebar: var(--canvas);
+  --sidebar-foreground: var(--text-default);
+  --sidebar-primary: var(--text-strong);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--muted-fill);
+  --sidebar-accent-foreground: var(--text-strong);
+  --sidebar-border: var(--border-default);
+  --sidebar-ring: var(--brand);
 }
 
+/* Tailwind theme: values, so call sites use names, not raw sizes. */
+@theme {
+  /* Type scale */
+  --text-title: 1.5rem;
+  --text-title--line-height: 2rem;
+  --text-title--font-weight: 600;
+  --text-composer: 0.9375rem;
+  --text-composer--line-height: 1.5rem;
+  --text-composer--font-weight: 400;
+  --text-section: 0.9375rem;
+  --text-section--line-height: 1.375rem;
+  --text-section--font-weight: 500;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.25rem;
+  --text-body--font-weight: 400;
+  --text-meta: 0.75rem;
+  --text-meta--line-height: 1rem;
+  --text-meta--font-weight: 500;
+
+  /* Radii: 6 badges/small controls, 8 buttons/inputs, 10 cards/popovers/menus, 12 composer/dialogs */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+}
+
+/* Tailwind theme: references to the CSS variables above. */
 @theme inline {
-    --color-brand: var(--color-primary);
-    --color-brand-hover: var(--color-primary-hover);
-    --color-primary: var(--color-primary);
-    --color-primary-foreground: var(--color-primary-foreground);
-    --color-primary-hover: var(--color-primary-hover);
-    --color-primary-4: var(--color-primary-4);
-    --color-primary-8: var(--color-primary-8);
-    --color-primary-12: var(--color-primary-12);
-    --color-primary-16: var(--color-primary-16);
-    --color-primary-20: var(--color-primary-20);
-    --color-primary-40: var(--color-primary-40);
-    --color-primary-90: var(--color-primary-90);
-    --color-primary-100: var(--color-primary-100);
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
 
-    --color-secondary: var(--color-secondary);
-    --color-secondary-foreground: var(--color-secondary-foreground);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-border-strong: var(--border-strong);
+  --color-fg-strong: var(--text-strong);
+  --color-fg-default: var(--text-default);
+  --color-fg-muted: var(--text-muted);
+  --color-fg-subtle: var(--text-subtle);
 
-    --color-tertiary: var(--color-tertiary);
-    --color-tertiary-hover: var(--color-tertiary-hover);
-    --color-tertiary-foreground: var(--color-tertiary-foreground);
-    --color-tertiary-4: var(--color-tertiary-4);
-    --color-tertiary-8: var(--color-tertiary-8);
-    --color-tertiary-12: var(--color-tertiary-12);
-    --color-tertiary-16: var(--color-tertiary-16);
-    --color-tertiary-20: var(--color-tertiary-20);
-    --color-tertiary-40: var(--color-tertiary-40);
-    --color-tertiary-90: var(--color-tertiary-90);
-    --color-tertiary-100: var(--color-tertiary-100);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-nav-selected: var(--nav-selected-bg);
+  --color-nav-selected-fg: var(--nav-selected-fg);
 
-    --font-heading: var(--font-sans);
-    --font-sans: var(--font-sans);
-    --font-serif: var(--font-serif);
-    --color-sidebar-ring: var(--sidebar-ring);
-    --color-sidebar-border: var(--sidebar-border);
-    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-    --color-sidebar-accent: var(--sidebar-accent);
-    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-    --color-sidebar-primary: var(--sidebar-primary);
-    --color-sidebar-foreground: var(--sidebar-foreground);
-    --color-sidebar: var(--sidebar);
-    --color-chart-5: var(--chart-5);
-    --color-chart-4: var(--chart-4);
-    --color-chart-3: var(--chart-3);
-    --color-chart-2: var(--chart-2);
-    --color-chart-1: var(--chart-1);
-    --color-ring: var(--ring);
-    --color-input: var(--input);
-    --color-border: var(--border);
-    --color-destructive: var(--destructive);
-    --color-accent-foreground: var(--accent-foreground);
-    --color-accent: var(--accent);
-    --color-muted-foreground: var(--muted-foreground);
-    --color-muted: var(--muted);
-    --color-secondary-foreground: var(--secondary-foreground);
-    --color-secondary: var(--secondary);
-    --color-primary-foreground: var(--primary-foreground);
-    --color-primary: var(--primary);
-    --color-tertiary-foreground: var(--tertiary-foreground);
-    --color-tertiary: var(--tertiary);
-    --color-popover-foreground: var(--popover-foreground);
-    --color-popover: var(--popover);
-    --color-card-foreground: var(--card-foreground);
-    --color-card: var(--card);
-    --color-foreground: var(--foreground);
-    --color-background: var(--background);
-    --radius-sm: calc(var(--radius) * 0.6);
-    --radius-md: calc(var(--radius) * 0.8);
-    --radius-lg: var(--radius);
-    --radius-xl: calc(var(--radius) * 1.4);
-    --radius-2xl: calc(var(--radius) * 1.8);
-    --radius-3xl: calc(var(--radius) * 2.2);
-    --radius-4xl: calc(var(--radius) * 2.6);
-}
+  --color-success: var(--success);
+  --color-success-tint: var(--success-tint);
+  --color-success-border: var(--success-border);
+  --color-danger: var(--danger);
+  --color-danger-tint: var(--danger-tint);
+  --color-danger-border: var(--danger-border);
+  --color-warning: var(--warning);
+  --color-warning-tint: var(--warning-tint);
+  --color-warning-border: var(--warning-border);
 
-:root {
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: var(--color-primary);
-    --primary-foreground: var(--color-primary-foreground);
-    --tertiary: var(--color-tertiary);
-    --tertiary-foreground: var(--color-tertiary-foreground);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: var(--color-primary);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: var(--color-primary);
-    --sidebar-primary-foreground: var(--color-primary-foreground);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: var(--color-primary);
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-}
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
 
-.dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: var(--color-primary);
-    --primary-foreground: var(--color-primary-foreground);
-    --tertiary: var(--color-tertiary);
-    --tertiary-foreground: var(--color-tertiary-foreground);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: var(--color-primary);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: var(--color-primary);
-    --sidebar-primary-foreground: var(--color-primary-foreground);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: var(--color-primary);
+  /* Depth: shadow-surface (flat ring), shadow-raised (ring + slight lift), shadow-floating (ring + clear lift) */
+  --shadow-surface: var(--border-shadow);
+  --shadow-raised: var(--shadow-border-sm);
+  --shadow-floating: var(--shadow-border);
+
+  --ease-enter: var(--ease-enter-curve);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
-    }
-  body {
-    @apply bg-background text-foreground;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    }
-  button:not(:disabled), [role="button"]:not(:disabled) {
-    cursor: pointer;
-    }
+    @apply border-border outline-ring;
+  }
   html {
     @apply font-sans;
-    }
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  h1, h2, h3, h4 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  /* Plain links get the same ring (components set their own with focus-ring). */
+  :where(a):focus-visible {
+    outline: 2px solid transparent;
+    border-radius: 2px;
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
+    transition: box-shadow 150ms ease-out;
+  }
+  /* Icons (components/ui/icons.tsx and HugeiconsIcon in components/ui): the stroke is
+     drawn in rendered pixels, 1.5px next to regular text; medium-weight parents
+     (buttons, badges) set --icon-stroke: 2px. */
+  .ui-icon :is(path, circle, rect, line, polyline, polygon, ellipse) {
+    vector-effect: non-scaling-stroke;
+    stroke-width: var(--icon-stroke, 1.5px);
+  }
+}
+
+/*
+ * The one focus recipe: shadcn's default in brand. The border turns --ring and a
+ * 3px --ring/50 ring appears. Tailwind's ring and shadow utilities write
+ * separate variables (--tw-ring-shadow, --tw-shadow) into one box-shadow, so
+ * the ring stacks with shadow-surface / shadow-raised / the brand button
+ * shadow instead of replacing them. The transparent outline is invisible
+ * normally and becomes the indicator in forced-colors mode, which drops
+ * box-shadow. Pair it with a transition on color, border-color and
+ * box-shadow (150ms ease-out). Menu and select items use the highlighted
+ * background instead of a ring.
+ */
+@utility focus-ring {
+  @apply border-ring ring-[3px] ring-ring/50;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
 }
 
 /* Utility: hide scrollbar but keep scroll */
@@ -213,14 +290,14 @@
 /* Utility: thin scrollbar */
 .scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: hsl(var(--border)) transparent;
+  scrollbar-color: var(--border-strong) transparent;
 }
 .scrollbar-thin::-webkit-scrollbar {
   width: 4px;
   height: 4px;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
+  background: var(--border-strong);
   border-radius: 4px;
 }
 .scrollbar-thin::-webkit-scrollbar-track {
@@ -228,24 +305,121 @@
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Transitions.dev CSS Rules (shimmer, modal, panel reveal)
+ * Transitions (from the transitions.dev skill, .agents/skills/transitions-dev).
+ * Values are the skill's own; menu dropdown and modal are adapted to Base UI's
+ * lifecycle attributes (data-starting-style / data-ending-style) instead of
+ * the skill's .is-open / .is-closing classes, since Base UI mounts and
+ * unmounts the popup itself.
  * ───────────────────────────────────────────────────────────── */
-
 :root {
-  --shimmer-dur: 2000ms;
-  --shimmer-base: #71717a;
-  --shimmer-highlight: var(--color-primary);
-  --shimmer-band: 400%;
-  --shimmer-ease: linear;
+  /* Menu dropdown (05-menu-dropdown) */
+  --dropdown-open-dur: 250ms;
+  --dropdown-close-dur: 150ms;
+  --dropdown-pre-scale: 0.97;
+  --dropdown-closing-scale: 0.99;
+  --dropdown-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Modal open / close (06-modal) */
   --modal-open-dur: 250ms;
   --modal-close-dur: 150ms;
   --modal-scale: 0.96;
+  --modal-scale-close: 0.96;
   --modal-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Shimmer text (15-shimmer-text) */
+  --shimmer-dur: 2000ms;
+  --shimmer-base: var(--text-muted);
+  --shimmer-highlight: var(--text-strong);
+  --shimmer-band: 400%;
+  --shimmer-ease: linear;
 }
 
-.dark {
-  --shimmer-base: #a1a1aa;
-  --shimmer-highlight: var(--color-primary);
+.t-dropdown {
+  transform-origin: var(--transform-origin, top center);
+  transition:
+    transform var(--dropdown-open-dur) var(--dropdown-ease),
+    opacity   var(--dropdown-open-dur) var(--dropdown-ease);
+  will-change: transform, opacity;
+}
+.t-dropdown[data-starting-style] {
+  transform: scale(var(--dropdown-pre-scale));
+  opacity: 0;
+}
+.t-dropdown[data-ending-style] {
+  transform: scale(var(--dropdown-closing-scale));
+  opacity: 0;
+  transition:
+    transform var(--dropdown-close-dur) var(--dropdown-ease),
+    opacity   var(--dropdown-close-dur) var(--dropdown-ease);
+}
+
+.t-modal {
+  transform-origin: center;
+  transition:
+    transform var(--modal-open-dur) var(--modal-ease),
+    opacity   var(--modal-open-dur) var(--modal-ease);
+  will-change: transform, opacity;
+}
+.t-modal[data-starting-style] {
+  transform: scale(var(--modal-scale));
+  opacity: 0;
+}
+.t-modal[data-ending-style] {
+  transform: scale(var(--modal-scale-close));
+  opacity: 0;
+  transition:
+    transform var(--modal-close-dur) var(--modal-ease),
+    opacity   var(--modal-close-dur) var(--modal-ease);
+}
+.t-modal-backdrop {
+  transition: opacity var(--modal-open-dur) var(--modal-ease);
+}
+.t-modal-backdrop[data-starting-style],
+.t-modal-backdrop[data-ending-style] {
+  opacity: 0;
+}
+.t-modal-backdrop[data-ending-style] {
+  transition-duration: var(--modal-close-dur);
+}
+
+/* Tooltip open/close (17-tooltip): the 80ms appear delay is the
+   TooltipProvider delay; fade + scale in, near-instant out. */
+:root {
+  --tt-in-dur: 150ms;
+  --tt-out-dur: 50ms;
+  --tt-scale: 0.98;
+  --tt-in-ease: ease-out;
+  --tt-out-ease: ease-out;
+}
+.t-tt-popup {
+  transform-origin: var(--transform-origin, 50% 100%);
+  transition:
+    opacity var(--tt-in-dur) var(--tt-in-ease),
+    scale   var(--tt-in-dur) var(--tt-in-ease);
+}
+.t-tt-popup[data-starting-style] {
+  opacity: 0;
+  scale: var(--tt-scale);
+}
+.t-tt-popup[data-ending-style] {
+  opacity: 0;
+  scale: var(--tt-scale);
+  transition:
+    opacity var(--tt-out-dur) var(--tt-out-ease),
+    scale   var(--tt-out-dur) var(--tt-out-ease);
+}
+
+/* Reduced motion: no scale; the opacity cross-fade stays (better-ui), 150ms. */
+@media (prefers-reduced-motion: reduce) {
+  .t-tt-popup,
+  .t-tt-popup[data-ending-style],
+  .t-dropdown,
+  .t-dropdown[data-ending-style],
+  .t-modal,
+  .t-modal[data-ending-style],
+  .t-modal-backdrop {
+    transition: opacity 150ms ease-out !important;
+    transform: none !important;
+    scale: none !important;
+  }
 }
 
 .t-shimmer {
@@ -285,8 +459,110 @@
   .t-shimmer::before { animation: none !important; }
 }
 
-/* prompt-kit Text Shimmer keyframe */
-@keyframes shimmer-removed-prompt-kit {
-  from { background-position: 0% 0; }
-  to { background-position: 200% 0; }
+/* ─────────────────────────────────────────────────────────────
+ * App shell (components/shell) and Home → chat.
+ * ───────────────────────────────────────────────────────────── */
+
+/* Sidebar groups: transitions.dev accordion (21-accordion), grid-template-rows
+   0fr ↔ 1fr. Animates only after the first toggle (data-animate), so a
+   remembered state restored on load does not play. */
+:root {
+  --acc-expand: 250ms;
+  --acc-collapse: 250ms;
+  --acc-chevron: 250ms;
+  --acc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.t-acc-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+}
+.t-acc[data-open="true"] .t-acc-panel {
+  grid-template-rows: 1fr;
+}
+.t-acc-panel-inner {
+  overflow: hidden;
+  opacity: 0;
+  filter: blur(2px);
+}
+.t-acc[data-open="true"] .t-acc-panel-inner {
+  opacity: 1;
+  filter: blur(0);
+}
+.t-acc[data-animate] .t-acc-panel {
+  transition: grid-template-rows var(--acc-collapse) var(--acc-ease);
+}
+.t-acc[data-animate][data-open="true"] .t-acc-panel {
+  transition-duration: var(--acc-expand);
+}
+.t-acc[data-animate] .t-acc-panel-inner {
+  transition:
+    opacity var(--acc-collapse) var(--acc-ease),
+    filter var(--acc-collapse) var(--acc-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-acc .t-acc-panel,
+  .t-acc .t-acc-panel-inner {
+    transition: none !important;
+  }
+}
+
+/* Mobile nav drawer: a panel sliding in from the leading edge (transitions.dev
+   panel reveal timing: 400ms in, 350ms out), on Base UI's lifecycle attributes.
+   Reduced motion: opacity only. */
+:root {
+  --drawer-open-dur: 400ms;
+  --drawer-close-dur: 350ms;
+  --drawer-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.t-drawer {
+  transition:
+    transform var(--drawer-open-dur) var(--drawer-ease),
+    opacity var(--drawer-open-dur) var(--drawer-ease);
+}
+.t-drawer[data-starting-style],
+.t-drawer[data-ending-style] {
+  transform: translateX(-100%);
+}
+.t-drawer[data-ending-style] {
+  transition-duration: var(--drawer-close-dur);
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-drawer {
+    transition: opacity 150ms ease-out !important;
+  }
+  .t-drawer[data-starting-style],
+  .t-drawer[data-ending-style] {
+    transform: none;
+    opacity: 0;
+  }
+}
+
+/* Home → chat (React <ViewTransition>, components/chat/agent-composer.tsx):
+   the composer moves to its chat position, everything else cross-fades.
+   transitions.dev page-slide timing (250ms, smooth-out); old content leaves
+   faster than new content arrives. Reduced motion: instant swap. */
+:root {
+  --composer-move-dur: 250ms;
+  --page-fade-out-dur: 150ms;
+  --page-fade-in-dur: 250ms;
+  --page-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+::view-transition-group(.composer-move) {
+  animation-duration: var(--composer-move-dur);
+  animation-timing-function: var(--page-ease);
+}
+::view-transition-old(root) {
+  animation-duration: var(--page-fade-out-dur);
+  animation-timing-function: ease-out;
+}
+::view-transition-new(root) {
+  animation-duration: var(--page-fade-in-dur);
+  animation-timing-function: ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }

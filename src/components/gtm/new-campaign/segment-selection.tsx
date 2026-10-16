@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowRight, Check, Loader2, Mail } from "lucide-react"
+import { ArrowRight, Check, Loader2, Mail } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -75,9 +75,8 @@ function SegmentCard({
               {segment.criteria.map((c, i) => (
                 <Badge
                   key={i}
-                  variant="secondary"
-                  className="py-0 text-[10px] font-normal"
-                >
+                  variant="neutral"
+                  className="py-0 font-normal">
                   {c}
                 </Badge>
               ))}
@@ -152,8 +151,8 @@ export function SegmentSelection({
         <p className="text-sm text-muted-foreground">
           {selectedIds.size} of {segments.length} segment(s) selected
         </p>
-        <Button
-          size="default"
+        <Button variant="brand"
+          size="md"
           disabled={selectedIds.size === 0 || isLaunching}
           onClick={onLaunch}
           className="gap-2"

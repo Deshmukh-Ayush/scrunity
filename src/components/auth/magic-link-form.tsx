@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
-import { Loader2 } from "lucide-react"
+import { Loader2 } from "@/components/ui/icons"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { signIn } from "@/lib/auth-client"
@@ -29,7 +29,7 @@ export function MagicLinkForm({ next }: { next?: string }) {
 
   if (state === "sent") {
     return (
-      <p role="status" className="rounded-md border border-border px-3 py-2 text-center text-xs text-muted-foreground">
+      <p role="status" className="rounded-md px-3 py-2 text-center text-xs text-muted-foreground shadow-surface">
         If this email has access to Scrunity, a sign-in link is on its way. It works once and expires in 5 minutes.
       </p>
     )
@@ -47,7 +47,7 @@ export function MagicLinkForm({ next }: { next?: string }) {
         onChange={(e) => setEmail(e.target.value)}
         className="h-9 text-sm"
       />
-      <Button type="submit" variant="outline" disabled={state === "sending"} className="h-9 text-sm">
+      <Button type="submit" variant="outline" disabled={state === "sending"} className="text-sm">
         {state === "sending" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         Email me a sign-in link
       </Button>

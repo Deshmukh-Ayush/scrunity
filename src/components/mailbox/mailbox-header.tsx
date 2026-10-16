@@ -1,95 +1,79 @@
 "use client"
 
-import { Mail, RefreshCw } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { RefreshCw } from "@/components/ui/icons"
 import { cn } from "@/lib/utils"
 import type { MailboxTab } from "./types"
 
-/** Page title with unread count, the Conversations/Settings switch, and refresh. */
+/**
+ * Utility header: title, the connected address and how replies arrive (plain
+ * text), Refresh, and the Conversations / Settings tabs. The tabs are links
+ * (?tab=), so each view has a URL; the current one has aria-current="page".
+ */
 export function MailboxHeader({
   activeTab,
-  onTabChange,
+  hrefs,
   threadCount,
-  unreadCount,
-  isRefreshing,
+  statusText,
+  refreshing,
   onRefresh,
 }: {
   activeTab: MailboxTab
-  onTabChange: (tab: MailboxTab) => void
-  threadCount: number
-  unreadCount: number
-  isRefreshing: boolean
-  onRefresh: () => void
+  hrefs: Record<MailboxTab, string>
+  threadCount: number | null
+  /** One plain sentence about the connection. */
+  statusText: string
+  refreshing: boolean
+  onRefresh?: () => void
 }) {
-  const tabs: Array<{ id: MailboxTab; label: string }> = [
-    { id: "conversations", label: `Conversations (${threadCount})` },
-    { id: "settings", label: "Mailbox Settings" },
+  const tabs: { id: MailboxTab; label: string; count?: number | null }[] = [
+    { id: "conversations", label: "Conversations", count: threadCount },
+    { id: "settings", label: "Settings" },
   ]
 
   return (
-    <div className="flex flex-col justify-between gap-3 border-b border-border/70 bg-card/60 px-6 py-3.5 backdrop-blur-xs sm:flex-row sm:items-center">
-      <div className="flex items-center gap-3">
-        <div className="rounded-lg border border-primary/20 bg-primary/10 p-2 text-primary">
-          <Mail className="size-4" />
+    <header className="flex shrink-0 flex-col gap-3 border-b border-border px-4 pt-5 md:px-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <h1 className="text-title text-fg-strong">Mailbox</h1>
+          <p className="text-body break-words text-fg-muted">{statusText}</p>
         </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-base font-semibold tracking-tight text-foreground">
-              Mailbox
-            </h1>
-            {unreadCount > 0 && (
-              <Badge className="bg-tertiary px-1.5 py-0 text-[10px] font-medium text-white">
-                {unreadCount} unread
-              </Badge>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Sent outreach threads & classified prospect responses across all
-            campaigns
-          </p>
-        </div>
+        {onRefresh && (
+          <Button onClick={onRefresh} loading={refreshing}>
+            <RefreshCw data-icon="inline-start" />
+            Refresh
+          </Button>
+        )}
       </div>
-
-      <div className="flex items-center gap-2.5">
-        <div
-          role="tablist"
-          aria-label="Mailbox view"
-          className="flex items-center rounded-md border border-border/80 bg-muted/40 p-0.5"
-        >
-          {tabs.map((tab) => (
-            <button
+      <nav aria-label="Mailbox sections" className="-mb-px flex gap-4">
+        {tabs.map((tab) => {
+          const current = tab.id === activeTab
+          return (
+            <Link
               key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === tab.id}
-              onClick={() => onTabChange(tab.id)}
+              href={hrefs[tab.id]}
+              aria-current={current ? "page" : undefined}
+              scroll={false}
               className={cn(
-                "rounded px-3 py-1 text-xs font-medium text-muted-foreground transition-all hover:text-foreground",
-                "aria-selected:bg-background aria-selected:font-semibold aria-selected:text-foreground aria-selected:shadow-2xs"
+                "inline-flex h-9 items-center gap-1.5 border-b-2 text-body font-medium outline-none",
+                "transition-[color,border-color] duration-(--motion-fast) ease-out motion-reduce:transition-none",
+                "focus-visible:rounded-sm",
+                current
+                  ? "border-fg-strong text-fg-strong"
+                  : "border-transparent text-fg-muted hover:text-fg-strong"
               )}
             >
               {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onRefresh}
-          disabled={isRefreshing}
-          className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-        >
-          <RefreshCw
-            className={cn(
-              "size-3.5",
-              isRefreshing && "animate-spin text-primary"
-            )}
-          />
-          <span className="hidden sm:inline">Refresh</span>
-        </Button>
-      </div>
-    </div>
+              {tab.count !== undefined && tab.count !== null && (
+                <span className="text-meta text-fg-muted tabular-nums">
+                  {tab.count}
+                </span>
+              )}
+            </Link>
+          )
+        })}
+      </nav>
+    </header>
   )
 }

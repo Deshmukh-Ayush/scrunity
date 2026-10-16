@@ -13,6 +13,7 @@ import {
 } from "@/db/schema"
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm"
 import type { MailboxMessage, MailboxThread } from "@/lib/mailbox-thread-types"
+import { matchesFilter, matchesSearch } from "@/lib/mailbox-filters"
 
 /**
  * The organization's sending mailbox, or null when none is connected.
@@ -80,28 +81,9 @@ export async function getMailboxThreads(
     mailbox?.email || "outreach@scrunity.ai"
   )
 
-  if (search) {
-    threads = threads.filter(
-      (t) =>
-        t.contact.name.toLowerCase().includes(search) ||
-        t.contact.email?.toLowerCase().includes(search) ||
-        t.company.name?.toLowerCase().includes(search) ||
-        t.subject.toLowerCase().includes(search) ||
-        t.latestSnippet.toLowerCase().includes(search) ||
-        t.campaign.name.toLowerCase().includes(search)
-    )
-  }
-
-  if (filters.intent && filters.intent !== "all") {
-    // "unread" and "bounced" are thread states, not reply intents (a bounced
-    // thread never has a classified intent).
-    threads =
-      filters.intent === "unread"
-        ? threads.filter((t) => t.isUnread)
-        : filters.intent === "bounced"
-          ? threads.filter((t) => t.isBounced)
-          : threads.filter((t) => t.classifiedIntent === filters.intent)
-  }
+  // Same predicates as the Mailbox page (lib/mailbox-filters.ts).
+  if (search) threads = threads.filter((t) => matchesSearch(t, search))
+  threads = threads.filter((t) => matchesFilter(t, filters.intent))
 
   return { mailbox, threads, total: threads.length }
 }
