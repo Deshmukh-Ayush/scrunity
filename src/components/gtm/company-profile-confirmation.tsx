@@ -1,17 +1,10 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Loader2 } from "@/components/ui/icons"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
+import { Textarea } from "@/components/ui/textarea"
 
 export interface SynthesizedProfile {
   summary: string
@@ -21,6 +14,12 @@ export interface SynthesizedProfile {
   signals: string[]
 }
 
+const cardClass = "flex flex-col gap-6 rounded-xl border border-transparent bg-surface p-4 shadow-surface sm:p-6"
+
+/**
+ * Step 3: what research understood about the company. Continue, or edit the
+ * description and run research again (the flow's existing re-run).
+ */
 export function CompanyProfileConfirmation({
   profile,
   companyDescription,
@@ -28,6 +27,7 @@ export function CompanyProfileConfirmation({
   isSaving,
   onDescriptionChange,
   onEdit,
+  onCancelEdit,
   onContinue,
   onSave,
 }: {
@@ -37,90 +37,101 @@ export function CompanyProfileConfirmation({
   isSaving: boolean
   onDescriptionChange: (description: string) => void
   onEdit: () => void
+  onCancelEdit: () => void
   onContinue: () => void
   onSave: () => void
 }) {
   if (!profile) {
     return (
-      <Card className="mx-auto max-w-2xl">
-        <CardContent
-          className="flex items-center gap-2 p-6 text-sm text-muted-foreground"
-          role="status"
-        >
-          <Loader2 className="size-4 animate-spin" />
+      <div className={cardClass}>
+        <p role="status" className="flex items-center gap-2 text-body text-fg-muted">
+          <Loader2 className="size-4 motion-safe:animate-spin" />
           Preparing your company profile…
-        </CardContent>
-      </Card>
+        </p>
+      </div>
     )
   }
 
   return (
-    <Card className="mx-auto max-w-2xl">
-      <CardHeader>
-        <CardTitle>Confirm your company profile</CardTitle>
-        <CardDescription>
-          Review what the research agent understood before using it to generate
-          ICP segments.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        <p className="text-sm leading-6">{profile.summary}</p>
-        <dl className="grid gap-4 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-muted-foreground">Industry</dt>
-            <dd className="font-medium">{profile.industry}</dd>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-title text-fg-strong">Check your company profile</h1>
+        <p className="text-body text-fg-muted">
+          This is what research understood about your company. Customer
+          segments are built from it, so fix anything that's off before you
+          continue.
+        </p>
+      </div>
+
+      <section aria-label="Company profile" className={cardClass}>
+        <p className="text-body text-fg-strong">{profile.summary}</p>
+
+        <dl className="grid gap-4 border-t border-border pt-5 sm:grid-cols-2">
+          <div className="flex flex-col gap-0.5">
+            <dt className="text-meta text-fg-muted">Industry</dt>
+            <dd className="text-body text-fg-strong">{profile.industry}</dd>
           </div>
-          <div>
-            <dt className="text-muted-foreground">Product focus</dt>
-            <dd className="font-medium">{profile.productFocus}</dd>
+          <div className="flex flex-col gap-0.5">
+            <dt className="text-meta text-fg-muted">Product focus</dt>
+            <dd className="text-body text-fg-strong">{profile.productFocus}</dd>
           </div>
         </dl>
-        <div className="space-y-2">
-          <p className="text-sm font-medium">Signals</p>
-          <div className="flex flex-wrap gap-2">
-            {profile.signals.map((signal) => (
-              <Badge key={signal} variant="neutral">
-                {signal}
-              </Badge>
-            ))}
+
+        {profile.signals.length > 0 && (
+          <div className="flex flex-col gap-2 border-t border-border pt-5">
+            <h2 className="text-meta text-fg-muted">What research noticed</h2>
+            <ul className="flex flex-wrap gap-1.5">
+              {profile.signals.map((signal) => (
+                <li key={signal} className="max-w-full">
+                  <Badge variant="neutral">{signal}</Badge>
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
-        {isEditing ? (
-          <div className="space-y-2">
-            <Label htmlFor="profile-description">Company description</Label>
+        )}
+
+        {isEditing && (
+          <Field className="border-t border-border pt-5">
+            <FieldLabel htmlFor="profile-description">What your company does</FieldLabel>
             <Textarea
               id="profile-description"
+              rows={4}
+              autoFocus
               value={companyDescription}
+              aria-describedby="profile-description-help"
               onChange={(event) => onDescriptionChange(event.target.value)}
             />
-          </div>
-        ) : null}
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <FieldDescription id="profile-description-help">
+              Research runs again from the start with this description.
+            </FieldDescription>
+          </Field>
+        )}
+
+        <div className="flex flex-col-reverse gap-2 border-t border-border pt-5 sm:flex-row sm:justify-end">
           {isEditing ? (
-            <Button
-              variant="outline"
-              onClick={onSave}
-              disabled={isSaving || !companyDescription.trim()}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                  Restarting research…
-                </>
-              ) : (
-                "Save and re-run research"
-              )}
-            </Button>
+            <>
+              <Button variant="ghost" onClick={onCancelEdit} disabled={isSaving}>
+                Cancel
+              </Button>
+              <Button
+                variant="brand"
+                onClick={onSave}
+                loading={isSaving}
+                disabled={!companyDescription.trim()}
+              >
+                Save and run research again
+              </Button>
+            </>
           ) : (
-            <Button variant="outline" onClick={onEdit}>
-              Something&apos;s off — edit my description
-            </Button>
+            <>
+              <Button onClick={onEdit}>Edit description</Button>
+              <Button variant="brand" onClick={onContinue}>
+                Looks right, continue
+              </Button>
+            </>
           )}
-          {!isEditing ? (
-            <Button variant="brand" onClick={onContinue}>Looks good, continue</Button>
-          ) : null}
         </div>
-      </CardContent>
-    </Card>
+      </section>
+    </div>
   )
 }

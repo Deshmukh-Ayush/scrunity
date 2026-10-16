@@ -7,21 +7,27 @@ import {
   type StageStalenessResult,
 } from "@/lib/gtm-staleness"
 import { useHydrated } from "@/hooks/use-hydrated"
+import { deriveCampaignProcess, type CampaignProcess } from "../process/campaign-process"
 import type { CampaignData, Draft, MailboxInfo } from "./types"
 
 const POLL_INTERVAL_MS = 4000
 
-const NOT_STALLED: Pick<StageStalenessResult, "isStalled" | "explanation"> = {
+const NOT_STALLED: Pick<StageStalenessResult, "isStalled" | "elapsedMs"> = {
   isStalled: false,
-  explanation: "",
+  elapsedMs: 0,
 }
 
 interface CampaignDetailContextValue {
   data: CampaignData
   drafts: Draft[]
   mailbox: MailboxInfo | null
-  staleness: Pick<StageStalenessResult, "isStalled" | "explanation">
+  staleness: Pick<StageStalenessResult, "isStalled" | "elapsedMs">
   counts: { approved: number; sent: number; rejected: number; pending: number }
+  /** The campaign as ProcessCard state, plain words included. */
+  process: CampaignProcess
+  /** Stage whose detail shows under the card (0-4); follows the current stage until picked. */
+  selectedStage: number
+  selectStage: (index: number) => void
   isDispatching: boolean
   isRestarting: boolean
   isUpdating: boolean
@@ -63,7 +69,7 @@ async function postJson<T = { message?: string }>(
     body: body === undefined ? undefined : JSON.stringify(body),
   })
   const data = await res.json()
-  if (!res.ok) throw new Error(data.error || `Request to ${url} failed`)
+  if (!res.ok) throw new Error(data.error || "The request didn't go through. Try again.")
   return data
 }
 
@@ -75,6 +81,11 @@ type CampaignDetailRootProps = React.ComponentProps<"div"> & {
   initialData: CampaignData
   initialDrafts: Draft[]
   initialMailbox: MailboxInfo | null
+  /**
+   * Testing route only: no polling and every action is a no-op, so fixture
+   * data is never replaced and nothing real is approved, sent or disconnected.
+   */
+  fixture?: boolean
 }
 
 /**
@@ -87,6 +98,7 @@ export function CampaignDetailRoot({
   initialData,
   initialDrafts,
   initialMailbox,
+  fixture = false,
   children,
   ...props
 }: CampaignDetailRootProps) {
@@ -96,6 +108,7 @@ export function CampaignDetailRoot({
   const [isDispatching, setIsDispatching] = React.useState(false)
   const [isRestarting, setIsRestarting] = React.useState(false)
   const [isUpdating, setIsUpdating] = React.useState(false)
+  const [pickedStage, setPickedStage] = React.useState<number | null>(null)
   const hydrated = useHydrated()
 
   const refresh = React.useCallback(async () => {
@@ -124,9 +137,10 @@ export function CampaignDetailRoot({
   }, [campaignId])
 
   React.useEffect(() => {
+    if (fixture) return
     const interval = setInterval(refresh, POLL_INTERVAL_MS)
     return () => clearInterval(interval)
-  }, [refresh])
+  }, [refresh, fixture])
 
   const reviewDraft: CampaignDetailContextValue["reviewDraft"] = async (
     draftId,
@@ -139,11 +153,11 @@ export function CampaignDetailRoot({
         action,
         edits,
       })
-      toast.success(action === "approve" ? "Draft approved" : "Draft rejected")
+      toast.success(action === "approve" ? "Email approved" : "Email rejected")
       await refresh()
       return true
     } catch (err) {
-      toast.error(errorMessage(err, "Failed to update draft"))
+      toast.error(errorMessage(err, "The email didn't update. Try again."))
       return false
     } finally {
       setIsUpdating(false)
@@ -156,10 +170,10 @@ export function CampaignDetailRoot({
       await postJson(`/api/gtm/campaigns/${campaignId}/drafts`, {
         action: "approve_all",
       })
-      toast.success("All drafts approved!")
+      toast.success("All emails approved")
       await refresh()
     } catch (err) {
-      toast.error(errorMessage(err, "Failed to approve drafts"))
+      toast.error(errorMessage(err, "The emails weren't approved. Try again."))
     } finally {
       setIsUpdating(false)
     }
@@ -168,13 +182,11 @@ export function CampaignDetailRoot({
   const restartStage = async () => {
     setIsRestarting(true)
     try {
-      const res = await postJson(
-        `/api/gtm/campaigns/${campaignId}/restart-stage`
-      )
-      toast.success(res.message || "Stage restarted successfully!")
+      await postJson(`/api/gtm/campaigns/${campaignId}/restart-stage`)
+      toast.success("Step restarted")
       await refresh()
     } catch (err) {
-      toast.error(errorMessage(err, "Failed to restart stage"))
+      toast.error(errorMessage(err, "The step didn't restart. Try again."))
     } finally {
       setIsRestarting(false)
     }
@@ -184,10 +196,10 @@ export function CampaignDetailRoot({
     setIsRestarting(true)
     try {
       await postJson(`/api/gtm/campaigns/${campaignId}/rerun`, { force: true })
-      toast.success("Autonomous pipeline restarted!")
+      toast.success("Campaign is running again from the start")
       await refresh()
     } catch (err) {
-      toast.error(errorMessage(err, "Failed to restart pipeline"))
+      toast.error(errorMessage(err, "The campaign didn't restart. Try again."))
     } finally {
       setIsRestarting(false)
     }
@@ -195,26 +207,31 @@ export function CampaignDetailRoot({
 
   const startSending = async () => {
     if (!mailbox) {
-      toast.error("Please connect your Gmail account before sending emails.")
+      toast.error("Connect a mailbox before you send.")
       return
     }
     setIsDispatching(true)
     try {
-      const res = await postJson(`/api/gtm/campaigns/${campaignId}/send`)
-      toast.success(res.message || "Email dispatch initiated!")
+      await postJson(`/api/gtm/campaigns/${campaignId}/send`)
+      toast.success("Sending started. Emails go out a few at a time.")
       await refresh()
     } catch (err) {
-      toast.error(errorMessage(err, "Failed to start sending"))
+      toast.error(errorMessage(err, "Sending didn't start. Try again."))
     } finally {
       setIsDispatching(false)
     }
   }
 
+  // The confirm dialog lives in the mailbox line (MailboxStatusBar).
   const disconnectMailbox = async () => {
-    if (!confirm("Disconnect this Gmail mailbox?")) return
-    await fetch("/api/gtm/mailbox", { method: "DELETE" })
-    await refresh()
-    toast.success("Mailbox disconnected")
+    try {
+      const res = await fetch("/api/gtm/mailbox", { method: "DELETE" })
+      if (!res.ok) throw new Error("The mailbox didn't disconnect. Try again.")
+      await refresh()
+      toast.success("Mailbox disconnected")
+    } catch (err) {
+      toast.error(errorMessage(err, "The mailbox didn't disconnect. Try again."))
+    }
   }
 
   const { campaign } = data
@@ -237,22 +254,36 @@ export function CampaignDetailRoot({
     pending: drafts.filter((d) => d.status === "draft").length,
   }
 
+  const process = deriveCampaignProcess({
+    data,
+    drafts,
+    counts,
+    stalledForMs: staleness.isStalled ? staleness.elapsedMs : null,
+  })
+
+  const inert = async () => {
+    toast.info("Testing route: nothing was changed.")
+  }
+
   const value: CampaignDetailContextValue = {
     data,
     drafts,
     mailbox,
     staleness,
     counts,
+    process,
+    selectedStage: pickedStage ?? process.current,
+    selectStage: setPickedStage,
     isDispatching,
     isRestarting,
     isUpdating,
-    refresh,
-    reviewDraft,
-    approveAllDrafts,
-    restartStage,
-    restartPipeline,
-    startSending,
-    disconnectMailbox,
+    refresh: fixture ? inert : refresh,
+    reviewDraft: fixture ? async () => (await inert(), false) : reviewDraft,
+    approveAllDrafts: fixture ? inert : approveAllDrafts,
+    restartStage: fixture ? inert : restartStage,
+    restartPipeline: fixture ? inert : restartPipeline,
+    startSending: fixture ? inert : startSending,
+    disconnectMailbox: fixture ? inert : disconnectMailbox,
   }
 
   return (

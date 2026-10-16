@@ -1,14 +1,15 @@
 import * as React from "react"
 import { Suspense } from "react"
 import { CampaignDetail } from "@/components/gtm/campaign-detail/campaign-detail"
+import { Container } from "@/components/layout/container"
 import { Skeleton } from "@/components/ui/skeleton"
 
 function CampaignDetailSkeleton() {
   return (
-    <div className="mx-auto max-w-5xl animate-pulse space-y-8">
+    <div className="flex flex-col gap-6">
       <div className="space-y-2">
         <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-96" />
+        <Skeleton className="h-4 w-full max-w-96" />
       </div>
       <Skeleton className="h-24 w-full rounded-xl" />
       <Skeleton className="h-64 w-full rounded-xl" />
@@ -24,10 +25,10 @@ export default async function CampaignDetailPage({
   const { id } = await params
 
   return (
-    <div className="p-6 md:p-8">
+    <Container width="page" className="max-w-5xl py-6 md:py-8">
       <Suspense fallback={<CampaignDetailSkeleton />}>
         <CampaignDetail campaignId={id} />
       </Suspense>
-    </div>
+    </Container>
   )
 }

@@ -60,3 +60,8 @@ export interface ResearchRunDetails extends MarketContextFields {
   stageStartedAt?: string | null
   lastProgressAt?: string | null
 }
+
+/** Inline errors for the company form, keyed by field; shown after a submit attempt. */
+export type CompanyFormErrors = Partial<
+  Record<"websiteUrl" | "companyName" | "companyDescription" | "targetCountry", string>
+>

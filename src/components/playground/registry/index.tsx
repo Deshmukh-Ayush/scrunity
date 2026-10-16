@@ -16,6 +16,16 @@ import {
   messageCardEntry,
   threadRowEntry,
 } from "./mailbox"
+import {
+  campaignZeroCompaniesEntry,
+  campaignZeroVerifiedEntry,
+  processCardEntry,
+  researchDoneEntry,
+  researchFormEntry,
+  researchProfileEntry,
+  researchProgressEntry,
+  researchSegmentsEntry,
+} from "./process"
 import { composerEntry, feedRowEntry, sidebarEntry } from "./shell"
 import type { ShowcaseEntry } from "./types"
 
@@ -43,6 +53,7 @@ export const SHOWCASE: ShowcaseEntry[] = [
   cardEntry,
   dataTableEntry,
   emptyStateEntry,
+  processCardEntry,
   dialogEntry,
   dropdownMenuEntry,
   sidebarEntry,
@@ -53,6 +64,13 @@ export const SHOWCASE: ShowcaseEntry[] = [
   mailboxFilterEntry,
   mailboxBannerEntry,
   mailboxPageEntry,
+  researchFormEntry,
+  researchProgressEntry,
+  researchProfileEntry,
+  researchSegmentsEntry,
+  researchDoneEntry,
+  campaignZeroCompaniesEntry,
+  campaignZeroVerifiedEntry,
 ]
 
 export * from "./types"

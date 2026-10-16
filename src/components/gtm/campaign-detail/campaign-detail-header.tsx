@@ -1,130 +1,78 @@
 "use client"
 
-import Link from "next/link"
-import { ArrowLeft, Loader2, RotateCcw, Send } from "@/components/ui/icons"
-import { AlertTriangleSolid } from "@/components/icons/status"
+import { RotateCcw, Send } from "@/components/ui/icons"
+import {
+  AlertTriangleSolid,
+  CheckCircleSolid,
+  InfoCircleSolid,
+  XCircleSolid,
+} from "@/components/icons/status"
+import { Activity, Clock, Minus } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
-import { Button, buttonVariants } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { LocalDate } from "@/components/ui/local-date"
+import { formatTargetMarket } from "@/lib/geo/countries"
+import type { ProcessState } from "@/components/ui/process-card"
 import { useCampaignDetail } from "./campaign-detail-root"
 
+const BADGE_ICON: Record<ProcessState, React.ReactNode> = {
+  running: <Activity data-icon="inline-start" />,
+  idle: <InfoCircleSolid data-icon="inline-start" />,
+  stalled: <AlertTriangleSolid data-icon="inline-start" />,
+  failed: <XCircleSolid data-icon="inline-start" />,
+  done: <CheckCircleSolid data-icon="inline-start" />,
+  "no-results": <Minus data-icon="inline-start" />,
+  paused: <Clock data-icon="inline-start" />,
+}
+
 /**
- * Title, live stage badge, and the page-level actions: "Start Sending" (the one
- * primary action) and "Re-run" when no stage is running. Restarting a running or
- * failed stage lives in the status banner instead.
+ * Segment name, one muted line (created date and target), the status in
+ * plain words, and the page actions: Start sending (the one brand button,
+ * when approved emails wait) and Re-run when nothing is running. Retry and
+ * Restart step live in the process card's footer.
  */
 export function CampaignDetailHeader() {
-  const {
-    data,
-    staleness,
-    counts,
-    mailbox,
-    isDispatching,
-    isRestarting,
-    startSending,
-    restartPipeline,
-  } = useCampaignDetail()
-  const { campaign, segment, researchRun, inngestConnectivity } = data
-  const stageLabel = campaign.currentStage.replace(/_/g, " ")
-  const inngestOffline = inngestConnectivity && !inngestConnectivity.connected
+  const { data, process, counts, mailbox, isDispatching, isRestarting, startSending, restartPipeline } =
+    useCampaignDetail()
+  const { campaign, segment } = data
+  const market = formatTargetMarket(campaign.targetCountryCode, campaign.targetRegion)
+  const canRerun = campaign.status !== "in_progress" && campaign.status !== "failed"
+  const canSend = counts.approved > 0 && campaign.currentStage !== "send_emails"
 
   return (
-    <div>
-      <Link
-        href="/dashboard/campaigns"
-        className={cn(
-          buttonVariants({ variant: "ghost", size: "sm" }),
-          "mb-3 -ml-2 gap-1 text-xs"
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex min-w-0 flex-col gap-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <h1 className="min-w-0 text-title text-fg-strong">{segment.name}</h1>
+          <Badge variant={process.badge.tone}>
+            {BADGE_ICON[process.state]}
+            {process.badge.label}
+          </Badge>
+        </div>
+        <p className="text-body text-fg-muted">
+          Created <LocalDate value={campaign.createdAt} options={{ day: "numeric", month: "short", year: "numeric" }} />
+          {market ? ` · Targeting ${market}` : ""}
+        </p>
+      </div>
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
+        {canRerun && (
+          <Button onClick={restartPipeline} loading={isRestarting}>
+            <RotateCcw data-icon="inline-start" />
+            Re-run
+          </Button>
         )}
-      >
-        <ArrowLeft className="mr-1 size-3.5" />
-        Back to Campaigns
-      </Link>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            {segment.name} Outreach Pipeline
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Campaign targeting {researchRun.companyName}&apos;s verified ICP
-            segment.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {campaign.status === "in_progress" ? (
-            staleness.isStalled ? (
-              <Badge
-                variant="warning"
-                className="gap-1.5 self-start px-3 py-1 capitalize sm:self-auto">
-                <AlertTriangleSolid className="size-3 text-warning" />
-                {stageLabel} (Stalled)
-              </Badge>
-            ) : (
-              <Badge
-                variant="neutral"
-                className="gap-1.5 self-start px-3 py-1 text-primary capitalize sm:self-auto">
-                <Loader2 className="size-3 animate-spin" />
-                {stageLabel} (Running)
-              </Badge>
-            )
-          ) : (
-            <Badge
-              variant={
-                campaign.status === "done" ||
-                campaign.status === "awaiting_approval"
-                  ? "neutral"
-                  : "neutral"
-              }
-              className="self-start px-3 py-1 capitalize sm:self-auto">
-              {stageLabel}
-            </Badge>
-          )}
-
-          {inngestOffline && (
-            <Badge
-              variant="warning"
-              className="gap-1"
-              title="Inngest dev server is not running on port 8288">
-              <AlertTriangleSolid className="size-3 text-warning" />
-              Inngest Offline
-            </Badge>
-          )}
-
-          {counts.approved > 0 && campaign.currentStage !== "send_emails" && (
-            <Button variant="brand"
-              size="md"
-              onClick={startSending}
-              disabled={isDispatching || !mailbox}
-              className="gap-1.5"
-            >
-              {isDispatching ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : (
-                <Send className="size-3.5" />
-              )}
-              Start Sending ({counts.approved})
-            </Button>
-          )}
-
-          {campaign.status !== "in_progress" &&
-            campaign.status !== "failed" && (
-              <Button
-                variant="outline"
-                size="md"
-                onClick={restartPipeline}
-                disabled={isRestarting}
-                className="gap-1.5"
-                title="Restart or re-run autonomous research pipeline"
-              >
-                {isRestarting ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <RotateCcw className="size-3.5" />
-                )}
-                Re-run
-              </Button>
-            )}
-        </div>
+        {canSend && (
+          <Button
+            variant="brand"
+            onClick={startSending}
+            loading={isDispatching}
+            disabled={!mailbox}
+            title={mailbox ? undefined : "Connect a mailbox first"}
+          >
+            <Send data-icon="inline-start" />
+            {`Send ${counts.approved} approved`}
+          </Button>
+        )}
       </div>
     </div>
   )

@@ -1,0 +1,301 @@
+/* ─────────────────────────────────────────────────────────────
+ * ProcessCard (components/ui/process-card). Neutral ink for active and
+ * progress, emerald only for done, amber stalled, red failed; every state
+ * also has an icon and a label. Motion uses transitions.dev timing
+ * (250ms smooth-out for fills, 500ms for the done check, 12px-less rises),
+ * plays only on change, and is off under reduced motion or data-motion=reduce.
+ * ───────────────────────────────────────────────────────────── */
+:root {
+  --pc-dur: 250ms;
+  --pc-check-dur: 500ms;
+  --pc-line-dur: 250ms;
+  --pc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --pc-bounce: cubic-bezier(0.34, 1.36, 0.64, 1);
+  --pc-rise: 6px;
+  --pc-tile: 32px;
+  --pc-gap: 16px;
+}
+
+.pc {
+  container: process / inline-size;
+}
+
+/* Stage track: a row of N equal columns; a vertical list when the card is narrow. */
+.pc-track {
+  display: grid;
+  grid-template-columns: repeat(var(--pc-count), minmax(0, 1fr));
+  gap: 8px;
+}
+.pc-stage {
+  position: relative;
+  min-width: 0;
+}
+.pc-hit {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 24px;
+  border-radius: 10px;
+  padding: 4px 2px;
+  text-align: center;
+  outline: none;
+  transition: background-color var(--motion-fast) ease-out;
+}
+a.pc-hit,
+button.pc-hit {
+  cursor: pointer;
+}
+.pc-stage[data-selected] .pc-hit {
+  background: var(--muted-fill);
+}
+.pc-stage[data-selected] .pc-name {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+.pc-label {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  flex-direction: column;
+  gap: 2px;
+}
+.pc-name {
+  color: var(--text-default);
+  overflow-wrap: anywhere;
+}
+.pc-stage[data-status="idle"] .pc-name {
+  color: var(--text-muted);
+}
+.pc-detail {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tiles */
+.pc-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--pc-tile);
+  height: var(--pc-tile);
+  flex-shrink: 0;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  transition:
+    background-color var(--pc-dur) var(--pc-ease),
+    color var(--pc-dur) var(--pc-ease),
+    border-color var(--pc-dur) var(--pc-ease);
+}
+.pc-tile[data-status="idle"] {
+  border: 1px dashed var(--border-strong);
+  color: var(--text-muted);
+}
+.pc-tile[data-status="active"] {
+  background: var(--text-strong);
+  color: white;
+}
+.pc-tile[data-status="done"] {
+  background: var(--success-tint);
+  color: var(--success);
+}
+.pc-tile[data-status="stalled"] {
+  background: var(--warning-tint);
+  color: var(--warning);
+}
+.pc-tile[data-status="failed"] {
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+.pc-tile[data-status="empty"],
+.pc-tile[data-status="paused"] {
+  background: var(--muted-fill);
+  color: var(--text-default);
+}
+/* Active and moving: a soft halo breathes around the tile. */
+.pc-tile[data-status="active"]::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 13px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--text-strong) 14%, transparent);
+  opacity: 0;
+}
+.pc-stage[data-moving] .pc-tile::after {
+  animation: pc-breathe 1600ms ease-in-out infinite alternate;
+}
+@keyframes pc-breathe {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Done check badge: pops in once when a stage finishes after first paint. */
+.pc-check {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--success);
+  color: white;
+  box-shadow: 0 0 0 2px var(--surface);
+  --icon-stroke: 2.5px;
+}
+.pc-stage[data-enter][data-status="done"] .pc-check {
+  animation: pc-check-in var(--pc-check-dur) var(--pc-bounce) both;
+}
+@keyframes pc-check-in {
+  from { opacity: 0; transform: scale(0.4); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Connector from a stage to the next: fills (scaleX) when the stage is done. */
+.pc-connector {
+  position: absolute;
+  top: calc(4px + var(--pc-tile) / 2 - 1px);
+  left: calc(50% + var(--pc-tile) / 2 + 6px);
+  right: calc(-50% + var(--pc-tile) / 2 + 2px);
+  height: 2px;
+  border-radius: 1px;
+  background: var(--border-default);
+  overflow: hidden;
+  pointer-events: none;
+}
+.pc-connector::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--success-border);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform var(--pc-dur) var(--pc-ease);
+}
+.pc-connector[data-filled]::after {
+  transform: scaleX(1);
+}
+
+@container process (max-width: 34rem) {
+  .pc-track {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--pc-gap);
+  }
+  .pc-hit {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    padding: 0;
+    text-align: left;
+  }
+  .pc-connector {
+    top: calc(var(--pc-tile) + 4px);
+    bottom: calc(-1 * var(--pc-gap) + 4px);
+    left: calc(var(--pc-tile) / 2 - 1px);
+    right: auto;
+    width: 2px;
+    height: auto;
+  }
+  .pc-connector::after {
+    transform: scaleY(0);
+    transform-origin: center top;
+  }
+  .pc-connector[data-filled]::after {
+    transform: scaleY(1);
+  }
+}
+
+/* Progress: fill moves with transform only; done turns emerald. */
+.pc-progress {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--muted-fill);
+  overflow: hidden;
+}
+.pc-progress-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  background: var(--text-strong);
+  transform: translateX(calc((var(--pc-ratio, 0) - 1) * 100%));
+  transition:
+    transform var(--pc-dur) var(--pc-ease),
+    background-color var(--pc-dur) var(--pc-ease);
+}
+.pc-progress[data-state="done"] .pc-progress-fill {
+  background: var(--success);
+}
+.pc-progress[data-state="stalled"] .pc-progress-fill {
+  background: var(--warning);
+}
+.pc-progress[data-state="failed"] .pc-progress-fill {
+  background: var(--danger);
+}
+/* Indeterminate: a short segment glides across, only while running. Otherwise empty and still. */
+.pc-progress[data-mode="indeterminate"] .pc-progress-fill {
+  right: auto;
+  width: 30%;
+  transform: translateX(-100%);
+  opacity: 0;
+}
+.pc-progress[data-mode="indeterminate"][data-state="running"] .pc-progress-fill {
+  opacity: 0.85;
+  animation: pc-indeterminate 1600ms var(--pc-ease) infinite;
+}
+@keyframes pc-indeterminate {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(340%); }
+}
+
+/* Activity log */
+.pc-log {
+  display: flex;
+  max-height: calc(6 * 28px + 8px);
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 0;
+}
+.pc-log-line {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-default);
+}
+.pc-log-line + .pc-log-line {
+  border-top: 1px solid var(--border-default);
+}
+.pc-log-line[data-enter] {
+  animation: pc-line-in var(--pc-line-dur) var(--pc-ease) both;
+}
+@keyframes pc-line-in {
+  from { opacity: 0; transform: translateY(var(--pc-rise)); }
+  to { opacity: 1; transform: none; }
+}
+.pc-chevron {
+  transition: transform var(--pc-dur) var(--pc-ease);
+}
+.pc-chevron[data-open] {
+  transform: scaleY(-1);
+}
+
+/* Reduced motion: no movement, instant state changes. */
+@media (prefers-reduced-motion: reduce) {
+  .pc *,
+  .pc *::before,
+  .pc *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+.pc[data-motion="reduce"] *,
+.pc[data-motion="reduce"] *::before,
+.pc[data-motion="reduce"] *::after {
+  animation: none !important;
+  transition: none !important;
+}

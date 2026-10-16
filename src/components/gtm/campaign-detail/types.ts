@@ -75,7 +75,8 @@ export interface CampaignData {
       stopReason?: string | null
       companiesNotReached?: number
     } | null
-    firecrawlCallCount?: number
+    targetCountryCode?: string | null
+    targetRegion?: string | null
     createdAt: string
     stageStartedAt?: string | null
     lastProgressAt?: string | null

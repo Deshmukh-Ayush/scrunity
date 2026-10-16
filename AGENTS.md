@@ -43,6 +43,7 @@ These take precedence over the Render Architecture Rules above wherever the two 
 7. **Keep files to roughly 300–400 lines.** A practical ceiling against bloat, not a hard wall — a genuinely complex, cohesive unit may run over, but routine files (most components, most route handlers) shouldn't.
 8. **Write for human readability over cleverness.** Someone unfamiliar with a file should be able to follow it without re-reading it twice.
 9. **Don't default every interactive element to the brand/primary color.** Most buttons/elements should be neutral; reserve brand color for genuine primary actions.
+10. **Never use the `any` type.** Use `unknown` and narrow it, a real type, or a generic. No `as any`, no `: any`, and no `// @ts-ignore` to hide one.
 <!-- END:architecture-rules -->
 
 <!-- BEGIN:workflow-rules -->
