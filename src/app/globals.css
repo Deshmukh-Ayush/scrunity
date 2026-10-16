@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "../components/ui/process-card/process-card.css";
 
 /* Light mode only for now. Existing `dark:` classes stay inert (no `.dark` palette). */
 @custom-variant dark (&:is(.dark *));
