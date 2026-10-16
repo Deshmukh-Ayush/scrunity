@@ -18,7 +18,13 @@ import { FirecrawlDataError, failureForCode, failureForStatus, TERMS_REQUIRED_CO
 
 export const FIRECRAWL_SCRAPE_URL = "https://api.firecrawl.dev/v2/scrape"
 export const MAX_CALLS_PER_REQUEST = 10
-const REQUEST_TIMEOUT_MS = 60_000
+/**
+ * One request may wait while its upstream jobs run (direct FullEnrich jobs took
+ * 30-90 s), so the timeout is generous; the overall budget keeps a whole call,
+ * retries included, well inside one 300 s Inngest step.
+ */
+const REQUEST_TIMEOUT_MS = 120_000
+const TOTAL_BUDGET_MS = 180_000
 const DEFAULT_MAX_RETRIES = 3
 const BASE_BACKOFF_MS = 5_000
 const MAX_BACKOFF_MS = 60_000
@@ -51,6 +57,10 @@ export interface FirecrawlClientDeps {
   onRateLimited?: (waitMs: number) => void
   apiKey?: string | null
   maxRetries?: number
+  timeoutMs?: number
+  /** Longest a call may take including retries and their waits. */
+  totalBudgetMs?: number
+  now?: () => number
 }
 
 const errorBodySchema = z.looseObject({
@@ -161,22 +171,34 @@ export async function runAlexandria(calls: AlexandriaCall[], deps: FirecrawlClie
   const schedule = deps.schedule ?? (<T>(request: () => Promise<T>) => getFirecrawlLimiter().run(request))
   const onRateLimited = deps.onRateLimited ?? ((ms: number) => getFirecrawlLimiter().pause(ms))
   const maxRetries = deps.maxRetries ?? DEFAULT_MAX_RETRIES
+  const timeoutMs = deps.timeoutMs ?? REQUEST_TIMEOUT_MS
+  const now = deps.now ?? Date.now
+  const deadline = now() + (deps.totalBudgetMs ?? TOTAL_BUDGET_MS)
   const body = JSON.stringify({ alexandria: calls.length === 1 ? calls[0] : calls })
 
   for (let attempt = 0; ; attempt++) {
-    const response = await schedule(() =>
-      doFetch(FIRECRAWL_SCRAPE_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body,
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      })
-    )
+    let response: Response
+    try {
+      response = await schedule(() =>
+        doFetch(FIRECRAWL_SCRAPE_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+          body,
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+      )
+    } catch (err) {
+      // Timed out or dropped after sending: Firecrawl may have run (and billed) the calls.
+      const detail = err instanceof Error ? err.name : "network error"
+      throw new FirecrawlDataError("provider_request_failed", `no response (${detail})`, null, "unknown")
+    }
     if (response.status === 429 && attempt < maxRetries) {
       const waitMs = retryDelayMs(response, attempt)
       onRateLimited(waitMs)
-      await sleep(waitMs)
-      continue
+      if (now() + waitMs + timeoutMs <= deadline) {
+        await sleep(waitMs)
+        continue
+      }
     }
     const json = await readJson(response)
     if (!response.ok) {

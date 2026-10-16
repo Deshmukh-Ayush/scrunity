@@ -29,6 +29,11 @@ const SOURCE = "firecrawl"
  * the shared 8 requests/minute limiter, inside one Stage 4 step).
  */
 const PAGES_PER_REQUEST = 5
+/**
+ * No new request starts after this long (Stage 4 is one Inngest step, which
+ * must stay well under 300 s); the companies found so far are kept.
+ */
+const SEARCH_TIME_BUDGET_MS = 90_000
 
 export function toNormalizedPerson(person: FoundPerson): NormalizedPerson {
   return {
@@ -123,6 +128,7 @@ export async function searchCompaniesByPeople(
     return { ...deduped, ...groupByCompany(deduped.kept) }
   }
   let creditsUsed = 0
+  const startedAt = Date.now()
   const collected = await collectPeople({
     cap: query.candidateCap ?? getPeopleSearchCandidateCap(),
     pagesPerRequest: PAGES_PER_REQUEST,
@@ -131,7 +137,8 @@ export async function searchCompaniesByPeople(
       creditsUsed += result.creditsCost
       return result.pages
     },
-    enough: (people) => settle(people).groups.length >= query.limit,
+    enough: (people) =>
+      settle(people).groups.length >= query.limit || Date.now() - startedAt >= SEARCH_TIME_BUDGET_MS,
   })
   const { groups, withoutDomain, duplicates, alreadyKnown } = settle(
     collected.people

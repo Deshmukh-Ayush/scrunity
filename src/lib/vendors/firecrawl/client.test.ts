@@ -100,6 +100,39 @@ describe("runAlexandria", () => {
     await assert.rejects(runAlexandria([call], d), (err: unknown) => err instanceof FirecrawlDataError && err.failureReason === "provider_rate_limited")
   })
 
+  it("stops retrying when another wait would overrun the time budget", async () => {
+    // A fake clock: each request takes 90 s, each sleep advances it too.
+    let clock = 0
+    const sleeps: number[] = []
+    const base = deps([json({}, 429), json({}, 429), json({}, 429)], sleeps)
+    const d: FirecrawlClientDeps = {
+      ...base,
+      timeoutMs: 100_000,
+      totalBudgetMs: 200_000,
+      now: () => clock,
+      sleep: async (ms) => {
+        sleeps.push(ms)
+        clock += ms
+      },
+      fetch: async (url, init) => {
+        clock += 90_000
+        return base.fetch!(url, init)
+      },
+    }
+    await assert.rejects(runAlexandria([call], d), (err: unknown) => err instanceof FirecrawlDataError && err.failureReason === "provider_rate_limited")
+    assert.deepEqual(sleeps, [5_000])
+  })
+
+  it("treats a timeout as possibly billed", async () => {
+    const d = {
+      ...deps([]),
+      fetch: async () => {
+        throw new DOMException("The operation timed out.", "TimeoutError")
+      },
+    }
+    await assert.rejects(runAlexandria([call], d), (err: unknown) => err instanceof FirecrawlDataError && err.charged === "unknown")
+  })
+
   it("maps HTTP errors to neutral failure codes", async () => {
     const cases: Array<[Response, string]> = [
       [json({ success: false, error: "Payment required" }, 402), "data_credits_exhausted"],
