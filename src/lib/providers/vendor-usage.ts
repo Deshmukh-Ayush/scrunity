@@ -77,7 +77,8 @@ export async function reserveVendorCredits({
   vendor: string
   endpoint: string
   credits: number
-  cap: number
+  /** Monthly cap for platform-paid vendors; null for a customer's own account. */
+  cap: number | null
   campaignCap?: number | null
   context: VendorSpendContext
 }): Promise<string> {
@@ -88,19 +89,23 @@ export async function reserveVendorCredits({
     INSERT INTO gtm_vendor_usage (id, vendor, endpoint, credits_used, organization_id, research_run_id, campaign_id)
     SELECT ${id}, ${vendor}, ${endpoint}, ${credits}, ${context.organizationId ?? null},
       ${context.researchRunId ?? null}, ${campaignId}
-    WHERE (
+    WHERE (${cap}::int IS NULL OR (
       SELECT coalesce(sum(credits_used), 0) FROM gtm_vendor_usage
       WHERE vendor = ${vendor} AND created_at >= ${startOfMonthUtc().toISOString()}
-    ) + ${credits} <= ${cap}
+    ) + ${credits} <= ${cap}::int)
     AND (${runLimit}::int IS NULL OR (
       SELECT coalesce(sum(credits_used), 0) FROM gtm_vendor_usage
       WHERE vendor = ${vendor} AND campaign_id = ${campaignId}
     ) + ${credits} <= ${runLimit}::int)
     RETURNING id`)
   if (inserted.rows.length === 0) {
-    const monthUsed = await getMonthlyVendorCredits(vendor)
-    if (monthUsed + credits > cap || runLimit === null || !campaignId) {
+    const monthUsed = cap === null ? 0 : await getMonthlyVendorCredits(vendor)
+    if (cap !== null && (monthUsed + credits > cap || runLimit === null || !campaignId)) {
       throw new VendorCreditCapError(vendor, monthUsed, cap, credits)
+    }
+    if (runLimit === null || !campaignId) {
+      // Unreachable without any cap; kept so the error below always has a campaign.
+      throw new VendorCreditCapError(vendor, 0, 0, credits, "run")
     }
     const runUsed = await getCampaignVendorCredits(vendor, campaignId)
     throw new VendorCreditCapError(vendor, runUsed, runLimit, credits, "run")
