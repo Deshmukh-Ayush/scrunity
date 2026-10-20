@@ -457,7 +457,8 @@ toggle.
 ## New research run and campaign page
 
 **Copy rules for both flows:** no vendor or machinery words (Inngest, Firecrawl, Apollo, FullEnrich, pipeline,
-autonomous, ICP, agent), no snake_case, no ids, no monospace, no "successfully", no exclamation marks. Unknown failure
+autonomous, ICP, agent) with one exception: Apollo is named where it is the customer's own connected account (Data
+sources, the credit estimate before Start, Reconnect Apollo), because that is where they act. Also: no snake_case, no ids, no monospace, no "successfully", no exclamation marks. Unknown failure
 codes and engineer-facing server text become a plain sentence naming the step ("Write emails stopped because of an
 error. Retry the campaign, or contact support if it keeps happening."). Stage names: Research your company, Find
 competitors, Build customer segments; Find companies, Verified contacts, Write emails, Your review, Sending. Optional
