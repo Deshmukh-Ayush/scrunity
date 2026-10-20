@@ -1,6 +1,6 @@
 import { lookupWorkEmailBatch } from "@/lib/vendors/firecrawl/email-batch"
 import { dbCreditLedger, firecrawlClientDeps } from "@/lib/vendors/firecrawl/runtime"
-import { WORK_EMAIL_BATCH_SIZE, WORK_EMAIL_CREDITS_PER_RECORD } from "@/lib/vendors/firecrawl/work-email"
+import { WORK_EMAIL_BATCH_SIZE, WORK_EMAIL_CAPABILITY, WORK_EMAIL_CREDITS_PER_RECORD } from "@/lib/vendors/firecrawl/work-email"
 import type { EmailEnrichmentProvider } from "./types"
 
 /** Ref stored on a contact queued for the next batch (no vendor job exists yet). */
@@ -17,6 +17,7 @@ export const firecrawlEmailProvider: EmailEnrichmentProvider = {
   key: "firecrawl",
   maxCreditsPerLookup: WORK_EMAIL_CREDITS_PER_RECORD,
   maxBatchSize: WORK_EMAIL_BATCH_SIZE,
+  lookupEndpoint: WORK_EMAIL_CAPABILITY,
   async start() {
     return { ref: QUEUED_REF }
   },

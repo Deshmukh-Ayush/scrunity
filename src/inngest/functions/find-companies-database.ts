@@ -13,12 +13,11 @@ import {
   advanceCampaign,
   touchCampaignProgress,
 } from "@/lib/pipeline/stage-state"
-import { assertCampaignProviders } from "@/lib/pipeline/provider-check"
 import { extractDomain } from "@/lib/firecrawl"
 import { checkSuppression } from "@/lib/gtm-suppression"
 import { countryNameFromCode, formatTargetMarket } from "@/lib/geo/countries"
-import { getMaxCompaniesPerRun, getPeopleDataProvider } from "@/lib/providers/config"
-import { getCompanyDiscoveryProvider } from "@/lib/providers/registry"
+import { getMaxCompaniesPerRun } from "@/lib/providers/config"
+import type { CampaignProviders } from "@/lib/providers/registry"
 import {
   FIT_PRESELECT_THRESHOLD,
   generateCompanyFitScores,
@@ -110,17 +109,21 @@ export function buildDiscoveryNote({
  * the campaign's target market. Every company is scored 0-100 for fit; the good
  * fits are pre-selected at the gate.
  *
- * PEOPLE_DATA_PROVIDER=firecrawl (default): an LLM turns the segment into
- * people-search filters (titles, seniority, industries; location and size band
- * come from the campaign and segment), the people found are grouped by current
- * company, and each company stores its people for Stage 5.
- * Legacy: a company-database search on LLM-generated include/exclude keywords.
+ * Customer Apollo connection (bring your own key) and legacy platform Apollo:
+ * a company-database search on LLM-generated include/exclude keywords, with
+ * the customer's key and credits for a connected organization.
+ * Platform Firecrawl (allowlisted internal organizations only): an LLM turns
+ * the segment into people-search filters (titles, seniority, industries;
+ * location and size band come from the campaign and segment), the people found
+ * are grouped by current company, and each company stores its people for Stage 5.
  */
 export async function executeFindCompaniesFromDatabase(
-  outreachCampaignId: string
+  outreachCampaignId: string,
+  providers: CampaignProviders
 ): Promise<FindCompaniesResult> {
-  // A missing provider stops here, before any vendor or LLM call.
-  assertCampaignProviders()
+  // The caller (executeFindCompanies) checked the data source before any vendor or LLM call.
+  const companyProvider = providers.company
+  if (!companyProvider) throw new Error("Database discovery needs a company provider")
 
   const [context] = await db
     .select({
@@ -150,7 +153,7 @@ export async function executeFindCompaniesFromDatabase(
 
   // Filters are generated once and stored, so a restart searches the same way.
   // Keyword filters stored by the legacy search are not reused for people search.
-  const peopleSearch = getPeopleDataProvider() === "firecrawl"
+  const peopleSearch = providers.peopleSearchDiscovery
   const stored = peopleSearch && !campaign.searchFilters?.titles?.length ? null : campaign.searchFilters
   const filters: CompanySearchFilters =
     stored ??
@@ -178,7 +181,7 @@ export async function executeFindCompaniesFromDatabase(
       ? { min: filters.headcountMin, max: filters.headcountMax }
       : null
   const limit = getMaxCompaniesPerRun()
-  const result = await getCompanyDiscoveryProvider().searchCompanies(
+  const result = await companyProvider.searchCompanies(
     {
       country,
       state: region,
@@ -195,6 +198,7 @@ export async function executeFindCompaniesFromDatabase(
       organizationId: researchRun.organizationId,
       researchRunId: researchRun.id,
       campaignId: outreachCampaignId,
+      connectionId: providers.connectionId,
     }
   )
   await touchCampaignProgress(outreachCampaignId)
@@ -238,6 +242,7 @@ export async function executeFindCompaniesFromDatabase(
         location: locationLabel(company),
         linkedinUrl: company.linkedinUrl,
         source: company.source,
+        sourceConnectionId: providers.connectionId,
         providerId: company.providerId,
         website: company.website,
         country: company.country,

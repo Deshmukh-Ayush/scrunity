@@ -1,6 +1,7 @@
 import type { ProcessActivityItem, ProcessState } from "@/components/ui/process-card"
 import { plainDuration } from "./plain-duration"
 import { leadSearchMessage } from "@/lib/lead-search-message"
+import { CAMPAIGN_DATA_SOURCE_FAILURE_TEXT } from "@/lib/data-sources/copy"
 import type { CampaignData, Draft } from "../campaign-detail/types"
 
 /**
@@ -75,6 +76,7 @@ const FAILURE_TEXT: Record<string, string> = {
     "This campaign reached its data limit, which protects your credits. Start a new campaign from the same research to search again.",
   search_filters_failed:
     "This segment couldn't be turned into search filters, so nothing was searched or charged. Retry the campaign. If it fails again, contact support.",
+  ...CAMPAIGN_DATA_SOURCE_FAILURE_TEXT,
 }
 
 const CREDITS_PAUSED = "Sending is paused because your AI credits ran out. Top up credits in Billing to continue."

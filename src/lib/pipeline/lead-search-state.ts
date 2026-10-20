@@ -129,7 +129,7 @@ export const candidateName = (c: LeadCandidate) => `${c.firstName} ${c.lastName}
  */
 export async function finishLeadSearch(
   campaignId: string,
-  email: Pick<EmailEnrichmentProvider, "key" | "lookupBatch">
+  email: Pick<EmailEnrichmentProvider, "key" | "lookupEndpoint">
 ): Promise<LeadSearchOutcome> {
   const { campaign } = await loadSearchContext(campaignId)
   const state = campaign.leadSearchState ?? { attemptId: null, titles: [] }
@@ -156,8 +156,8 @@ export async function finishLeadSearch(
     companiesExamined: companies.filter(wasExamined).length,
     stopReason: verified >= goal ? null : (state.stopReason ?? null),
     companiesNotReached: notReached.length,
-    // Firecrawl's data vendor also carries people-search credits: count only work emails.
-    emailCreditsUsed: await getCampaignVendorCredits(ledgerVendor(email), campaignId, email.lookupBatch ? "contacts/work-email" : undefined),
+    // A ledger vendor can also carry search credits: batch providers count only their lookup endpoint.
+    emailCreditsUsed: await getCampaignVendorCredits(ledgerVendor(email), campaignId, email.lookupEndpoint),
     finishedAt: new Date().toISOString(),
   }
   await db.update(gtmOutreachCampaign).set({ leadSearchOutcome: outcome }).where(eq(gtmOutreachCampaign.id, campaignId))

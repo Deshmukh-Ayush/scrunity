@@ -35,11 +35,13 @@ export async function POST(
     }
 
     // A missing provider is refused before anything is reset or spent.
-    const providers = checkCampaignProviders();
+    const providers = await checkCampaignProviders(auth.orgId);
     if (!providers.ok) {
       return NextResponse.json(
-        { error: providers.message, providerUnavailable: true },
-        { status: 503 }
+        providers.action
+          ? { error: providers.message, dataSourceRequired: true }
+          : { error: providers.message, providerUnavailable: true },
+        { status: providers.action ? 409 : 503 }
       );
     }
 

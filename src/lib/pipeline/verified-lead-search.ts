@@ -7,7 +7,8 @@ import { isValidPersonName, scoreTitleMatch } from "@/lib/gtm-contact-matcher"
 import { checkSuppression } from "@/lib/gtm-suppression"
 import { isAggregatorOrReviewDomain } from "@/lib/firecrawl"
 import { RETRY_PASS_COOLDOWN_MS } from "@/inngest/functions/find-contacts-lookup"
-import { getEmailEnrichmentProvider, getLeadSearchPeopleProvider } from "@/lib/providers/registry"
+import { providersFor } from "@/lib/providers/registry"
+import { resolvePeopleProvider } from "@/lib/data-sources/resolve"
 import type { EmailEnrichmentProvider, PeopleDiscoveryProvider } from "@/lib/providers/types"
 import { LeadSearchStop, pollEmailLookup, startEmailLookup, type LookupMetadata } from "./email-lookup"
 import { releaseQueued, runEmailBatch } from "./email-lookup-batch"
@@ -41,6 +42,8 @@ import { touchCampaignAttempt } from "./stage-state"
 export interface LeadSearchDeps {
   people?: PeopleDiscoveryProvider
   email?: EmailEnrichmentProvider
+  /** With stub providers: the customer connection to attribute spend to. */
+  connectionId?: string | null
   titles?: string[]
   budget?: Partial<LeadSearchBudget>
   /** Wait before retrying a company whose people search was rate-limited. */
@@ -107,12 +110,17 @@ export async function runLeadSearchStep(
   }
 
   const { campaign, segment, researchRun } = await loadSearchContext(campaignId)
-  // Both fail the stage with a plain reason before any spend; no guessing fallback.
-  const email = deps.email ?? getEmailEnrichmentProvider()
-  const people = deps.people ?? getLeadSearchPeopleProvider()
+  // Providers come from the organization's data source, re-read every step: a
+  // disconnected or rejected key fails the stage with a plain reason before any
+  // spend. No guessing fallback.
+  const resolved =
+    deps.email && deps.people ? null : providersFor(await resolvePeopleProvider(researchRun.organizationId))
+  const email = deps.email ?? resolved!.email
+  const people = deps.people ?? resolved!.people
+  const connectionId = resolved?.connectionId ?? deps.connectionId ?? null
   const attemptStart = campaign.stageAttemptStartedAt?.getTime() ?? stepStart
   const budget = leadSearchBudget(campaign.targetVerifiedLeads, attemptStart, deps.budget, email.maxBatchSize)
-  const spend = { organizationId: researchRun.organizationId, researchRunId: researchRun.id, campaignId }
+  const spend = { organizationId: researchRun.organizationId, researchRunId: researchRun.id, campaignId, connectionId }
 
   // Target titles: derived once (one LLM call) and kept across steps and attempts.
   let state: LeadSearchCampaignState = campaign.leadSearchState ?? { attemptId: null, titles: [] }
@@ -150,6 +158,7 @@ export async function runLeadSearchStep(
     domain: company.domain,
     companyName: company.name,
     linkedinUrl: contact.linkedinUrl,
+    providerPersonId: contact.providerPersonId,
   })
   const companyOf = (contact: Contact) => companies.find((c) => c.id === contact.prospectCompanyId)!
 
@@ -217,9 +226,13 @@ export async function runLeadSearchStep(
         const name = candidateName(candidate)
         if (mine.some((c) => c.providerPersonId === candidate.providerPersonId || c.name.toLowerCase() === name.toLowerCase())) continue
         // Checks that need no lookup, so no credit is spent on someone who could never qualify.
-        const skipReason = !isValidPersonName(name)
+        // A search that masks people (revealsOnLookup) is checked on the first name only;
+        // the full name and LinkedIn gates run on the revealed person in Stage 5.5.
+        const nameOk = people.revealsOnLookup ? /\p{L}{2,}/u.test(candidate.firstName) : isValidPersonName(name)
+        const linkedinOk = people.revealsOnLookup || checkLinkedInProfileGate({ linkedinUrl: candidate.linkedinUrl }).passed
+        const skipReason = !nameOk
           ? "Not a person's name"
-          : !checkLinkedInProfileGate({ linkedinUrl: candidate.linkedinUrl }).passed
+          : !linkedinOk
             ? "No LinkedIn profile found"
             : domainBlocked
               ? "Company cannot be contacted"
@@ -231,7 +244,8 @@ export async function runLeadSearchStep(
           .values({
             prospectCompanyId: company.id, name, title: candidate.title ?? "", linkedinUrl: candidate.linkedinUrl,
             email: null, emailSource: "none", verificationStatus: "unverified", geo: candidate.location,
-            source: candidate.source, providerPersonId: candidate.providerPersonId, emailStatus: "not_looked_up", skipReason,
+            source: candidate.source, sourceConnectionId: connectionId, providerPersonId: candidate.providerPersonId,
+            emailStatus: "not_looked_up", skipReason,
           })
           .returning()
         mine.push(contact)

@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm"
 import { db } from "@/utils/db"
 import { gtmContact } from "@/db/schema"
 import type { EmailEnrichmentProvider, EmailLookupInput, VendorSpendContext } from "@/lib/providers/types"
-import { LeadSearchStop, saveOutcome, toStop, type LookupMetadata } from "./email-lookup"
+import { isFatalProviderError, LeadSearchStop, saveOutcome, toStop, type LookupMetadata } from "./email-lookup"
 import type { Company, Contact } from "./lead-search-state"
 
 /**
@@ -68,31 +68,45 @@ export async function runEmailBatch({
   try {
     outcomes = await provider.lookupBatch(batch.map((q) => q.input), spend)
   } catch (err) {
+    // A rejected key or a blocked plan fails the stage; the people stay queued for a retry.
+    if (isFatalProviderError(err)) {
+      await releaseQueued(batch.map((q) => q.contact))
+      throw err
+    }
     const stop = toStop(err)
     if (stop) {
       await releaseQueued(batch.map((q) => q.contact))
       throw stop
     }
-    log(`email batch of ${batch.length} failed, moving on: ${err instanceof Error ? err.message : "unknown error"}`)
+    const reason = (err as { failureReason?: unknown } | null)?.failureReason
+    log(`email batch of ${batch.length} failed (${typeof reason === "string" ? reason : "unknown error"}), moving on`)
     await release(batch.map((q) => q.contact), "Lookup not finished yet", attemptId)
     return { sent: batch.length, verifiedCompanies: [] }
   }
 
+  // Logs carry contact ids and counts only: no names, domains or addresses.
   const verifiedCompanies: Company[] = []
+  const counts = { verified: 0, unverified: 0, not_found: 0, failed: 0, credits: 0 }
   let stop: LeadSearchStop | null = null
   for (const [i, { contact, company }] of batch.entries()) {
     const outcome = outcomes[i]
     if (outcome?.result) {
       const r = outcome.result
       await saveOutcome(contact.id, r, { ...meta(contact), provider: provider.key, creditsUsed: r.creditsUsed })
-      log(`${contact.name} (${company.domain}): ${r.status}${r.note ? ` (${r.note})` : ""}, ${r.creditsUsed} credit(s)`)
+      counts[r.status]++
+      counts.credits += r.creditsUsed
       if (r.status === "verified") verifiedCompanies.push(company)
       continue
     }
     stop ??= toStop(outcome?.error)
-    log(`${contact.name} (${company.domain}): lookup failed (${outcome?.error.failureReason ?? "no result"})`)
+    counts.failed++
+    log(`contact ${contact.id}: lookup failed (${outcome?.error.failureReason ?? "no result"})`)
     await release([contact], "Lookup not finished yet", attemptId)
   }
+  log(
+    `email batch of ${batch.length}: ${counts.verified} verified, ${counts.unverified} unverified, ` +
+      `${counts.not_found} not found, ${counts.failed} failed, ${counts.credits} credit(s)`
+  )
   if (stop) throw stop
   return { sent: batch.length, verifiedCompanies }
 }

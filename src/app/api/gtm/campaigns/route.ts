@@ -80,13 +80,16 @@ export async function POST(req: NextRequest) {
     if (!access.hasAccess) {
       return NextResponse.json({ error: noAccessMessage(), noAccess: true }, { status: 403 });
     }
-    // Every provider this discovery mode needs must be configured, checked
-    // before any quota, row or vendor spend.
-    const providers = checkCampaignProviders();
+    // The organization needs its own connected data source (or, for
+    // allowlisted internal organizations, configured platform providers),
+    // checked before any quota, row or vendor spend.
+    const providers = await checkCampaignProviders(auth.orgId);
     if (!providers.ok) {
       return NextResponse.json(
-        { error: providers.message, providerUnavailable: true },
-        { status: 503 }
+        providers.action
+          ? { error: providers.message, dataSourceRequired: true }
+          : { error: providers.message, providerUnavailable: true },
+        { status: providers.action ? 409 : 503 }
       );
     }
     const quota = await consumeOrgQuota(auth.orgId, QUOTAS.campaign);

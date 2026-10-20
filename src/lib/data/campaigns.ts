@@ -59,6 +59,7 @@ export async function listOrgCampaigns(organizationId: string) {
 // leadSearchState holds the search's internal queue (people not yet tried).
 const VENDOR_FIELDS: readonly string[] = [
   "source",
+  "sourceConnectionId",
   "providerId",
   "providerPersonId",
   "leadSearchState",
@@ -67,7 +68,7 @@ const VENDOR_FIELDS: readonly string[] = [
 function withoutVendorFields<T extends { source: unknown }>(row: T) {
   return Object.fromEntries(
     Object.entries(row).filter(([key]) => !VENDOR_FIELDS.includes(key))
-  ) as Omit<T, "source" | "providerId" | "providerPersonId" | "leadSearchState">
+  ) as Omit<T, "source" | "sourceConnectionId" | "providerId" | "providerPersonId" | "leadSearchState">
 }
 
 /**

@@ -4,6 +4,8 @@
  * counters and failure codes) never leaves the server.
  */
 
+import { DATA_SOURCE_PUBLIC_CODES } from "@/lib/data-sources/codes"
+
 const VENDOR_NAME = /firecrawl|apollo|fullenrich|enrich\.so|\benrich\b|groq|dodo|resend|cal\.com/i
 
 /** Internal failure codes -> neutral codes the UI maps to text. */
@@ -28,6 +30,8 @@ const FAILURE_CODES: Record<string, string> = {
   data_credits_exhausted: "data_credits_used_up",
   provider_run_credit_cap_reached: "campaign_data_limit",
   search_filters_invalid: "search_filters_failed",
+  // The customer's own data source (bring your own key).
+  ...DATA_SOURCE_PUBLIC_CODES,
 }
 
 const GENERIC_FAILURE = "This step failed. Retry it, or contact support if it keeps failing."
@@ -62,7 +66,7 @@ const HIDDEN_RUN_FIELDS = [
   "stageAttemptStartedAt",
   "leadSearchState",
 ]
-const HIDDEN_CONTACT_FIELDS = ["source", "providerId", "providerPersonId", "enrichMetadata", "emailLookupRef"]
+const HIDDEN_CONTACT_FIELDS = ["source", "sourceConnectionId", "providerId", "providerPersonId", "enrichMetadata", "emailLookupRef"]
 
 function omit<T extends object>(row: T, keys: string[]) {
   return Object.fromEntries(Object.entries(row).filter(([k]) => !keys.includes(k)))
@@ -103,5 +107,5 @@ export function publicContactRow<T extends object>(row: T) {
     out.emailSource = verified ? "verified" : toPublicEmailStatus(out.emailSource as string | null)
   }
   if ("verificationStatus" in out) out.verificationStatus = toPublicEmailStatus(out.verificationStatus as string | null)
-  return out as Omit<T, "source" | "providerId" | "providerPersonId" | "enrichMetadata" | "emailLookupRef">
+  return out as Omit<T, "source" | "sourceConnectionId" | "providerId" | "providerPersonId" | "enrichMetadata" | "emailLookupRef">
 }

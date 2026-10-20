@@ -91,7 +91,13 @@ async function main() {
   const savedKey = process.env.FIRECRAWL_API_KEY
   delete process.env.FIRECRAWL_API_KEY
   check("the web provider is refused without its API key", providerOrError() === "refused: people_provider_unavailable", providerOrError())
-  const missing = checkCampaignProviders()
+  // Platform providers are checked only for an allowlisted internal organization.
+  const platformOrg = `pp-platform-${Date.now()}`
+  const savedAllowlist = process.env.PLATFORM_DATA_ORG_IDS
+  process.env.PLATFORM_DATA_ORG_IDS = platformOrg
+  const missing = await checkCampaignProviders(platformOrg)
+  if (savedAllowlist === undefined) delete process.env.PLATFORM_DATA_ORG_IDS
+  else process.env.PLATFORM_DATA_ORG_IDS = savedAllowlist
   check("the campaign check says so in plain words, without a vendor name", !missing.ok && /decision-maker search/.test(missing.message) && !/firecrawl|apollo/i.test(missing.message), missing.ok ? "ok" : missing.message)
   process.env.FIRECRAWL_API_KEY = savedKey
 

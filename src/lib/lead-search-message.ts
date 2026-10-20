@@ -22,6 +22,10 @@ const LIMIT_WORDS: Record<string, string> = {
   web_search_attempt_limit: "the web search limit for this run was reached",
   data_terms_required: "a data source needs approval from an admin",
   data_source_needs_approval: "a data source needs approval from an admin",
+  // The customer's own Apollo account (bring your own key): naming it is the point.
+  apollo_credits_exhausted: "your Apollo credits are used up",
+  data_source_credits_used_up: "your Apollo credits are used up",
+  data_source_run_cap: "this campaign reached its Apollo credit limit",
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`

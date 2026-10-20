@@ -1,4 +1,10 @@
+import type { DataSourceResolution } from "@/lib/data-sources/types"
 import { apolloCompanyProvider } from "./apollo"
+import {
+  apolloCustomerCompanyProvider,
+  apolloCustomerEmailProvider,
+  apolloCustomerPeopleProvider,
+} from "./apollo-customer"
 import {
   getCompanyProviderKey,
   getDiscoveryMode,
@@ -86,6 +92,54 @@ const EMAIL_PROVIDERS: Record<string, { provider: EmailEnrichmentProvider; keyEn
   firecrawl: { provider: firecrawlEmailProvider, keyEnv: "FIRECRAWL_API_KEY" },
   // Legacy, PEOPLE_DATA_PROVIDER=legacy only.
   fullenrich: { provider: fullEnrichEmailProvider, keyEnv: "FULLENRICH_API_KEY" },
+}
+
+/** The providers one campaign uses, from its organization's data-source resolution. */
+export interface CampaignProviders {
+  discovery: "database" | "legacy"
+  company: CompanyDiscoveryProvider | null
+  people: PeopleDiscoveryProvider
+  email: EmailEnrichmentProvider
+  /** The customer connection the calls run under (spend context), or null for platform data. */
+  connectionId: string | null
+  /** Stage 4 runs a people search grouped by company (platform Firecrawl only). */
+  peopleSearchDiscovery: boolean
+}
+
+export class DataSourceNotConnectedError extends Error {
+  public readonly failureReason = "data_source_not_connected"
+  constructor() {
+    super("This organization has no connected data source.")
+    this.name = "DataSourceNotConnectedError"
+  }
+}
+
+/**
+ * Customer connection: Apollo with their key (company search, then per-company
+ * people search and batched lookups). Platform data (allowlisted internal
+ * organizations only): the env-selected providers below. Not connected: throws.
+ */
+export function providersFor(resolution: DataSourceResolution): CampaignProviders {
+  if (resolution.kind === "customer") {
+    return {
+      discovery: "database",
+      company: apolloCustomerCompanyProvider,
+      people: apolloCustomerPeopleProvider,
+      email: apolloCustomerEmailProvider,
+      connectionId: resolution.connectionId,
+      peopleSearchDiscovery: false,
+    }
+  }
+  if (resolution.kind === "not_connected") throw new DataSourceNotConnectedError()
+  const discovery = getDiscoveryMode()
+  return {
+    discovery,
+    company: discovery === "database" ? getCompanyDiscoveryProvider() : null,
+    people: getLeadSearchPeopleProvider(),
+    email: getEmailEnrichmentProvider(),
+    connectionId: null,
+    peopleSearchDiscovery: resolution.mode === "firecrawl",
+  }
 }
 
 /**

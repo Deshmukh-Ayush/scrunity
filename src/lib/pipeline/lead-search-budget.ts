@@ -75,5 +75,7 @@ export type LeadSearchStopReason =
   | "email_provider_unavailable"
   | "web_search_budget"
   | "data_terms_required"
+  | "data_source_run_cap"
+  | "apollo_credits_exhausted"
 
 export { leadSearchMessage } from "@/lib/lead-search-message"

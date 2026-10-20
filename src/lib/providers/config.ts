@@ -51,6 +51,16 @@ export function getFirecrawlRunCreditCap(): number {
   return intEnv("FIRECRAWL_RUN_CREDIT_CAP", 1200, 0, 100_000)
 }
 
+/**
+ * Credits one campaign may spend on the customer's own Apollo account, across
+ * all its attempts. Default 25: one company search page plus the default 20
+ * lookups, with room for one Stage 4 restart. It is the customer's money, so
+ * there is no monthly cap of ours, only this.
+ */
+export function getApolloRunCreditCap(): number {
+  return intEnv("APOLLO_RUN_CREDIT_CAP", 25, 1, 500)
+}
+
 /** People one campaign's search reads at most (6 per page, 5 credits each). Default 150, ceiling 600. */
 export function getPeopleSearchCandidateCap(): number {
   return intEnv("GTM_PEOPLE_SEARCH_CANDIDATE_CAP", 150, 1, 600)

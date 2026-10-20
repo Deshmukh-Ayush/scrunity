@@ -1,5 +1,5 @@
 import { completeFindContacts } from "@/inngest/functions/find-contacts"
-import { getEmailEnrichmentProvider } from "@/lib/providers/registry"
+import { campaignEmailProvider } from "./lead-search-executor"
 import { finishLeadSearch } from "./lead-search-state"
 import {
   claimCampaignStageAttempt,
@@ -55,7 +55,7 @@ export async function finishLeadSearchStage(
   attempt: StageAttempt
 ): Promise<"completed" | "skipped"> {
   if (!(await touchCampaignAttempt(campaignId, "find_contacts", attempt.attemptId))) return "skipped"
-  const outcome = await finishLeadSearch(campaignId, getEmailEnrichmentProvider())
+  const outcome = await finishLeadSearch(campaignId, await campaignEmailProvider(campaignId))
   await completeFindContacts(campaignId, outcome)
   await recordStageTiming("campaign", campaignId, "find_contacts", new Date(attempt.startedAt), "completed")
   console.log(`[Pipeline] Campaign ${campaignId}: stage "find_contacts" completed -> "write_emails"`)

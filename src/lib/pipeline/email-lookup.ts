@@ -16,6 +16,8 @@ import {
 } from "@/lib/providers/types"
 import { FirecrawlDataError } from "@/lib/vendors/firecrawl/errors"
 import { firecrawlLedgerVendor } from "@/lib/vendors/firecrawl/runtime"
+import { ApolloError } from "@/lib/vendors/apollo/errors"
+import { apolloLedgerVendor } from "@/lib/vendors/apollo/runtime"
 
 /**
  * One email lookup for one stored contact, in two calls so the wait between
@@ -69,13 +71,30 @@ export type LookupOutcome =
  */
 export function ledgerVendor(provider: Pick<EmailEnrichmentProvider, "key">): string {
   if (provider.key === "firecrawl") return firecrawlLedgerVendor()
+  // Apollo here is always the customer's own account (the legacy platform key never looks up emails).
+  if (provider.key === "apollo") return apolloLedgerVendor()
   return getProviderMode() === "fixture" ? `${provider.key}_fixture` : provider.key
+}
+
+/**
+ * Errors that must fail the stage instead of moving on to the next person:
+ * the customer's key was rejected, their plan blocks the call, or the
+ * connection is gone. Retrying another person would fail the same way.
+ */
+export function isFatalProviderError(err: unknown): boolean {
+  if (err instanceof ApolloError) return err.failureReason === "apollo_key_invalid" || err.failureReason === "apollo_plan_blocked"
+  const reason = (err as { failureReason?: unknown } | null)?.failureReason
+  return reason === "data_source_not_connected" || reason === "data_source_secret_unreadable" || reason === "data_source_encryption_unavailable"
 }
 
 export function toStop(err: unknown): LeadSearchStop | null {
   if (err instanceof LeadSearchStop) return err
   if (err instanceof VendorCreditCapError) {
+    if (err.vendor.startsWith("apollo_customer")) return new LeadSearchStop("data_source_run_cap", err.message)
     return new LeadSearchStop(err.scope === "run" ? "email_run_budget" : "email_credit_cap_reached", err.message)
+  }
+  if (err instanceof ApolloError && err.failureReason === "apollo_credits_exhausted") {
+    return new LeadSearchStop("apollo_credits_exhausted", err.message)
   }
   if (err instanceof FirecrawlDataError) {
     if (err.failureReason === "data_terms_required") return new LeadSearchStop("data_terms_required", err.message)
@@ -93,9 +112,18 @@ export function toStop(err: unknown): LeadSearchStop | null {
 
 export async function saveOutcome(contactId: string, result: EmailLookupResult, metadata: LookupMetadata) {
   const verified = result.status === "verified" && Boolean(result.email)
+  // A lookup that revealed the person (masked by the search) stores who they really are.
+  const revealed = result.revealed
+    ? {
+        name: `${result.revealed.firstName} ${result.revealed.lastName}`.trim(),
+        linkedinUrl: result.revealed.linkedinUrl,
+        ...(result.revealed.title ? { title: result.revealed.title } : {}),
+      }
+    : {}
   await db
     .update(gtmContact)
     .set({
+      ...revealed,
       email: verified ? result.email : null,
       emailSource: verified ? "vendor_lookup" : "none",
       verificationStatus: verified ? MAILBOX_VERIFIED : "unverified",

@@ -24,7 +24,9 @@ import {
 } from "@/lib/gtm-ai";
 import { safeRealtimePublish, type InngestStep } from "./shared";
 import { checkSuppression } from "@/lib/gtm-suppression";
-import { getDiscoveryMode } from "@/lib/providers/config";
+import { resolveCampaignDataSource } from "@/lib/data-sources/resolve";
+import { assertCampaignProviders } from "@/lib/pipeline/provider-check";
+import { providersFor } from "@/lib/providers/registry";
 import { executeFindCompaniesFromDatabase } from "./find-companies-database";
 
 export interface ProspectCompanyData {
@@ -46,8 +48,11 @@ export async function executeFindCompanies(
   outreachCampaignId: string,
   step?: InngestStep
 ): Promise<FindCompaniesResult> {
-  if (getDiscoveryMode() === "database") {
-    return executeFindCompaniesFromDatabase(outreachCampaignId);
+  // The organization's data source decides the path; a missing one stops here, before any spend.
+  const { organizationId } = await resolveCampaignDataSource(outreachCampaignId);
+  const providers = providersFor(await assertCampaignProviders(organizationId));
+  if (providers.discovery === "database") {
+    return executeFindCompaniesFromDatabase(outreachCampaignId, providers);
   }
 
   const [context] = await db
