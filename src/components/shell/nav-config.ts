@@ -29,6 +29,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
 /** Where the workspace menu sends people (not part of the main nav). */
 export const SETTINGS_HREF = "/dashboard/mailbox?tab=settings"
 export const BILLING_HREF = "/dashboard/billing"
+export const DATA_SOURCES_HREF = "/dashboard/settings/data-sources"
 
 export function isNavItemActive(
   item: NavItemConfig,
@@ -71,6 +72,7 @@ export function breadcrumbsFor(pathname: string, tab: string | null): Crumb[] {
     return [{ label: tab === "settings" ? "Settings" : "Mailbox" }]
   if (pathname === "/dashboard/chat") return [{ label: "Chat" }]
   if (pathname === "/dashboard/billing") return [{ label: "Billing" }]
+  if (pathname === DATA_SOURCES_HREF) return [{ label: "Data sources" }]
   if (pathname === "/dashboard/admin") return [{ label: "Platform admin" }]
   return [{ label: "Home" }]
 }

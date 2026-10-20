@@ -10,6 +10,8 @@ import { ResearchProgress } from "./research-progress"
 import { SegmentSelection } from "./segment-selection"
 import { useLogoPreview } from "@/hooks/use-logo-preview"
 import { countryCodeFromName } from "@/lib/geo/countries"
+import type { DataSourcesStatus } from "@/lib/data-sources/types"
+import type { LaunchDataSource } from "./launch-footer"
 import type {
   CompanyFormErrors,
   CompanyFormValues,
@@ -88,6 +90,29 @@ export function NewCampaignFlow() {
     string[]
   >([])
   const [launchError, setLaunchError] = React.useState<string | null>(null)
+  const [dataSource, setDataSource] = React.useState<LaunchDataSource | null>(null)
+
+  // The segment step shows the Apollo credit estimate, or blocks the start
+  // when no data source is connected. Unknown (failed fetch): the server
+  // still refuses an unconnected start, with the same message.
+  React.useEffect(() => {
+    if (step !== "SEGMENT_SELECTION") return
+    let isSubscribed = true
+    fetch("/api/gtm/data-sources")
+      .then((res) => (res.ok ? (res.json() as Promise<DataSourcesStatus>) : null))
+      .then((status) => {
+        if (!isSubscribed || !status) return
+        setDataSource({
+          access: status.access,
+          estimate: status.estimate,
+          needsReconnect: status.connection?.status === "invalid",
+        })
+      })
+      .catch(() => {})
+    return () => {
+      isSubscribed = false
+    }
+  }, [step])
 
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -318,6 +343,7 @@ export function NewCampaignFlow() {
             onToggleAll={toggleAllSegments}
             isLaunching={isLaunching}
             onLaunch={handleLaunchCampaigns}
+            dataSource={dataSource}
             onEditDescription={() => {
               setIsEditingDescription(true)
               setStep("PROFILE_CONFIRMATION")

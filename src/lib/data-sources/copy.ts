@@ -8,7 +8,6 @@
 
 const pluralRules = new Intl.PluralRules("en")
 const credits = (n: number) => `${n} Apollo ${pluralRules.select(n) === "one" ? "credit" : "credits"}`
-const campaigns = (n: number) => `${n} ${pluralRules.select(n) === "one" ? "campaign" : "campaigns"}`
 
 export const DATA_SOURCE_COPY = {
   pageTitle: "Data sources",
@@ -27,7 +26,7 @@ export const DATA_SOURCE_COPY = {
   needsReconnectText: "Apollo rejected the saved key, so campaigns can't search. Connect a new key to continue.",
   managerOnly: "Only owners and admins can connect or disconnect data sources.",
   connectedMeta: (last4: string | null) => (last4 ? `Key ending in ${last4}` : "Key saved"),
-  connectedSince: "Connected",
+  connectedSince: "Connected on",
   lastChecked: "Last checked",
 
   disclosureTitle: "How your key is used",
@@ -42,7 +41,6 @@ export const DATA_SOURCE_COPY = {
   disconnectAction: "Disconnect Apollo",
   cancelAction: "Cancel",
   showKey: "Show key",
-  hideKey: "Hide key",
 
   dialogTitle: "Connect Apollo",
   dialogDescription: "Paste an API key from your Apollo account. Scrunity checks it with one free search before saving it.",
@@ -64,9 +62,9 @@ export const DATA_SOURCE_COPY = {
   /** The estimate on the segment step, before "Start". */
   estimate: (perCampaign: number, count: number) =>
     count > 1
-      ? `Up to ${credits(perCampaign * count)} for ${campaigns(count)}, ${perCampaign} each.`
-      : `Up to ${credits(perCampaign)} for this campaign.`,
-  estimateDetail: "Each campaign stops before it uses more. Companies cost 1 credit per search; each person whose email is checked costs up to 1 credit.",
+      ? `Uses up to ${credits(perCampaign * count)}, ${perCampaign} per campaign.`
+      : `Uses up to ${credits(perCampaign)}.`,
+  estimateDetail: "A campaign stops before it uses more.",
 } as const
 
 /** Connect errors, by public code (lib/data-sources/codes.ts). */

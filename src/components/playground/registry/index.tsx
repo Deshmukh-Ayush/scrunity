@@ -28,6 +28,13 @@ import {
   researchSegmentsEntry,
 } from "./process"
 import { composerEntry, feedRowEntry, sidebarEntry } from "./shell"
+import {
+  campaignDataSourceStoppedEntry,
+  connectDialogEntry,
+  dataSourceCardEntry,
+  disconnectDialogEntry,
+  launchFooterEntry,
+} from "./data-sources"
 import type { ShowcaseEntry } from "./types"
 
 /**
@@ -69,10 +76,15 @@ export const SHOWCASE: ShowcaseEntry[] = [
   researchProgressEntry,
   researchProfileEntry,
   researchSegmentsEntry,
+  launchFooterEntry,
   researchDoneEntry,
   campaignZeroCompaniesEntry,
   campaignSearchStoppedEntry,
   campaignZeroVerifiedEntry,
+  campaignDataSourceStoppedEntry,
+  dataSourceCardEntry,
+  connectDialogEntry,
+  disconnectDialogEntry,
 ]
 
 export * from "./types"

@@ -14,10 +14,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ChevronUpDown, CreditCard, Settings } from "@/components/ui/icons"
+import { ChevronUpDown, CreditCard, Server, Settings } from "@/components/ui/icons"
 import { cn } from "@/lib/utils"
 import { sidebarItemClassName } from "./sidebar-item"
-import { BILLING_HREF, SETTINGS_HREF } from "./nav-config"
+import { BILLING_HREF, DATA_SOURCES_HREF, SETTINGS_HREF } from "./nav-config"
 
 /**
  * The top of the sidebar: the workspace name, opening a menu with Settings,
@@ -65,6 +65,10 @@ export function WorkspaceMenu({
         <DropdownMenuItem render={<Link href={SETTINGS_HREF} />}>
           <Settings />
           Settings
+        </DropdownMenuItem>
+        <DropdownMenuItem render={<Link href={DATA_SOURCES_HREF} />}>
+          <Server />
+          Data sources
         </DropdownMenuItem>
         <DropdownMenuItem render={<Link href={BILLING_HREF} />}>
           <CreditCard />

@@ -11,6 +11,8 @@ import {
   ProcessStages,
 } from "@/components/ui/process-card"
 import { CAMPAIGN_STAGES, isCreditsPause } from "../process/campaign-process"
+import { RECONNECT_CODES } from "@/lib/data-sources/codes"
+import { DATA_SOURCE_COPY } from "@/lib/data-sources/copy"
 import { useCampaignDetail } from "./campaign-detail-root"
 
 export const STAGE_DETAIL_ID = "campaign-stage-detail"
@@ -26,7 +28,8 @@ const STAGE_ICONS = [
 /**
  * The campaign's five stages as a ProcessCard, from the polled campaign and
  * drafts. Each tile shows that stage's detail below the card. Controls are
- * the ones that exist: Restart step (stalled), Retry campaign (failed), and
+ * the ones that exist: Restart step (stalled), Retry campaign (failed, plus
+ * Reconnect Apollo when the customer's key was rejected or is missing), and
  * links for a no-results or paused ending.
  */
 export function CampaignProcessCard({ motion }: { motion?: "auto" | "reduce" }) {
@@ -64,6 +67,13 @@ export function CampaignProcessCard({ motion }: { motion?: "auto" | "reduce" }) 
             <RotateCcw data-icon="inline-start" />
             Restart step
           </Button>
+        )}
+        {process.state === "failed" && campaign.failureReason && RECONNECT_CODES.has(campaign.failureReason) && (
+          <Link href="/dashboard/settings/data-sources" className={buttonVariants()}>
+            {campaign.failureReason === "data_source_not_connected"
+              ? DATA_SOURCE_COPY.connectAction
+              : DATA_SOURCE_COPY.reconnectAction}
+          </Link>
         )}
         {process.state === "failed" && (
           <Button onClick={restartPipeline} loading={isRestarting}>

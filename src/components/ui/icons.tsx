@@ -40,6 +40,7 @@ import {
   Home01Icon,
   InboxIcon,
   InformationCircleIcon,
+  Key01Icon,
   Invoice01Icon,
   LinkSquare02Icon,
   Loading03Icon,
@@ -70,6 +71,8 @@ import {
   UserGroupIcon,
   UserIcon,
   VolumeOffIcon,
+  ViewIcon,
+  ViewOffIcon,
 } from "@hugeicons/core-free-icons"
 
 /**
@@ -134,6 +137,8 @@ export const Copy = icon(Copy01Icon, "Copy")
 export const CreditCard = icon(CreditCardIcon, "CreditCard")
 export const Download = icon(Download01Icon, "Download")
 export const Edit2 = icon(PencilEdit02Icon, "Edit2")
+export const Eye = icon(ViewIcon, "Eye")
+export const EyeOff = icon(ViewOffIcon, "EyeOff")
 export const ExternalLink = icon(LinkSquare02Icon, "ExternalLink")
 export const FileQuestion = icon(FileUnknownIcon, "FileQuestion")
 export const Globe = icon(Globe02Icon, "Globe")
@@ -142,6 +147,7 @@ export const History = icon(Clock04Icon, "History")
 export const Home = icon(Home01Icon, "Home")
 export const Inbox = icon(InboxIcon, "Inbox")
 export const Info = icon(InformationCircleIcon, "Info")
+export const Key = icon(Key01Icon, "Key")
 export const Loader2 = icon(Loading03Icon, "Loader2")
 export const Mail = icon(Mail01Icon, "Mail")
 export const MailReply = icon(MailReply01Icon, "MailReply")

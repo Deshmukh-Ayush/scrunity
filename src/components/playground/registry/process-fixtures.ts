@@ -213,4 +213,14 @@ export const SEARCH_STOPPED_CAMPAIGNS: Array<{ label: string; data: CampaignData
   { label: "Search filters could not be built", data: searchStopped("search_filters_failed") },
 ]
 
+/** A campaign stopped by the customer's own Apollo account (bring your own key). Public codes. */
+export const DATA_SOURCE_STOPPED_CAMPAIGNS: Array<{ label: string; data: CampaignData }> = [
+  { label: "Apollo rejected the key (Reconnect Apollo)", data: searchStopped("data_source_key_invalid") },
+  { label: "No Apollo account connected", data: searchStopped("data_source_not_connected") },
+  { label: "Apollo plan blocks API search", data: searchStopped("data_source_plan_blocked") },
+  { label: "Apollo credits used up", data: searchStopped("data_source_credits_used_up") },
+  { label: "Apollo rate limit", data: searchStopped("data_source_rate_limited") },
+  { label: "Campaign reached its Apollo credit limit", data: searchStopped("data_source_run_cap") },
+]
+
 export const NO_DRAFTS: Draft[] = []

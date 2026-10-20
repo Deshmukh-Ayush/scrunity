@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { formatMoneyAmount, formatTargetMarket } from "@/lib/geo/countries"
+import { LaunchFooter, type LaunchDataSource } from "./launch-footer"
 import { SegmentRow } from "./segment-row"
 import type { IcpSegment, ResearchRunDetails } from "./types"
 
@@ -38,6 +39,7 @@ export function SegmentSelection({
   isLaunching,
   onLaunch,
   onEditDescription,
+  dataSource = null,
 }: {
   run: ResearchRunDetails | null
   segments: IcpSegment[]
@@ -47,6 +49,8 @@ export function SegmentSelection({
   isLaunching: boolean
   onLaunch: () => void
   onEditDescription: () => void
+  /** The organization's data source: the credit estimate, or why starting is blocked. */
+  dataSource?: LaunchDataSource | null
 }) {
   const selected = selectedIds.size
   const allSelected = segments.length > 0 && selected === segments.length
@@ -95,24 +99,7 @@ export function SegmentSelection({
         </ul>
       </section>
 
-      <div className="sticky bottom-4 z-10 flex flex-col gap-3 rounded-xl border border-transparent bg-surface p-3 shadow-floating sm:flex-row sm:items-center sm:justify-between sm:ps-4">
-        <p id="segments-selected" aria-live="polite" className="text-body text-fg-default tabular-nums">
-          {selected === 0
-            ? "Choose at least one segment to start."
-            : `${count(selected, "segment", "segments")} selected`}
-        </p>
-        <Button
-          variant="brand"
-          size="lg"
-          onClick={onLaunch}
-          loading={isLaunching}
-          disabled={selected === 0}
-          aria-describedby="segments-selected"
-          className="w-full sm:w-auto"
-        >
-          {selected === 0 ? "Start campaigns" : `Start ${count(selected, "campaign", "campaigns")}`}
-        </Button>
-      </div>
+      <LaunchFooter selected={selected} isLaunching={isLaunching} onLaunch={onLaunch} dataSource={dataSource} />
     </div>
   )
 }
