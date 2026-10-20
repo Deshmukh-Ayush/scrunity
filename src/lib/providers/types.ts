@@ -62,6 +62,12 @@ export interface VendorSpendContext {
   organizationId?: string | null
   researchRunId?: string | null
   campaignId?: string | null
+  /**
+   * The customer's provider connection whose credentials this call uses
+   * (gtm_provider_connection.id). Only the id travels: the secret is decrypted
+   * inside the call that needs it, never put in events, logs or errors.
+   */
+  connectionId?: string | null
 }
 
 export interface CompanyDiscoveryResult {
@@ -118,6 +124,13 @@ export interface DecisionMakerResult {
 
 export interface PeopleDiscoveryProvider {
   readonly key: string
+  /**
+   * The search returns partial people (no LinkedIn profile, a masked last
+   * name) that the email lookup reveals. The pre-lookup name and LinkedIn
+   * checks then run on the revealed person instead (Stage 5.5 still applies
+   * both gates before anyone is qualified).
+   */
+  readonly revealsOnLookup?: boolean
   findDecisionMakers(
     query: DecisionMakerQuery,
     context: VendorSpendContext
@@ -195,6 +208,8 @@ export interface EmailLookupInput {
   domain: string
   companyName?: string | null
   linkedinUrl?: string | null
+  /** The provider's own id for this person, when the people search gave one. */
+  providerPersonId?: string | null
 }
 
 /**
@@ -211,6 +226,13 @@ export interface EmailLookupResult {
   vendorStatus: string | null
   /** Why an address the vendor found was not accepted, e.g. a different company's domain. */
   note?: string | null
+  /** The full person, when the lookup revealed what the people search masked. */
+  revealed?: {
+    firstName: string
+    lastName: string
+    title: string | null
+    linkedinUrl: string | null
+  } | null
 }
 
 /**
@@ -232,6 +254,8 @@ export interface EmailEnrichmentProvider {
    * settles its own credits.
    */
   readonly maxBatchSize?: number
+  /** Batch providers: the ledger endpoint their lookups are recorded under (counts email credits only). */
+  readonly lookupEndpoint?: string
   lookupBatch?(inputs: EmailLookupInput[], context: VendorSpendContext): Promise<BatchLookupOutcome[]>
 }
 
