@@ -3,7 +3,16 @@ import crypto from "crypto";
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH_BYTES = 12;
 
-function getEncryptionKey(): Buffer {
+/** Derives a fixed 256-bit (32-byte) key from a secret using SHA-256. */
+function deriveKey(secret: string): Buffer {
+  return crypto.createHash("sha256").update(secret).digest();
+}
+
+/**
+ * Mailbox tokens: ENCRYPTION_KEY, falling back to the auth secret. Provider
+ * connection secrets do not use this fallback (lib/data-sources/secret-box.ts).
+ */
+function getMailboxEncryptionSecret(): string {
   const secret =
     process.env.ENCRYPTION_KEY ||
     process.env.BETTER_AUTH_SECRET ||
@@ -14,23 +23,20 @@ function getEncryptionKey(): Buffer {
       "Encryption key not configured. Please set ENCRYPTION_KEY or BETTER_AUTH_SECRET in your environment."
     );
   }
-
-  // Derive a fixed 256-bit (32-byte) key using SHA-256
-  return crypto.createHash("sha256").update(secret).digest();
+  return secret;
 }
 
 /**
- * Encrypts a sensitive string using AES-256-GCM authenticated encryption.
+ * AES-256-GCM authenticated encryption with the given secret.
  * Returns a serialized string in the format: `${iv}:${authTag}:${ciphertext}` (all in hex).
  */
-export function encryptToken(plaintext: string): string {
+export function encryptWithSecret(plaintext: string, secret: string): string {
   if (!plaintext) {
     throw new Error("Cannot encrypt empty or null string");
   }
 
-  const key = getEncryptionKey();
   const iv = crypto.randomBytes(IV_LENGTH_BYTES);
-  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+  const cipher = crypto.createCipheriv(ALGORITHM, deriveKey(secret), iv);
 
   let ciphertext = cipher.update(plaintext, "utf8", "hex");
   ciphertext += cipher.final("hex");
@@ -42,11 +48,10 @@ export function encryptToken(plaintext: string): string {
 }
 
 /**
- * Decrypts an AES-256-GCM encrypted string.
- * Expects the serialized format: `${iv}:${authTag}:${ciphertext}` (all in hex).
- * Throws an error if the payload was tampered with or corrupted.
+ * Decrypts `${iv}:${authTag}:${ciphertext}` with the given secret.
+ * Throws if the payload was tampered with, corrupted or encrypted with another secret.
  */
-export function decryptToken(encryptedString: string): string {
+export function decryptWithSecret(encryptedString: string, secret: string): string {
   if (!encryptedString) {
     throw new Error("Cannot decrypt empty string");
   }
@@ -59,15 +64,24 @@ export function decryptToken(encryptedString: string): string {
   }
 
   const [ivHex, authTagHex, ciphertextHex] = parts;
-  const key = getEncryptionKey();
   const iv = Buffer.from(ivHex, "hex");
   const authTag = Buffer.from(authTagHex, "hex");
 
-  const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+  const decipher = crypto.createDecipheriv(ALGORITHM, deriveKey(secret), iv);
   decipher.setAuthTag(authTag);
 
   let decrypted = decipher.update(ciphertextHex, "hex", "utf8");
   decrypted += decipher.final("utf8");
 
   return decrypted;
+}
+
+/** Encrypts a mailbox token (see getMailboxEncryptionSecret for the key). */
+export function encryptToken(plaintext: string): string {
+  return encryptWithSecret(plaintext, getMailboxEncryptionSecret());
+}
+
+/** Decrypts a mailbox token encrypted with encryptToken. */
+export function decryptToken(encryptedString: string): string {
+  return decryptWithSecret(encryptedString, getMailboxEncryptionSecret());
 }
