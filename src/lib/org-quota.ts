@@ -48,6 +48,15 @@ export const QUOTAS = {
     fallback: 200,
     message: "Your organization has generated the maximum number of drafts for today. Try again tomorrow.",
   },
+  // Each attempt makes one (free) vendor call with the pasted key; capped so
+  // the connect form can't be used to test keys in bulk.
+  dataSourceConnect: {
+    key: "data_source_connect",
+    window: "hour",
+    env: "GTM_DATA_SOURCE_CONNECTS_PER_HOUR",
+    fallback: 10,
+    message: "Too many connection attempts this hour. Try again in an hour.",
+  },
   logoFetch: {
     key: "logo_fetch",
     window: "day",
