@@ -561,6 +561,48 @@ export const gtmOutreachCampaign = pgTable(
   ]
 )
 
+/**
+ * A customer's own data-provider account (bring your own key). One row per
+ * organization and provider. The secret is encrypted with the dedicated
+ * ENCRYPTION_KEY (lib/data-sources/secret-box.ts) and never leaves the server;
+ * customers see only `secretLast4`, the status and the dates.
+ * `authType` is "api_key" today; "oauth" is reserved for a partner OAuth flow.
+ */
+export const gtmProviderConnection = pgTable(
+  "gtm_provider_connection",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    provider: text("provider", { enum: ["apollo"] }).notNull(),
+    authType: text("auth_type", { enum: ["api_key", "oauth"] })
+      .default("api_key")
+      .notNull(),
+    // Null once disconnected: the secret is removed, the row stays for tracing.
+    encryptedSecret: text("encrypted_secret"),
+    secretLast4: text("secret_last4"),
+    status: text("status", { enum: ["active", "invalid", "revoked"] })
+      .default("active")
+      .notNull(),
+    connectedByUserId: text("connected_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    lastVerifiedAt: timestamp("last_verified_at"),
+    // Neutral code of the last failure (e.g. data_source_key_invalid), never vendor text.
+    lastErrorCode: text("last_error_code"),
+  },
+  (table) => [
+    uniqueIndex("gtm_provider_connection_org_provider_unique").on(
+      table.organizationId,
+      table.provider
+    ),
+  ]
+)
+
 export const gtmProspectCompany = pgTable(
   "gtm_prospect_company",
   {
@@ -577,6 +619,12 @@ export const gtmProspectCompany = pgTable(
     linkedinUrl: text("linkedin_url"),
     // Provider-sourced fields (database-mode Stage 4). Unknown values stay null.
     source: text("source").default("web_search").notNull(),
+    // The customer's data-provider connection that produced this row (null for
+    // platform-paid data), so its records can be found and removed on disconnect.
+    sourceConnectionId: text("source_connection_id").references(
+      () => gtmProviderConnection.id,
+      { onDelete: "set null" }
+    ),
     providerId: text("provider_id"),
     website: text("website"),
     country: text("country"),
@@ -605,6 +653,7 @@ export const gtmProspectCompany = pgTable(
   },
   (table) => [
     index("gtm_prospect_company_campaign_idx").on(table.outreachCampaignId),
+    index("gtm_prospect_company_source_connection_idx").on(table.sourceConnectionId),
   ]
 )
 
@@ -766,6 +815,11 @@ export const gtmContact = pgTable(
     // provider id. emailStatus is null for legacy contacts; for the verified-lead
     // search it is the outcome of the one email lookup made for this person.
     source: text("source"),
+    // As on gtm_prospect_company: the customer connection behind this person.
+    sourceConnectionId: text("source_connection_id").references(
+      () => gtmProviderConnection.id,
+      { onDelete: "set null" }
+    ),
     providerPersonId: text("provider_person_id"),
     emailStatus: text("email_status", {
       enum: ["not_looked_up", "verified", "unverified", "not_found"],
@@ -784,7 +838,10 @@ export const gtmContact = pgTable(
       .notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
-  (table) => [index("gtm_contact_company_idx").on(table.prospectCompanyId)]
+  (table) => [
+    index("gtm_contact_company_idx").on(table.prospectCompanyId),
+    index("gtm_contact_source_connection_idx").on(table.sourceConnectionId),
+  ]
 )
 
 export const gtmSuppressionEntry = pgTable(
