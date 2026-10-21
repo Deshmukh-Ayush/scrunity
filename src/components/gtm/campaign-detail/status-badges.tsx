@@ -1,6 +1,7 @@
 import { AlertTriangleSolid, CheckCircleSolid, XCircleSolid } from "@/components/icons/status"
 import { Check, HelpCircle, Send, ShieldCheck, X } from "@/components/ui/icons"
 import { Badge } from "@/components/ui/badge"
+import { IMPORT_COPY } from "@/lib/contact-import/copy"
 import type { DraftStatus } from "./types"
 
 /** How a contact's email address was found, from verified-on-site down to fallback. */
@@ -12,6 +13,8 @@ export function EmailSourceBadge({ source }: { source: string }) {
           <CheckCircleSolid className="size-3" /> Verified
         </Badge>
       )
+    case "user_provided":
+      return <Badge variant="neutral">{IMPORT_COPY.emailStatus}</Badge>
     case "found_on_site":
       return (
         <Badge variant="neutral" className="gap-1">

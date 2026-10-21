@@ -1,6 +1,7 @@
 import { MailReply } from "@/components/ui/icons"
 import { AlertTriangleSolid, CheckCircleSolid, XCircleSolid } from "@/components/icons/status"
 import { isVerifiedStatus } from "@/lib/email-verification"
+import { IMPORT_COPY } from "@/lib/contact-import/copy"
 import { Badge } from "@/components/ui/badge"
 import { isValidPersonName } from "@/lib/gtm-contact-matcher"
 
@@ -122,6 +123,8 @@ export function VerificationBadge({ status }: { status: string }) {
           Company Fallback
         </Badge>
       )
+    case "user_provided":
+      return <Badge variant="neutral">{IMPORT_COPY.emailStatus}</Badge>
     case "unverified":
     default:
       return (

@@ -35,7 +35,7 @@ export async function POST(
     }
 
     // A missing provider is refused before anything is reset or spent.
-    const providers = await checkCampaignProviders(auth.orgId);
+    const providers = await checkCampaignProviders(auth.orgId, { importId: verified.campaign.sourceImportId });
     if (!providers.ok) {
       return NextResponse.json(
         providers.action

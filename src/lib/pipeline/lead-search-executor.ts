@@ -16,7 +16,7 @@ export async function campaignEmailProvider(
   campaignId: string
 ): Promise<Pick<EmailEnrichmentProvider, "key" | "lookupEndpoint">> {
   const { resolution } = await resolveCampaignDataSource(campaignId)
-  if (resolution.kind === "not_connected") return { key: "none" }
+  if (resolution.kind === "not_connected" || resolution.kind === "csv_import") return { key: "none" }
   return providersFor(resolution).email
 }
 

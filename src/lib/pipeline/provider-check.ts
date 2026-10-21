@@ -70,8 +70,13 @@ function checkPlatformProviders(resolution: DataSourceResolution): ProviderCheck
  * platform data with every provider configured. Run it before a campaign starts
  * and before Stage 4 spends anything, so a missing provider costs nothing.
  */
-export async function checkCampaignProviders(organizationId: string): Promise<ProviderCheck> {
-  const resolution = await resolvePeopleProvider(organizationId)
+export async function checkCampaignProviders(
+  organizationId: string,
+  { importId = null }: { importId?: string | null } = {}
+): Promise<ProviderCheck> {
+  const resolution = await resolvePeopleProvider(organizationId, importId)
+  // An imported list needs no provider account; the caller checked the list belongs to the organization.
+  if (resolution.kind === "csv_import") return { ok: true, resolution }
   if (resolution.kind === "not_connected") {
     return {
       ok: false,

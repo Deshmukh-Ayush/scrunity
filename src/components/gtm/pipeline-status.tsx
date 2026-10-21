@@ -76,7 +76,7 @@ export function campaignStatus(
       bucket: "stalled-failed",
       icon: icon.failed,
     }
-  if (row.status === "paused" || row.status === "paused_credits_exhausted")
+  if (row.status === "paused" || row.status === "paused_credits_exhausted" || row.status === "paused_bounce_rate")
     return {
       label: "Paused",
       tone: "neutral",

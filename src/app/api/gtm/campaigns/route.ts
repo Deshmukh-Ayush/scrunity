@@ -12,9 +12,12 @@ import { z } from "zod";
 import { noAccessMessage, resolveCampaignAccess } from "@/lib/pilot/access";
 import { QUOTAS, consumeOrgQuota } from "@/lib/org-quota";
 import { checkCampaignProviders } from "@/lib/pipeline/provider-check";
+import { getActiveImport } from "@/lib/contact-import/store";
 
 const createCampaignSchema = z.object({
   icpSegmentId: z.string().min(1, "ICP segment ID is required"),
+  // Use this imported list instead of company and people search.
+  importId: z.string().min(1).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -36,7 +39,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { icpSegmentId } = parsed.data;
+    const { icpSegmentId, importId } = parsed.data;
 
     // IDOR protection: Verify segment belongs to caller's org
     const verified = await verifyIcpSegmentAccess(icpSegmentId, auth.orgId);
@@ -83,7 +86,17 @@ export async function POST(req: NextRequest) {
     // The organization needs its own connected data source (or, for
     // allowlisted internal organizations, configured platform providers),
     // checked before any quota, row or vendor spend.
-    const providers = await checkCampaignProviders(auth.orgId);
+    // An imported list must be this organization's own, active, non-empty list.
+    if (importId) {
+      const list = await getActiveImport(auth.orgId, importId);
+      if (!list || list.importedCount === 0) {
+        return NextResponse.json(
+          { error: "This list wasn't found. Choose another list.", importNotFound: true },
+          { status: 404 }
+        );
+      }
+    }
+    const providers = await checkCampaignProviders(auth.orgId, { importId });
     if (!providers.ok) {
       return NextResponse.json(
         providers.action
@@ -149,6 +162,7 @@ export async function POST(req: NextRequest) {
         // Snapshot the run's target market so it can differ per campaign later.
         targetCountryCode: verified.researchRun.targetCountryCode,
         targetRegion: verified.researchRun.targetRegion,
+        sourceImportId: importId ?? null,
         status: "in_progress",
         currentStage: "find_companies",
         stageStartedAt: new Date(),

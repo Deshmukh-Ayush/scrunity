@@ -28,6 +28,7 @@ import { resolveCampaignDataSource } from "@/lib/data-sources/resolve";
 import { assertCampaignProviders } from "@/lib/pipeline/provider-check";
 import { providersFor } from "@/lib/providers/registry";
 import { executeFindCompaniesFromDatabase } from "./find-companies-database";
+import { executeFindCompaniesFromImport } from "@/lib/contact-import/campaign-stage";
 
 export interface ProspectCompanyData {
   id: string;
@@ -49,7 +50,11 @@ export async function executeFindCompanies(
   step?: InngestStep
 ): Promise<FindCompaniesResult> {
   // The organization's data source decides the path; a missing one stops here, before any spend.
-  const { organizationId } = await resolveCampaignDataSource(outreachCampaignId);
+  const { organizationId, resolution } = await resolveCampaignDataSource(outreachCampaignId);
+  // An imported list needs no search and no provider account.
+  if (resolution.kind === "csv_import") {
+    return executeFindCompaniesFromImport(outreachCampaignId);
+  }
   const providers = providersFor(await assertCampaignProviders(organizationId));
   if (providers.discovery === "database") {
     return executeFindCompaniesFromDatabase(outreachCampaignId, providers);

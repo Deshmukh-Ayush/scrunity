@@ -1,3 +1,5 @@
+import type { PublicImport } from "@/lib/contact-import/types"
+
 /**
  * Shapes for customer data-provider connections (bring your own key). Pure and
  * client-safe: nothing here carries a secret.
@@ -42,9 +44,12 @@ export interface PublicConnection {
  *   travels, the key is decrypted inside the step that calls the provider.
  * - platform: Scrunity-paid data, only for allowlisted internal organizations
  *   (PLATFORM_DATA_ORG_IDS); `mode` is PEOPLE_DATA_PROVIDER.
+ * - csv_import: the campaign uses the organization's own imported list
+ *   (lib/contact-import/); no company or people search, no provider account.
  * - not_connected: nothing usable; starting a campaign is refused.
  */
 export type DataSourceResolution =
+  | { kind: "csv_import"; importId: string }
   | { kind: "customer"; provider: DataProvider; connectionId: string }
   | { kind: "platform"; mode: "firecrawl" | "legacy" }
   | { kind: "not_connected"; reason: "none" | "needs_reconnect" }
@@ -62,6 +67,8 @@ export interface RunCreditEstimate {
 export interface DataSourcesStatus {
   access: "customer" | "platform" | "not_connected"
   connection: PublicConnection | null
+  /** The organization's active imported lists, newest first. */
+  imports: PublicImport[]
   estimate: RunCreditEstimate
   /** The caller may connect or disconnect (owner or admin). */
   canManage: boolean

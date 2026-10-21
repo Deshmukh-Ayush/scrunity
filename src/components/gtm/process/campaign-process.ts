@@ -2,6 +2,7 @@ import type { ProcessActivityItem, ProcessState } from "@/components/ui/process-
 import { plainDuration } from "./plain-duration"
 import { leadSearchMessage } from "@/lib/lead-search-message"
 import { CAMPAIGN_DATA_SOURCE_FAILURE_TEXT } from "@/lib/data-sources/copy"
+import { IMPORT_CAMPAIGN_FAILURE_TEXT } from "@/lib/contact-import/copy"
 import type { CampaignData, Draft } from "../campaign-detail/types"
 
 /**
@@ -77,6 +78,7 @@ const FAILURE_TEXT: Record<string, string> = {
   search_filters_failed:
     "This segment couldn't be turned into search filters, so nothing was searched or charged. Retry the campaign. If it fails again, contact support.",
   ...CAMPAIGN_DATA_SOURCE_FAILURE_TEXT,
+  ...IMPORT_CAMPAIGN_FAILURE_TEXT,
 }
 
 const CREDITS_PAUSED = "Sending is paused because your AI credits ran out. Top up credits in Billing to continue."

@@ -21,6 +21,8 @@ const MANAGER_ROUTES: { methods: string[]; pattern: RegExp }[] = [
   { methods: ["GET", "POST"], pattern: /^\/api\/gtm\/mailbox\/(connect|callback|imap-smtp\/connect|microsoft\/connect|microsoft\/callback)$/ },
   // Data sources (the organization's own provider accounts): connect, disconnect
   { methods: ["POST", "DELETE"], pattern: /^\/api\/gtm\/data-sources\/[^/]+$/ },
+  // Imported lists: upload (POST .../imports, matched above) and delete
+  { methods: ["DELETE"], pattern: /^\/api\/gtm\/data-sources\/imports\/[^/]+$/ },
   // Deleting shared records
   { methods: ["DELETE"], pattern: /^\/api\/gtm\/chat\/conversations\/[^/]+$/ },
 ]

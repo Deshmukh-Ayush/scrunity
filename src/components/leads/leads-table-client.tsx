@@ -38,7 +38,7 @@ export type LeadsTableClientProps = {
 
 /** Neutral reason for a lead in the Skipped section (never red, never a vendor name). */
 function skippedReasonOf(lead: Lead): string {
-  if (lead.verificationStatus !== "verified") return lead.skipReason || "Email not verified"
+  if (lead.verificationStatus !== "verified" && lead.verificationStatus !== "user_provided") return lead.skipReason || "Email not verified"
   return lead.status === "bounced" ? "Email bounced" : "Not selected for outreach"
 }
 
