@@ -26,7 +26,10 @@ export type Lead = {
 
 export type LeadSummary = {
   reviewed: number
+  /** Usable leads whose email a vendor verified. */
   verified: number
+  /** Usable leads from the customer's imported lists (not verified). */
+  fromList: number
 }
 
 export type CampaignOption = {

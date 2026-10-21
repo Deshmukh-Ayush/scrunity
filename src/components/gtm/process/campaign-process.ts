@@ -98,6 +98,12 @@ export function campaignFailureText(reason: string | null | undefined, stageLabe
 const plural = (n: number, one: string, many: string) =>
   `${n} ${new Intl.PluralRules("en").select(n) === "one" ? one : many}`
 
+/** The contacts tile: verified and from-your-list counted apart. */
+export function contactsDetail(verified: number, fromList: number): string {
+  if (fromList === 0) return `${verified} verified`
+  return verified === 0 ? `${fromList} from your list` : `${verified} verified · ${fromList} from your list`
+}
+
 export interface CampaignProcessInput {
   data: CampaignData
   drafts: Draft[]
@@ -123,6 +129,9 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
   const { campaign, companies } = data
   const stageIndex = STAGE_INDEX[campaign.currentStage] ?? 0
   const verified = data.leadSummary?.verified ?? data.contacts.length
+  // People from an imported list: usable, but never counted as verified.
+  const fromList = data.leadSummary?.fromList ?? 0
+  const usable = verified + fromList
   const reviewed = data.leadSummary?.reviewed ?? 0
   const outcome = campaign.leadSearchOutcome
   const bounced = drafts.filter((d) => d.hasBounced).length
@@ -136,7 +145,7 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
     noResultsReason = outcome ? leadSearchMessage(outcome) : "No verified contacts were found, so there are no emails to review."
 
   // A review with nothing to review ended at Verified contacts, not at Your review.
-  const current = noResultsReason && atReview && verified === 0 ? 1 : stageIndex
+  const current = noResultsReason && atReview && usable === 0 ? 1 : stageIndex
 
   let state: ProcessState
   if (campaign.status === "failed") state = "failed"
@@ -148,7 +157,7 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
 
   const details: (string | undefined)[] = [
     current > 0 || atGate ? plural(companies.length, "company", "companies") : undefined,
-    current > 1 || reviewed > 0 ? `${verified} verified` : undefined,
+    current > 1 || reviewed > 0 ? contactsDetail(verified, fromList) : undefined,
     drafts.length > 0 ? plural(drafts.length, "draft", "drafts") : undefined,
     counts.approved + counts.sent > 0 ? `${counts.approved + counts.sent} approved` : undefined,
     counts.sent > 0 ? `${counts.sent} sent` : undefined,
@@ -240,7 +249,9 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
   const chosen = companies.filter((c) => c.selectionStatus === "selected").length
   if (data.usesCompanyDatabase && chosen > 0 && current > 0)
     activity.push({ id: `chosen-${chosen}`, text: `You chose ${plural(chosen, "company", "companies")} to contact` })
-  if (reviewed > 0)
+  if (fromList > 0)
+    activity.push({ id: `list-${fromList}`, text: `Added ${plural(fromList, "person", "people")} from your list` })
+  if (reviewed > 0 && fromList === 0)
     activity.push({
       id: `checked-${reviewed}-${verified}`,
       text: verified === 0

@@ -57,7 +57,7 @@ function CompaniesStage() {
 
 function ContactsStage() {
   const { data, process } = useCampaignDetail()
-  const summary = data.leadSummary ?? { reviewed: 0, verified: 0 }
+  const summary = data.leadSummary ?? { reviewed: 0, verified: 0, fromList: 0 }
   const skipped = data.skippedContacts ?? []
   const outcome = data.campaign.leadSearchOutcome
 
@@ -79,7 +79,7 @@ function ContactsStage() {
             actions={process.state === "no-results" ? newRunLink : undefined}
           />
         </div>
-        <LeadSummaryLine reviewed={summary.reviewed} verified={summary.verified} className="text-body text-fg-muted" />
+        <LeadSummaryLine reviewed={summary.reviewed} verified={summary.verified} fromList={summary.fromList} className="text-body text-fg-muted" />
         <SkippedLeads count={skipped.length} leads={skipped} />
       </div>
     )
@@ -89,7 +89,7 @@ function ContactsStage() {
     <>
       <div className="flex flex-col gap-0.5">
         {outcome && <p className="text-body text-fg-default">{leadSearchMessage(outcome)}</p>}
-        <LeadSummaryLine reviewed={summary.reviewed} verified={summary.verified} className="text-body text-fg-muted" />
+        <LeadSummaryLine reviewed={summary.reviewed} verified={summary.verified} fromList={summary.fromList} className="text-body text-fg-muted" />
       </div>
       <ContactsTable />
       <SkippedLeads count={skipped.length} leads={skipped} />

@@ -23,10 +23,29 @@ export const usableLeadSql = sql`(
   )
 )`
 
-/** Lead counts for the quiet summary line ("Reviewed 23 people · 12 verified"). */
+/**
+ * Lead counts for the quiet summary line ("Reviewed 23 people · 12 verified ·
+ * 4 from your list"). Verified and from-your-list are counted apart: an
+ * imported address is usable but never verified.
+ */
 export const leadSummarySql = {
   reviewed: sql<number>`count(*)::int`,
-  verified: sql<number>`count(*) FILTER (WHERE ${usableLeadSql})::int`,
+  verified: sql<number>`count(*) FILTER (WHERE ${usableLeadSql} AND ${gtmContact.verificationStatus} = 'mailbox_verified')::int`,
+  fromList: sql<number>`count(*) FILTER (WHERE ${usableLeadSql} AND ${gtmContact.verificationStatus} = 'user_provided')::int`,
+}
+
+/** A leadSummarySql row as the client's LeadSummary. */
+export function toLeadSummary(row: { reviewed?: unknown; verified?: unknown; fromList?: unknown } | undefined) {
+  return { reviewed: Number(row?.reviewed ?? 0), verified: Number(row?.verified ?? 0), fromList: Number(row?.fromList ?? 0) }
+}
+
+/** The same counts from loaded contacts (campaign page): `usable` are those skippedReason let through. */
+export function summarizeLeads(all: number, usable: Array<{ verificationStatus: string | null }>) {
+  return {
+    reviewed: all,
+    verified: usable.filter((c) => c.verificationStatus === "mailbox_verified").length,
+    fromList: usable.filter((c) => c.verificationStatus === "user_provided").length,
+  }
 }
 
 interface ContactLike {

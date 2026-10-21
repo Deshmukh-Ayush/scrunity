@@ -1,7 +1,9 @@
 "use client"
 
 import { ExternalLink } from "@/components/ui/icons"
-import { DataTable, DateCell, NumberCell, TextCell, type DataTableColumn } from "@/components/ui/data-table"
+import { DataTable, DateCell, NumberCell, StatusCell, TextCell, type DataTableColumn } from "@/components/ui/data-table"
+import { CheckCircleSolid } from "@/components/icons/status"
+import { IMPORT_COPY } from "@/lib/contact-import/copy"
 import { useCampaignDetail } from "./campaign-detail-root"
 import { DraftStatusBadge } from "./status-badges"
 import type { Company, Contact, Draft } from "./types"
@@ -10,6 +12,13 @@ import type { Company, Contact, Draft } from "./types"
  * Stage tables on the shared DataTable. Outer rows carry what you scan for;
  * what you open is the company's site or, for drafts, the review cards.
  */
+
+/** A usable contact's email status: vendor-verified, or from the customer's own list. Label plus icon, never color alone. */
+function ContactEmailStatus({ source }: { source: string }) {
+  if (source === "verified") return <StatusCell label="Verified" tone="success" icon={<CheckCircleSolid className="size-3.5" />} />
+  if (source === "user_provided") return <StatusCell label={IMPORT_COPY.emailStatus} />
+  return <StatusCell label="Not verified" />
+}
 
 function WebsiteLink({ domain }: { domain: string }) {
   if (!domain) return <TextCell value={null} />
@@ -78,9 +87,17 @@ export function ContactsTable() {
     },
     { id: "title", header: "Title", type: "text", cell: (ct) => <TextCell value={ct.title} muted />, sortValue: (ct) => ct.title },
     { id: "company", header: "Company", type: "text", cell: (ct) => <TextCell value={companyName(ct)} />, sortValue: companyName },
-    { id: "email", header: "Verified email", type: "text", cell: (ct) => <TextCell value={ct.email} /> },
+    { id: "email", header: "Email", type: "text", cell: (ct) => <TextCell value={ct.email} /> },
+    {
+      id: "emailStatus",
+      header: "Email status",
+      type: "status",
+      className: "w-56",
+      cell: (ct) => <ContactEmailStatus source={ct.emailSource} />,
+      sortValue: (ct) => ct.emailSource,
+    },
   ]
-  return <DataTable label="Verified contacts" columns={columns} rows={data.contacts} rowKey={(ct) => ct.id} density="compact" />
+  return <DataTable label="Contacts" columns={columns} rows={data.contacts} rowKey={(ct) => ct.id} density="compact" />
 }
 
 export function DraftsTable({ drafts, showSentAt = false }: { drafts: Draft[]; showSentAt?: boolean }) {

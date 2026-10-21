@@ -63,7 +63,7 @@ export function LeadsTableClient({
   initialStatus = "all",
   initialSearch = "",
   initialPage = 1,
-  initialSummary = { reviewed: 0, verified: 0 },
+  initialSummary = { reviewed: 0, verified: 0, fromList: 0 },
 }: LeadsTableClientProps) {
   const [summary, setSummary] = React.useState(initialSummary)
   const [leads, setLeads] = React.useState(initialLeads)
@@ -212,11 +212,12 @@ export function LeadsTableClient({
             </Badge>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            Leads with a verified email across your campaigns.
+            Leads with a verified email, or from your imported lists, across your campaigns.
           </p>
           <LeadSummaryLine
             reviewed={summary.reviewed}
             verified={summary.verified}
+            fromList={summary.fromList}
             className="mt-0.5 text-xs text-muted-foreground"
           />
         </div>
@@ -344,7 +345,7 @@ export function LeadsTableClient({
 
       <SkippedLeads
         key={campaignId}
-        count={Math.max(0, summary.reviewed - summary.verified)}
+        count={Math.max(0, summary.reviewed - summary.verified - summary.fromList)}
         load={loadSkipped}
       />
 

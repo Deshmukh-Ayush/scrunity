@@ -14,7 +14,7 @@ import { and, desc, eq, getTableColumns, inArray, sql } from "drizzle-orm"
 import { verifyCampaignAccess } from "@/lib/gtm-auth"
 import { getDecisionMakersPerCompany } from "@/lib/providers/config"
 import { publicContactRow, publicPipelineRow } from "./public-fields"
-import { skippedReason, usableLeadSql } from "./lead-visibility"
+import { skippedReason, summarizeLeads, usableLeadSql } from "./lead-visibility"
 
 /**
  * Every outreach campaign in the organization, newest first, joined with the
@@ -116,7 +116,7 @@ export async function getCampaignDetail(
       snapshots: [],
       contacts: [],
       skippedContacts: [],
-      leadSummary: { reviewed: 0, verified: 0 },
+      leadSummary: { reviewed: 0, verified: 0, fromList: 0 },
       drafts: [],
     }
   }
@@ -140,10 +140,12 @@ export async function getCampaignDetail(
   ])
 
   const contacts = []
+  const usable = []
   const skippedContacts = []
   for (const contact of allContacts) {
     const reason = skippedReason(contact, drafts)
     if (!reason) {
+      usable.push(contact)
       contacts.push(publicContactRow(contact))
       continue
     }
@@ -156,10 +158,7 @@ export async function getCampaignDetail(
       reason,
     })
   }
-  const leadSummary = {
-    reviewed: allContacts.length,
-    verified: contacts.length,
-  }
+  const leadSummary = summarizeLeads(allContacts.length, usable)
 
   return {
     ...verified,

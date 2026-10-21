@@ -12,21 +12,31 @@ export interface SkippedLead {
   reason: string
 }
 
-/**
- * The quiet summary line shown above lead lists: "Reviewed 23 people · 12 verified".
- */
+const plural = new Intl.PluralRules("en")
+
+/** "Reviewed 23 people · 12 verified · 4 from your list" (the list part only when there are some). */
+export function leadSummaryText(reviewed: number, verified: number, fromList = 0): string {
+  const people = plural.select(reviewed) === "one" ? "person" : "people"
+  const parts = [`Reviewed ${reviewed.toLocaleString("en-US")} ${people}`, `${verified.toLocaleString("en-US")} verified`]
+  if (fromList > 0) parts.push(`${fromList.toLocaleString("en-US")} from your list`)
+  return parts.join(" · ")
+}
+
+/** The quiet summary line shown above lead lists. Verified and from-your-list are counted apart. */
 export function LeadSummaryLine({
   reviewed,
   verified,
+  fromList = 0,
   className,
 }: {
   reviewed: number
   verified: number
+  fromList?: number
   className?: string
 }) {
   return (
     <p className={className ?? "text-xs text-muted-foreground"} data-slot="lead-summary">
-      Reviewed {reviewed} {reviewed === 1 ? "person" : "people"} · {verified} verified
+      {leadSummaryText(reviewed, verified, fromList)}
     </p>
   )
 }
