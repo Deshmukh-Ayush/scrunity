@@ -1,4 +1,5 @@
 import type { RejectReason } from "./review"
+import type { ImportErrorBody } from "./types"
 
 /**
  * Every customer-facing string about imported lists, in one place for review.
@@ -97,6 +98,34 @@ export const IMPORT_COPY = {
   cancelAction: "Cancel",
   managerOnly: "Only owners and admins can import or delete lists.",
 } as const
+
+/** The message for an upload or import error code from the API. */
+export function importErrorText(error: ImportErrorBody, limits: { maxMb: number; maxRows: number }): string {
+  switch (error.code) {
+    case "not_csv":
+      return IMPORT_COPY.errorNotCsv
+    case "too_large":
+      return IMPORT_COPY.errorTooLarge(limits.maxMb)
+    case "too_many_rows":
+      return IMPORT_COPY.errorTooManyRows(error.rows ?? limits.maxRows + 1, limits.maxRows)
+    case "empty_file":
+      return IMPORT_COPY.errorEmpty
+    case "parse_error":
+      return IMPORT_COPY.errorParse(error.line ?? 1)
+    case "binary_file":
+      return IMPORT_COPY.errorBinary
+    case "missing_identity":
+      return IMPORT_COPY.missingIdentity
+    case "duplicate_field":
+      return IMPORT_COPY.duplicateField
+    case "attestation_required":
+      return IMPORT_COPY.attestationRequired
+    case "nothing_to_import":
+      return IMPORT_COPY.nothingToImport
+    default:
+      return IMPORT_COPY.errorGeneric
+  }
+}
 
 /** The reason column of the rejected-rows file and the review table. */
 export const REJECT_REASON_TEXT: Record<RejectReason, string> = {

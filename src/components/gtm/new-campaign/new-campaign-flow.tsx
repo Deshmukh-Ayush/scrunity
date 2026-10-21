@@ -12,6 +12,7 @@ import { useLogoPreview } from "@/hooks/use-logo-preview"
 import { countryCodeFromName } from "@/lib/geo/countries"
 import type { DataSourcesStatus } from "@/lib/data-sources/types"
 import type { LaunchDataSource } from "./launch-footer"
+import { defaultSource, type CampaignSource } from "./source-choice"
 import type {
   CompanyFormErrors,
   CompanyFormValues,
@@ -91,6 +92,7 @@ export function NewCampaignFlow() {
   >([])
   const [launchError, setLaunchError] = React.useState<string | null>(null)
   const [dataSource, setDataSource] = React.useState<LaunchDataSource | null>(null)
+  const [source, setSource] = React.useState<CampaignSource>({ kind: "search" })
 
   // The segment step shows the Apollo credit estimate, or blocks the start
   // when no data source is connected. Unknown (failed fetch): the server
@@ -105,8 +107,10 @@ export function NewCampaignFlow() {
         setDataSource({
           access: status.access,
           estimate: status.estimate,
+          imports: status.imports ?? [],
           needsReconnect: status.connection?.status === "invalid",
         })
+        setSource(defaultSource({ access: status.access, imports: status.imports ?? [] }))
       })
       .catch(() => {})
     return () => {
@@ -272,7 +276,7 @@ export function NewCampaignFlow() {
         const res = await fetch("/api/gtm/campaigns", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ icpSegmentId }),
+          body: JSON.stringify(source.kind === "import" ? { icpSegmentId, importId: source.importId } : { icpSegmentId }),
         })
         const data = await res.json()
         if (res.ok && data.campaign?.id) createdIds.push(data.campaign.id)
@@ -344,6 +348,8 @@ export function NewCampaignFlow() {
             isLaunching={isLaunching}
             onLaunch={handleLaunchCampaigns}
             dataSource={dataSource}
+            source={source}
+            onSourceChange={setSource}
             onEditDescription={() => {
               setIsEditingDescription(true)
               setStep("PROFILE_CONFIRMATION")

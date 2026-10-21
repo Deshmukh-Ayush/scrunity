@@ -143,11 +143,11 @@ export function DisconnectDialogDemo() {
 
 const estimate = { provider: "apollo" as const, maxCreditsPerCampaign: 21, runCap: 25 }
 const FOOTER_STATES: Array<{ label: string; selected: number; dataSource: LaunchDataSource | null }> = [
-  { label: "Apollo connected, 1 segment: the estimate before Start", selected: 1, dataSource: { access: "customer", estimate, needsReconnect: false } },
-  { label: "Apollo connected, 3 segments", selected: 3, dataSource: { access: "customer", estimate, needsReconnect: false } },
-  { label: "Not connected: start blocked", selected: 2, dataSource: { access: "not_connected", estimate, needsReconnect: false } },
-  { label: "Key rejected: start blocked", selected: 2, dataSource: { access: "not_connected", estimate, needsReconnect: true } },
-  { label: "Internal organization (platform data): no Apollo estimate", selected: 2, dataSource: { access: "platform", estimate, needsReconnect: false } },
+  { label: "Apollo connected, 1 segment: the estimate before Start", selected: 1, dataSource: { access: "customer", estimate, needsReconnect: false, imports: [] } },
+  { label: "Apollo connected, 3 segments", selected: 3, dataSource: { access: "customer", estimate, needsReconnect: false, imports: [] } },
+  { label: "Not connected: start blocked", selected: 2, dataSource: { access: "not_connected", estimate, needsReconnect: false, imports: [] } },
+  { label: "Key rejected: start blocked", selected: 2, dataSource: { access: "not_connected", estimate, needsReconnect: true, imports: [] } },
+  { label: "Internal organization (platform data): no Apollo estimate", selected: 2, dataSource: { access: "platform", estimate, needsReconnect: false, imports: [] } },
 ]
 
 export function LaunchFooterStates() {

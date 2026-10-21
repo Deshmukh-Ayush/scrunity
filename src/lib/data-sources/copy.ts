@@ -11,7 +11,7 @@ const credits = (n: number) => `${n} Apollo ${pluralRules.select(n) === "one" ? 
 
 export const DATA_SOURCE_COPY = {
   pageTitle: "Data sources",
-  pageDescription: "Campaigns find companies and decision makers with your own Apollo account and its credits.",
+  pageDescription: "Campaigns find companies and decision makers with your own Apollo account, or use people from a list you import.",
   apolloName: "Apollo",
   apolloDescription: "Finds companies, decision makers and verified work emails.",
 

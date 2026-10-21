@@ -35,6 +35,7 @@ import {
   disconnectDialogEntry,
   launchFooterEntry,
 } from "./data-sources"
+import { contactImportEntry, importedListsEntry, sourceChoiceEntry } from "./contact-import"
 import type { ShowcaseEntry } from "./types"
 
 /**
@@ -77,6 +78,7 @@ export const SHOWCASE: ShowcaseEntry[] = [
   researchProfileEntry,
   researchSegmentsEntry,
   launchFooterEntry,
+  sourceChoiceEntry,
   researchDoneEntry,
   campaignZeroCompaniesEntry,
   campaignSearchStoppedEntry,
@@ -85,6 +87,8 @@ export const SHOWCASE: ShowcaseEntry[] = [
   dataSourceCardEntry,
   connectDialogEntry,
   disconnectDialogEntry,
+  importedListsEntry,
+  contactImportEntry,
 ]
 
 export * from "./types"
