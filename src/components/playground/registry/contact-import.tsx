@@ -15,6 +15,8 @@ import { importErrorText } from "@/lib/contact-import/copy"
 import type { ColumnMapping, ImportField } from "@/lib/contact-import/columns"
 import type { ImportPreview } from "@/lib/contact-import/types"
 import { IMPORTED, LISTS, PREVIEW, PREVIEW_MISSING, PREVIEW_WIDE, REVIEW, REVIEW_NOTHING } from "./contact-import-fixtures"
+import { BOUNCE_DRAFTS, BOUNCE_PAUSED_CAMPAIGN } from "./bounce-fixtures"
+import { CampaignFixtureDemo } from "./flow-demos"
 import type { ShowcaseEntry } from "./types"
 
 const noop = () => {}
@@ -181,4 +183,13 @@ export const sourceChoiceEntry: ShowcaseEntry = {
   group: "Flows",
   description: "Find with Apollo or use an imported list, with the footer for each: one segment per list, and a blocked start when neither is set up.",
   render: () => <SourceChoiceStates />,
+}
+
+export const bouncePausedEntry: ShowcaseEntry = {
+  id: "campaign-bounce-paused",
+  name: "Campaign page: sending paused for bounces",
+  group: "Flows",
+  description:
+    "An imported-list campaign paused after 3 of 23 emails bounced: the rate, the bounced addresses, and Remove and resume behind a confirm that says the 5% rule starts over. Fixtures only; the action is a no-op here.",
+  render: () => <CampaignFixtureDemo data={BOUNCE_PAUSED_CAMPAIGN} drafts={BOUNCE_DRAFTS} />,
 }

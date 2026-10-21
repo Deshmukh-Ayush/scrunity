@@ -35,7 +35,7 @@ import {
   disconnectDialogEntry,
   launchFooterEntry,
 } from "./data-sources"
-import { contactImportEntry, importedListsEntry, sourceChoiceEntry } from "./contact-import"
+import { bouncePausedEntry, contactImportEntry, importedListsEntry, sourceChoiceEntry } from "./contact-import"
 import type { ShowcaseEntry } from "./types"
 
 /**
@@ -84,6 +84,7 @@ export const SHOWCASE: ShowcaseEntry[] = [
   campaignSearchStoppedEntry,
   campaignZeroVerifiedEntry,
   campaignDataSourceStoppedEntry,
+  bouncePausedEntry,
   dataSourceCardEntry,
   connectDialogEntry,
   disconnectDialogEntry,

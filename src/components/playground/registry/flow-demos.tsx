@@ -12,7 +12,8 @@ import { CampaignDetailRoot } from "@/components/gtm/campaign-detail/campaign-de
 import { CampaignProcessCard } from "@/components/gtm/campaign-detail/campaign-process-card"
 import { MailboxStatusBar } from "@/components/gtm/campaign-detail/mailbox-status-bar"
 import { StageDetail } from "@/components/gtm/campaign-detail/stage-detail"
-import type { CampaignData } from "@/components/gtm/campaign-detail/types"
+import { BouncePausePanel } from "@/components/gtm/campaign-detail/bounce-pause-panel"
+import type { CampaignData, Draft } from "@/components/gtm/campaign-detail/types"
 import {
   FIXTURE_MAILBOX,
   FIXTURE_RUN,
@@ -181,13 +182,13 @@ export function ResearchDoneDemo() {
 }
 
 /** The campaign page's real parts on fixture data, with polling and every action off. */
-export function CampaignFixtureDemo({ data }: { data: CampaignData }) {
+export function CampaignFixtureDemo({ data, drafts = NO_DRAFTS }: { data: CampaignData; drafts?: Draft[] }) {
   return (
     <div className="w-full max-w-5xl">
       <CampaignDetailRoot
         campaignId={data.campaign.id}
         initialData={data}
-        initialDrafts={NO_DRAFTS}
+        initialDrafts={drafts}
         initialMailbox={FIXTURE_MAILBOX}
         fixture
         className="flex flex-col gap-6"
@@ -197,6 +198,7 @@ export function CampaignFixtureDemo({ data }: { data: CampaignData }) {
           <MailboxStatusBar />
         </div>
         <CampaignProcessCard />
+        <BouncePausePanel />
         <StageDetail />
       </CampaignDetailRoot>
     </div>
