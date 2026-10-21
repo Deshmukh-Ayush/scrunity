@@ -155,7 +155,7 @@ describe("upload limits and steps", () => {
     assert.deepEqual(await readCsvFile(big, 10), { ok: false, error: { code: "too_large" } })
     const many = await readCsvFile(file("list.csv", "Email\n" + "a@b.example\n".repeat(11)), 10)
     assert.deepEqual(many, { ok: false, error: { code: "too_many_rows", rows: 11 } })
-    assert.equal(getCsvImportMaxRows({ GTM_CSV_IMPORT_MAX_ROWS: "500" } as NodeJS.ProcessEnv), 500)
+    assert.equal(getCsvImportMaxRows({ GTM_CSV_IMPORT_MAX_ROWS: "500" } as Record<string, string> as NodeJS.ProcessEnv), 500)
     assert.equal(getCsvImportMaxRows({} as NodeJS.ProcessEnv), 2000)
   })
 
