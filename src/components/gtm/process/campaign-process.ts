@@ -2,7 +2,8 @@ import type { ProcessActivityItem, ProcessState } from "@/components/ui/process-
 import { plainDuration } from "./plain-duration"
 import { leadSearchMessage } from "@/lib/lead-search-message"
 import { CAMPAIGN_DATA_SOURCE_FAILURE_TEXT } from "@/lib/data-sources/copy"
-import { IMPORT_CAMPAIGN_FAILURE_TEXT } from "@/lib/contact-import/copy"
+import { deliveryText, IMPORT_CAMPAIGN_FAILURE_TEXT } from "@/lib/contact-import/copy"
+import type { DeliveryCounts } from "@/lib/contact-import/bounce-guard"
 import type { CampaignData, Draft } from "../campaign-detail/types"
 
 /**
@@ -98,16 +99,24 @@ export function campaignFailureText(reason: string | null | undefined, stageLabe
 const plural = (n: number, one: string, many: string) =>
   `${n} ${new Intl.PluralRules("en").select(n) === "one" ? one : many}`
 
+/** The Sending tile: "23 sent", or "23 sent · 3 bounced" once something bounced. */
+export function sendingDetail(c: Pick<DeliveryCounts, "sent" | "bounced">): string {
+  return c.bounced > 0 ? `${c.sent} sent · ${c.bounced} bounced` : `${c.sent} sent`
+}
+
 /** The contacts tile: verified and from-your-list counted apart. */
 export function contactsDetail(verified: number, fromList: number): string {
   if (fromList === 0) return `${verified} verified`
   return verified === 0 ? `${fromList} from your list` : `${verified} verified · ${fromList} from your list`
 }
 
+/** Review counts plus the shared delivery count (sent includes bounced). */
+export type CampaignCounts = { approved: number; rejected: number; pending: number } & DeliveryCounts
+
 export interface CampaignProcessInput {
   data: CampaignData
   drafts: Draft[]
-  counts: { approved: number; sent: number; rejected: number; pending: number }
+  counts: CampaignCounts
   /** From checkStageStaleness, after hydration only. */
   stalledForMs: number | null
 }
@@ -134,7 +143,6 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
   const usable = verified + fromList
   const reviewed = data.leadSummary?.reviewed ?? 0
   const outcome = campaign.leadSearchOutcome
-  const bounced = drafts.filter((d) => d.hasBounced).length
 
   const atGate = campaign.currentStage === "awaiting_company_selection"
   const atReview = campaign.currentStage === "awaiting_approval"
@@ -160,7 +168,7 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
     current > 1 || reviewed > 0 ? contactsDetail(verified, fromList) : undefined,
     drafts.length > 0 ? plural(drafts.length, "draft", "drafts") : undefined,
     counts.approved + counts.sent > 0 ? `${counts.approved + counts.sent} approved` : undefined,
-    counts.sent > 0 ? `${counts.sent} sent` : undefined,
+    counts.sent > 0 ? sendingDetail(counts) : undefined,
   ]
 
   const stage = CAMPAIGN_STAGES[current]
@@ -183,7 +191,7 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
       status = noResultsReason ?? ""
       break
     case "done":
-      status = counts.sent > 0 ? `Done. ${plural(counts.sent, "email was", "emails were")} sent.` : "Done."
+      status = counts.sent > 0 ? `Done. ${deliveryText(counts)}.` : "Done."
       break
     case "idle":
       status = atGate
@@ -235,7 +243,7 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
     progress = {
       value: counts.sent,
       max: counts.sent + counts.approved,
-      label: `${counts.sent} of ${counts.sent + counts.approved} sent`,
+      label: counts.bounced > 0 ? `${counts.sent} of ${counts.sent + counts.approved} sent · ${counts.bounced} bounced` : `${counts.sent} of ${counts.sent + counts.approved} sent`,
     }
   else if (state === "running" || state === "stalled") progress = { label: "Working on this step" }
 
@@ -263,7 +271,7 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
   if (drafts.length > 0) activity.push({ id: `drafts-${drafts.length}`, text: `Wrote ${plural(drafts.length, "email draft", "email drafts")}` })
   for (const d of [...drafts].filter((d) => d.sentAt).sort((a, b) => String(a.sentAt).localeCompare(String(b.sentAt))))
     activity.push({ id: `sent-${d.id}`, text: `Sent to ${d.contact.name} at ${d.company.name}`, at: d.sentAt })
-  if (bounced > 0) activity.push({ id: `bounced-${bounced}`, text: `${plural(bounced, "address", "addresses")} bounced` })
+  if (counts.bounced > 0) activity.push({ id: `bounced-${counts.bounced}`, text: deliveryText(counts) })
 
   return { state, current, details, status, badge, progress, announcement, activity, noResultsReason }
 }

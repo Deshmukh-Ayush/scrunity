@@ -7,7 +7,9 @@ import {
   type StageStalenessResult,
 } from "@/lib/gtm-staleness"
 import { useHydrated } from "@/hooks/use-hydrated"
-import { deriveCampaignProcess, type CampaignProcess } from "../process/campaign-process"
+import { deriveCampaignProcess, type CampaignCounts, type CampaignProcess } from "../process/campaign-process"
+import { deliveryCounts } from "@/lib/contact-import/bounce-guard"
+import { toDeliveryDraft } from "./delivery"
 import { BOUNCE_COPY } from "@/lib/contact-import/copy"
 import type { CampaignData, Draft, MailboxInfo } from "./types"
 
@@ -23,7 +25,8 @@ interface CampaignDetailContextValue {
   drafts: Draft[]
   mailbox: MailboxInfo | null
   staleness: Pick<StageStalenessResult, "isStalled" | "elapsedMs">
-  counts: { approved: number; sent: number; rejected: number; pending: number }
+  /** Review counts, plus sent / delivered / bounced from the shared delivery count. */
+  counts: CampaignCounts
   /** The campaign as ProcessCard state, plain words included. */
   process: CampaignProcess
   /** Stage whose detail shows under the card (0-4); follows the current stage until picked. */
@@ -265,11 +268,12 @@ export function CampaignDetailRoot({
       })
     : NOT_STALLED
 
-  const counts = {
+  const counts: CampaignCounts = {
     approved: drafts.filter((d) => d.status === "approved").length,
-    sent: drafts.filter((d) => d.status === "sent").length,
     rejected: drafts.filter((d) => d.status === "rejected").length,
     pending: drafts.filter((d) => d.status === "draft").length,
+    // Bounced emails count as sent: they left the mailbox.
+    ...deliveryCounts(drafts.map(toDeliveryDraft)),
   }
 
   const process = deriveCampaignProcess({

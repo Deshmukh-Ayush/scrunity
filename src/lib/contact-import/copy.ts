@@ -1,5 +1,6 @@
 import type { RejectReason } from "./review"
 import type { ImportErrorBody } from "./types"
+import type { DeliveryCounts } from "./bounce-guard"
 
 /**
  * Every customer-facing string about imported lists, in one place for review.
@@ -147,11 +148,18 @@ export const IMPORT_CAMPAIGN_FAILURE_TEXT: Record<string, string> = {
     "Sending is paused to protect your mailbox: more than 5% of the emails sent from this list bounced. Remove the bounced addresses below to resume.",
 }
 
+const percent = new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: 1 })
+
+/** "23 sent · 20 delivered · 3 bounced (13%)": the one way sent emails are described. */
+export function deliveryText(c: DeliveryCounts): string {
+  return `${c.sent.toLocaleString("en-US")} sent · ${c.delivered.toLocaleString("en-US")} delivered · ${c.bounced.toLocaleString("en-US")} bounced (${percent.format(c.bounceRate)})`
+}
+
 /** The bounce-pause panel on the campaign page and its confirm dialog. */
 export const BOUNCE_COPY = {
   title: "Sending paused",
-  rate: (bounced: number, sent: number) =>
-    `${count(bounced, "email", "emails")} of ${sent.toLocaleString("en-US")} sent bounced. Sending pauses when more than 5% of at least 20 emails bounce.`,
+  rule: "Sending pauses when more than 5% of at least 20 emails bounce.",
+  sinceResume: "Since you resumed:",
   listTitle: "Bounced addresses",
   removeAction: (n: number) => `Remove ${count(n, "address", "addresses")} and resume`,
   confirmTitle: (n: number) => `Remove ${count(n, "bounced address", "bounced addresses")} and resume sending?`,

@@ -18,7 +18,7 @@ export const BOUNCE_GUARD_MAX_RATE = 0.05
 
 export const PAUSED_BOUNCE_RATE = "paused_bounce_rate"
 
-export function shouldPauseForBounces({ sent, bounced }: { sent: number; bounced: number }): boolean {
+export function shouldPauseForBounces({ sent, bounced }: Pick<DeliveryCounts, "sent" | "bounced">): boolean {
   if (sent < BOUNCE_GUARD_MIN_SENDS) return false
   return bounced / sent > BOUNCE_GUARD_MAX_RATE
 }
@@ -31,10 +31,27 @@ export interface GuardDraft {
   hasBounced: boolean
 }
 
+/**
+ * The one count of what left the mailbox, used by the process card, the
+ * bounce-pause panel and the pause check alike:
+ * - sent: every email that left the mailbox, bounced ones included (a bounce
+ *   is a sent email the recipient's server returned);
+ * - delivered: sent minus bounced;
+ * - bounced, and bounceRate = bounced / sent (0 when nothing was sent).
+ */
+export interface DeliveryCounts {
+  sent: number
+  delivered: number
+  bounced: number
+  bounceRate: number
+}
+
+export type DeliveryDraft = Pick<GuardDraft, "status" | "sentAt" | "hasBounced">
+
 const sentTime = (d: Pick<GuardDraft, "sentAt">) => (d.sentAt == null ? null : new Date(d.sentAt).getTime())
 
-/** Sent and bounced emails, counting only those sent at or after `since` (all when null). */
-export function bounceStats(drafts: GuardDraft[], since: Date | string | null = null): { sent: number; bounced: number } {
+/** Counts only emails sent at or after `since` when given (the pause's baseline after a resume). */
+export function deliveryCounts(drafts: DeliveryDraft[], since: Date | string | null = null): DeliveryCounts {
   const from = since == null ? null : new Date(since).getTime()
   let sent = 0
   let bounced = 0
@@ -45,7 +62,7 @@ export function bounceStats(drafts: GuardDraft[], since: Date | string | null = 
     sent++
     if (d.hasBounced) bounced++
   }
-  return { sent, bounced }
+  return { sent, delivered: sent - bounced, bounced, bounceRate: sent === 0 ? 0 : bounced / sent }
 }
 
 /**

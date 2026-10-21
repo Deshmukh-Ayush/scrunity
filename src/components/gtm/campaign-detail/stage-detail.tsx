@@ -11,6 +11,7 @@ import { STAGE_DETAIL_ID } from "./campaign-process-card"
 import { CompanySelection } from "./company-selection/company-selection"
 import { DraftReviewSection } from "./draft-review-section"
 import { CompaniesTable, ContactsTable, DraftsTable } from "./stage-tables"
+import { deliveryText } from "@/lib/contact-import/copy"
 
 const plural = (n: number, one: string, many: string) =>
   `${n} ${new Intl.PluralRules("en").select(n) === "one" ? one : many}`
@@ -133,7 +134,7 @@ function SendingStage() {
   return (
     <>
       <p className="text-body text-fg-muted tabular-nums">
-        {counts.sent} of {counts.sent + counts.approved} sent.
+        {counts.sent} of {counts.sent + counts.approved} sent{counts.bounced > 0 ? ` (${deliveryText(counts)})` : ""}.
         {mailbox ? " Emails go out a few at a time so they read as personal mail." : " Connect a mailbox to send."}
       </p>
       <DraftsTable drafts={queue} showSentAt />

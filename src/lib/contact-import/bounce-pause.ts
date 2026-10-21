@@ -2,7 +2,7 @@ import "server-only"
 import { and, eq, inArray, notInArray, sql } from "drizzle-orm"
 import { db } from "@/utils/db"
 import { gtmContact, gtmContactImportRow, gtmEmailDraft, gtmOutreachCampaign } from "@/db/schema"
-import { bounceStats, PAUSED_BOUNCE_RATE, planBounceRecovery, shouldPauseForBounces, type GuardDraft } from "./bounce-guard"
+import { deliveryCounts, PAUSED_BOUNCE_RATE, planBounceRecovery, shouldPauseForBounces, type GuardDraft } from "./bounce-guard"
 
 /**
  * The bounce-rate pause for imported-list campaigns (rules in bounce-guard.ts).
@@ -44,7 +44,7 @@ export async function pauseIfBounceRateHigh(campaignId: string): Promise<boolean
   const campaign = await loadGuardCampaign(campaignId)
   if (!campaign?.importId) return false
   if (campaign.status === PAUSED_BOUNCE_RATE) return true
-  const stats = bounceStats(await loadGuardDrafts(campaignId), campaign.since)
+  const stats = deliveryCounts(await loadGuardDrafts(campaignId), campaign.since)
   if (!shouldPauseForBounces(stats)) return false
   await db
     .update(gtmOutreachCampaign)

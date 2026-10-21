@@ -5,18 +5,11 @@ import { AlertTriangleSolid } from "@/components/icons/status"
 import { Button } from "@/components/ui/button"
 import { DataTable, TextCell, type DataTableColumn } from "@/components/ui/data-table"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { bounceStats, PAUSED_BOUNCE_RATE, planBounceRecovery, type GuardDraft } from "@/lib/contact-import/bounce-guard"
-import { BOUNCE_COPY as COPY } from "@/lib/contact-import/copy"
+import { deliveryCounts, PAUSED_BOUNCE_RATE, planBounceRecovery } from "@/lib/contact-import/bounce-guard"
+import { BOUNCE_COPY as COPY, deliveryText } from "@/lib/contact-import/copy"
+import { toDeliveryDraft } from "./delivery"
 import { useCampaignDetail } from "./campaign-detail-root"
 import type { Draft } from "./types"
-
-const toGuard = (d: Draft): GuardDraft => ({
-  id: d.id,
-  contactId: d.contact.id,
-  status: d.status,
-  sentAt: d.sentAt ?? null,
-  hasBounced: Boolean(d.hasBounced),
-})
 
 /**
  * Shown while an imported-list campaign is paused for bounces: the rate that
@@ -29,8 +22,10 @@ export function BouncePausePanel() {
   const [confirming, setConfirming] = React.useState(false)
   if (data.campaign.status !== PAUSED_BOUNCE_RATE) return null
 
-  const guardDrafts = drafts.map(toGuard)
-  const stats = bounceStats(guardDrafts, data.campaign.bounceGuardSince ?? null)
+  const guardDrafts = drafts.map(toDeliveryDraft)
+  // The same count the pause check uses: since the last resume, if there was one.
+  const since = data.campaign.bounceGuardSince ?? null
+  const stats = deliveryCounts(guardDrafts, since)
   const plan = planBounceRecovery(guardDrafts)
   const bounced = drafts.filter((d) => d.hasBounced)
   const removeCount = plan.bouncedContactIds.length
@@ -53,7 +48,11 @@ export function BouncePausePanel() {
           <AlertTriangleSolid className="size-4 text-warning" />
           {COPY.title}
         </h2>
-        <p className="text-body text-fg-default tabular-nums">{COPY.rate(stats.bounced, stats.sent)}</p>
+        <p className="text-body text-fg-default tabular-nums">
+          {since ? `${COPY.sinceResume} ` : ""}
+          {deliveryText(stats)}
+        </p>
+        <p className="text-body text-fg-muted">{COPY.rule}</p>
       </div>
 
       <div className="flex flex-col gap-2">

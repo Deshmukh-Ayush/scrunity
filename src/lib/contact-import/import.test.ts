@@ -6,9 +6,12 @@ import { buildRecords, reviewRecords, NO_CHECKS } from "./review"
 import { csvField, escapeFormula, rejectedFileName, rejectedRowsCsv } from "./export"
 import { importBlock, readCsvFile, reviewFile } from "./process"
 import { getCsvImportMaxRows, looksLikeCsv } from "./limits"
-import { bounceStats, planBounceRecovery, shouldPauseForBounces } from "./bounce-guard"
+import { deliveryCounts, planBounceRecovery, shouldPauseForBounces } from "./bounce-guard"
 import { leadSummaryText } from "@/components/leads/skipped-leads"
-import { contactsDetail } from "@/components/gtm/process/campaign-process"
+import { contactsDetail, deriveCampaignProcess, sendingDetail } from "@/components/gtm/process/campaign-process"
+import { toDeliveryDraft } from "@/components/gtm/campaign-detail/delivery"
+import { BOUNCE_DRAFTS, BOUNCE_PAUSED_CAMPAIGN } from "@/components/playground/registry/bounce-fixtures"
+import { deliveryText } from "./copy"
 import { planImportDelete } from "./delete-plan"
 import { groupImportRows, type ImportRowLike } from "./group"
 import { checkLeadQualificationGates } from "@/lib/gtm-qualification-gates"
@@ -255,11 +258,11 @@ describe("bounce recovery", () => {
     const before = Array.from({ length: 20 }, (_, i) => d(`b${i}`, `cb${i}`, i < 3 ? "failed" : "sent", "2026-10-20T10:00:00Z", i < 3))
     const after = Array.from({ length: 19 }, (_, i) => d(`a${i}`, `ca${i}`, "sent", "2026-10-22T10:00:00Z", i < 2))
     const drafts = [...before, ...after, d("q", "cq", "approved", null)]
-    assert.deepEqual(bounceStats(drafts), { sent: 39, bounced: 5 })
-    assert.deepEqual(bounceStats(drafts, "2026-10-21T00:00:00Z"), { sent: 19, bounced: 2 })
-    assert.equal(shouldPauseForBounces(bounceStats(drafts, "2026-10-21T00:00:00Z")), false)
+    assert.deepEqual(deliveryCounts(drafts), { sent: 39, delivered: 34, bounced: 5, bounceRate: 5 / 39 })
+    assert.deepEqual(deliveryCounts(drafts, "2026-10-21T00:00:00Z"), { sent: 19, delivered: 17, bounced: 2, bounceRate: 2 / 19 })
+    assert.equal(shouldPauseForBounces(deliveryCounts(drafts, "2026-10-21T00:00:00Z")), false)
     const oneMore = [...drafts, d("a19", "ca19", "sent", "2026-10-22T11:00:00Z", false)]
-    assert.equal(shouldPauseForBounces(bounceStats(oneMore, "2026-10-21T00:00:00Z")), true)
+    assert.equal(shouldPauseForBounces(deliveryCounts(oneMore, "2026-10-21T00:00:00Z")), true)
   })
 
   it("removes bounced people, rejects their waiting drafts and resumes with what is approved", () => {
@@ -292,5 +295,27 @@ describe("lead counts", () => {
     assert.equal(contactsDetail(3, 0), "3 verified")
     assert.equal(contactsDetail(0, 40), "40 from your list")
     assert.equal(contactsDetail(2, 5), "2 verified · 5 from your list")
+  })
+})
+
+describe("one delivery count everywhere", () => {
+  it("counts a bounced email as sent, and the card, the panel and the pause check agree", () => {
+    const counts = deliveryCounts(BOUNCE_DRAFTS.map(toDeliveryDraft))
+    // 23 left the mailbox (3 of them bounced), 2 approved still waiting.
+    assert.deepEqual(counts, { sent: 23, delivered: 20, bounced: 3, bounceRate: 3 / 23 })
+    assert.equal(deliveryText(counts), "23 sent · 20 delivered · 3 bounced (13%)")
+    assert.equal(deliveryText(deliveryCounts([])), "0 sent · 0 delivered · 0 bounced (0%)")
+    assert.equal(shouldPauseForBounces(counts), true)
+
+    const process = deriveCampaignProcess({
+      data: BOUNCE_PAUSED_CAMPAIGN,
+      drafts: BOUNCE_DRAFTS,
+      counts: { approved: 2, rejected: 0, pending: 0, ...counts },
+      stalledForMs: null,
+    })
+    assert.equal(process.details[4], "23 sent · 3 bounced")
+    assert.equal(sendingDetail({ sent: 5, bounced: 0 }), "5 sent")
+    assert.equal(process.progress?.label, "23 of 25 sent · 3 bounced")
+    assert.ok(process.activity.some((a) => a.text === "23 sent · 20 delivered · 3 bounced (13%)"))
   })
 })
