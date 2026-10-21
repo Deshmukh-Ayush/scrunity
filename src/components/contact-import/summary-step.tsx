@@ -34,6 +34,7 @@ export function SummaryStep({
           </h2>
           <p className="text-body text-fg-default">{COPY.summaryText(result.counts.imported, result.fileName)}</p>
           <p className="text-body text-fg-muted">{COPY.emailStatus}.</p>
+          {result.counts.noEmail > 0 && <p className="text-body text-fg-default">{COPY.noEmailNote(result.counts.noEmail)}</p>}
         </div>
         <ImportCounts counts={result.counts} />
       </section>

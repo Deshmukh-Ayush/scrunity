@@ -78,9 +78,10 @@ export function ReviewStep({
           <p className="text-body text-fg-muted">{result.fileName}</p>
         </div>
         <ImportCounts counts={counts} />
-        {(counts.personalEmails > 0 || counts.missingNames > 0 || nothing) && (
+        {(counts.personalEmails > 0 || counts.missingNames > 0 || counts.noEmail > 0 || nothing) && (
           <div className="flex flex-col gap-2 border-t border-border pt-4">
             {nothing && <Note>{COPY.nothingToImport}</Note>}
+            {counts.noEmail > 0 && <Note>{COPY.noEmailNote(counts.noEmail)}</Note>}
             {counts.personalEmails > 0 && <Note>{COPY.personalNote(counts.personalEmails)}</Note>}
             {counts.missingNames > 0 && <Note>{COPY.missingNameNote(counts.missingNames)}</Note>}
           </div>

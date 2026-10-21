@@ -31,6 +31,8 @@ export interface ImportCounts {
   personalEmails: number
   /** Imported rows without a name: they import, but no email can be written to them. */
   missingNames: number
+  /** Imported rows with a name and website but no email: they import, but won't be contacted. */
+  noEmail: number
 }
 
 export interface ImportReview {
@@ -78,6 +80,7 @@ export function reviewRecords(
     suppressed: 0,
     personalEmails: 0,
     missingNames: 0,
+    noEmail: 0,
   }
   const reject = (row: (typeof built)[number], reason: RejectReason) =>
     rejected.push({ rowNumber: row.record.rowNumber, reason, cells: row.cells })
@@ -118,6 +121,7 @@ export function reviewRecords(
     counts.imported++
     if (record.personalEmail) counts.personalEmails++
     if (!record.fullName && !record.firstName && !record.lastName) counts.missingNames++
+    if (!record.email) counts.noEmail++
   }
   return { accepted, rejected, counts }
 }

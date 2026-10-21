@@ -47,7 +47,7 @@ export const PREVIEW_WIDE: ImportPreview = {
 export const REVIEW: ImportReviewResult = {
   fileName: PREVIEW.fileName,
   headers: HEADERS,
-  counts: { totalRows: 412, imported: 371, duplicates: 22, invalid: 9, suppressed: 10, personalEmails: 14, missingNames: 3 },
+  counts: { totalRows: 412, imported: 371, duplicates: 22, invalid: 9, suppressed: 10, personalEmails: 14, missingNames: 3, noEmail: 6 },
   rejected: [
     { rowNumber: 8, reason: "invalid_email", cells: SAMPLE[6] },
     { rowNumber: 14, reason: "duplicate_in_file", cells: SAMPLE[0] },
@@ -60,7 +60,7 @@ export const REVIEW: ImportReviewResult = {
 
 export const REVIEW_NOTHING: ImportReviewResult = {
   ...REVIEW,
-  counts: { totalRows: 3, imported: 0, duplicates: 1, invalid: 2, suppressed: 0, personalEmails: 0, missingNames: 0 },
+  counts: { totalRows: 3, imported: 0, duplicates: 1, invalid: 2, suppressed: 0, personalEmails: 0, missingNames: 0, noEmail: 0 },
   rejected: REVIEW.rejected.slice(0, 3),
 }
 
