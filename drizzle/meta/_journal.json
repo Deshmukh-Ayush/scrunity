@@ -232,6 +232,13 @@
       "when": 1792620011805,
       "tag": "0032_light_prism",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792622933987,
+      "tag": "0033_open_kulan_gath",
+      "breakpoints": true
     }
   ]
 }

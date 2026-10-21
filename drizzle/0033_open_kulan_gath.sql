@@ -1,0 +1,1 @@
+ALTER TABLE "gtm_outreach_campaign" ADD COLUMN "bounce_guard_since" timestamp;

@@ -6,7 +6,9 @@ import { buildRecords, reviewRecords, NO_CHECKS } from "./review"
 import { csvField, escapeFormula, rejectedFileName, rejectedRowsCsv } from "./export"
 import { importBlock, readCsvFile, reviewFile } from "./process"
 import { getCsvImportMaxRows, looksLikeCsv } from "./limits"
-import { shouldPauseForBounces } from "./bounce-guard"
+import { bounceStats, planBounceRecovery, shouldPauseForBounces } from "./bounce-guard"
+import { leadSummaryText } from "@/components/leads/skipped-leads"
+import { contactsDetail } from "@/components/gtm/process/campaign-process"
 import { planImportDelete } from "./delete-plan"
 import { groupImportRows, type ImportRowLike } from "./group"
 import { checkLeadQualificationGates } from "@/lib/gtm-qualification-gates"
@@ -243,5 +245,52 @@ describe("grouping a list into a campaign", () => {
     assert.deepEqual(companies.map((c) => [c.name, c.domain, c.people.length]), [["Acme", "acme.example", 2], ["Beta Co", "", 1], ["Company not given", "", 1]])
     assert.equal(skippedAlreadyUsed, 1)
     assert.equal(leftForLater, 1)
+  })
+})
+
+describe("bounce recovery", () => {
+  const d = (id: string, contactId: string, status: string, sentAt: string | null, hasBounced = false) => ({ id, contactId, status, sentAt, hasBounced })
+
+  it("counts only emails sent since the resume, so the 5% rule starts over", () => {
+    const before = Array.from({ length: 20 }, (_, i) => d(`b${i}`, `cb${i}`, i < 3 ? "failed" : "sent", "2026-10-20T10:00:00Z", i < 3))
+    const after = Array.from({ length: 19 }, (_, i) => d(`a${i}`, `ca${i}`, "sent", "2026-10-22T10:00:00Z", i < 2))
+    const drafts = [...before, ...after, d("q", "cq", "approved", null)]
+    assert.deepEqual(bounceStats(drafts), { sent: 39, bounced: 5 })
+    assert.deepEqual(bounceStats(drafts, "2026-10-21T00:00:00Z"), { sent: 19, bounced: 2 })
+    assert.equal(shouldPauseForBounces(bounceStats(drafts, "2026-10-21T00:00:00Z")), false)
+    const oneMore = [...drafts, d("a19", "ca19", "sent", "2026-10-22T11:00:00Z", false)]
+    assert.equal(shouldPauseForBounces(bounceStats(oneMore, "2026-10-21T00:00:00Z")), true)
+  })
+
+  it("removes bounced people, rejects their waiting drafts and resumes with what is approved", () => {
+    const plan = planBounceRecovery([
+      d("x1", "bounced", "failed", "2026-10-20T10:00:00Z", true),
+      d("x2", "bounced", "draft", null),
+      d("y1", "ok", "sent", "2026-10-20T10:00:00Z"),
+      d("z1", "next", "approved", null),
+    ])
+    assert.deepEqual(plan, { bouncedContactIds: ["bounced"], draftIdsToReject: ["x2"], approvedRemaining: 1, next: "send" })
+    assert.equal(planBounceRecovery([d("x", "b", "failed", "t", true), d("r", "c", "draft", null)]).next, "review")
+    assert.equal(planBounceRecovery([d("x", "b", "failed", "t", true), d("s", "c", "sent", "t")]).next, "done")
+  })
+})
+
+describe("people with no email", () => {
+  it("import, but are counted as won't be contacted", () => {
+    const m: ColumnMapping = ["fullName", "email", "website"]
+    const built = buildRecords([["Ana Ortiz", "", "acme.example"], ["Ben Lee", "ben@acme.example", "acme.example"]], m)
+    const { counts } = reviewRecords(built)
+    assert.equal(counts.imported, 2)
+    assert.equal(counts.noEmail, 1)
+  })
+})
+
+describe("lead counts", () => {
+  it("keep verified and from-your-list apart", () => {
+    assert.equal(leadSummaryText(23, 12), "Reviewed 23 people · 12 verified")
+    assert.equal(leadSummaryText(1, 0, 1), "Reviewed 1 person · 0 verified · 1 from your list")
+    assert.equal(contactsDetail(3, 0), "3 verified")
+    assert.equal(contactsDetail(0, 40), "40 from your list")
+    assert.equal(contactsDetail(2, 5), "2 verified · 5 from your list")
   })
 })

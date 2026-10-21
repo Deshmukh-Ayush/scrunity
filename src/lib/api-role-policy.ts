@@ -13,7 +13,7 @@ const MANAGER_ROUTES: { methods: string[]; pattern: RegExp }[] = [
   { methods: ["POST"], pattern: /^\/api\/gtm\/research-runs\/[^/]+\/restart-stage$/ },
   { methods: ["POST"], pattern: /^\/api\/gtm\/segments\/[^/]+\/digest$/ },
   // Campaign control: send, approve/reject, restart, company selection
-  { methods: ["POST"], pattern: /^\/api\/gtm\/campaigns\/[^/]+\/(send|rerun|restart-stage|confirm-selection|drafts)$/ },
+  { methods: ["POST"], pattern: /^\/api\/gtm\/campaigns\/[^/]+\/(send|rerun|restart-stage|confirm-selection|drafts|bounces)$/ },
   { methods: ["POST"], pattern: /^\/api\/gtm\/campaigns\/[^/]+\/drafts\/[^/]+$/ },
   { methods: ["POST"], pattern: /^\/api\/gtm\/leads\/[^/]+\/send$/ },
   // Mailbox: connect, reconnect, disconnect

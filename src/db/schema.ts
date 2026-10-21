@@ -545,6 +545,9 @@ export const gtmOutreachCampaign = pgTable(
     stageAttemptStartedAt: timestamp("stage_attempt_started_at"),
     // Stepwise verified-lead search state (Stage 5): titles and stop reason.
     leadSearchState: jsonb("lead_search_state").$type<LeadSearchCampaignState>(),
+    // Imported lists: the bounce-rate pause counts only emails sent since this
+    // moment (set when the user removes bounced addresses and resumes).
+    bounceGuardSince: timestamp("bounce_guard_since"),
     // Set when the campaign uses an imported list instead of company and people search.
     sourceImportId: text("source_import_id").references(() => gtmContactImport.id, {
       onDelete: "set null",

@@ -78,6 +78,9 @@ export const IMPORT_COPY = {
   countInvalid: "Invalid",
   countSuppressed: "Can't be contacted",
   countPersonal: "Personal email",
+  countNoEmail: "Won't be contacted: no email",
+  noEmailNote: (n: number) =>
+    `${count(n, "person has", "people have")} a name and website but no email address. They import, but they won't be contacted. Add their email addresses to the file and import it again to reach them.`,
 
   emailStatus: "From your list, not verified",
 
@@ -141,5 +144,26 @@ export const REJECT_REASON_TEXT: Record<RejectReason, string> = {
 export const IMPORT_CAMPAIGN_FAILURE_TEXT: Record<string, string> = {
   import_list_unavailable: "The imported list for this campaign was deleted or is empty, so there's no one to write to. Start a new campaign from another list.",
   paused_bounce_rate:
-    "Sending is paused to protect your mailbox: more than 5% of the emails sent from this list bounced. Clean the list's addresses, then import it again and start a new campaign.",
+    "Sending is paused to protect your mailbox: more than 5% of the emails sent from this list bounced. Remove the bounced addresses to resume.",
 }
+
+/** The bounce-pause panel on the campaign page and its confirm dialog. */
+export const BOUNCE_COPY = {
+  title: "Sending paused",
+  rate: (bounced: number, sent: number) =>
+    `${count(bounced, "email", "emails")} of ${sent.toLocaleString("en-US")} sent bounced. Sending pauses when more than 5% of at least 20 emails bounce.`,
+  listTitle: "Bounced addresses",
+  removeAction: (n: number) => `Remove ${count(n, "address", "addresses")} and resume`,
+  confirmTitle: (n: number) => `Remove ${count(n, "bounced address", "bounced addresses")} and resume sending?`,
+  confirmRemoves: "These people won't get another email from this campaign, and they're removed from your imported list.",
+  confirmSends: (n: number) => `The ${count(n, "approved email", "approved emails")} left start sending again.`,
+  confirmReview: "No approved emails are left. Review the remaining drafts to send more.",
+  confirmNothing: "No emails are left to send, so the campaign finishes.",
+  confirmRule: "The 5% rule starts over: if more than 5% of the next 20 or more emails bounce, sending pauses again.",
+  confirmAction: "Remove and resume",
+  cancel: "Cancel",
+  resumedToast: "Bounced addresses removed. Sending resumed.",
+  resumedNoSendToast: "Bounced addresses removed.",
+  failedToast: "Sending didn't resume. Try again.",
+  managerOnly: "Only owners and admins can remove addresses and resume sending.",
+} as const

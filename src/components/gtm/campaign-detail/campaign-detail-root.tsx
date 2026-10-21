@@ -8,6 +8,7 @@ import {
 } from "@/lib/gtm-staleness"
 import { useHydrated } from "@/hooks/use-hydrated"
 import { deriveCampaignProcess, type CampaignProcess } from "../process/campaign-process"
+import { BOUNCE_COPY } from "@/lib/contact-import/copy"
 import type { CampaignData, Draft, MailboxInfo } from "./types"
 
 const POLL_INTERVAL_MS = 4000
@@ -42,6 +43,8 @@ interface CampaignDetailContextValue {
   restartStage: () => Promise<void>
   restartPipeline: () => Promise<void>
   startSending: () => Promise<void>
+  /** Bounce pause: removes the bounced addresses and resumes. True when it worked. */
+  resumeAfterBounces: () => Promise<boolean>
   disconnectMailbox: () => Promise<void>
 }
 
@@ -222,6 +225,21 @@ export function CampaignDetailRoot({
     }
   }
 
+  const resumeAfterBounces = async () => {
+    setIsDispatching(true)
+    try {
+      const res = await postJson<{ next?: string }>(`/api/gtm/campaigns/${campaignId}/bounces`)
+      toast.success(res.next === "send" ? BOUNCE_COPY.resumedToast : BOUNCE_COPY.resumedNoSendToast)
+      await refresh()
+      return true
+    } catch (err) {
+      toast.error(errorMessage(err, BOUNCE_COPY.failedToast))
+      return false
+    } finally {
+      setIsDispatching(false)
+    }
+  }
+
   // The confirm dialog lives in the mailbox line (MailboxStatusBar).
   const disconnectMailbox = async () => {
     try {
@@ -283,6 +301,7 @@ export function CampaignDetailRoot({
     restartStage: fixture ? inert : restartStage,
     restartPipeline: fixture ? inert : restartPipeline,
     startSending: fixture ? inert : startSending,
+    resumeAfterBounces: fixture ? async () => (await inert(), false) : resumeAfterBounces,
     disconnectMailbox: fixture ? inert : disconnectMailbox,
   }
 

@@ -77,6 +77,8 @@ export interface CampaignData {
     } | null
     targetCountryCode?: string | null
     targetRegion?: string | null
+    /** Imported lists: the bounce-rate pause counts only emails sent since this time. */
+    bounceGuardSince?: string | null
     createdAt: string
     stageStartedAt?: string | null
     lastProgressAt?: string | null
@@ -96,11 +98,11 @@ export interface CampaignData {
   usesCompanyDatabase?: boolean
   decisionMakersPerCompany?: number
   companies: Company[]
-  /** Usable leads only: mailbox-verified, not rejected, never bounced. */
+  /** Usable leads only: mailbox-verified or from an imported list, not rejected, never bounced. */
   contacts: Contact[]
   /** Everyone else the campaign reviewed, with a neutral reason. */
   skippedContacts?: Array<{ id: string; name: string; title: string; companyName: string; reason: string }>
-  leadSummary?: { reviewed: number; verified: number }
+  leadSummary?: { reviewed: number; verified: number; fromList?: number }
   snapshots: Array<{
     prospectCompanyId: string
     employeeCountLabel: string | null
