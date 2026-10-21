@@ -7,10 +7,12 @@ import { ConnectionCard } from "@/components/data-sources/connection-card"
 import { connectionViewState, type ConnectionViewState } from "@/components/data-sources/connection-state"
 import { DisconnectDialog } from "@/components/data-sources/disconnect-dialog"
 import { KeyDisclosure } from "@/components/data-sources/key-disclosure"
+import { LoadErrorCard } from "@/components/data-sources/load-error-card"
 import { LaunchFooter, type LaunchDataSource } from "@/components/gtm/new-campaign/launch-footer"
 import { CampaignFixtureDemo } from "./flow-demos"
 import { DATA_SOURCE_STOPPED_CAMPAIGNS } from "./process-fixtures"
 import { connectErrorText, DATA_SOURCE_COPY } from "@/lib/data-sources/copy"
+import type { LoadFailureReason } from "@/lib/data-sources/load-status"
 import type { PublicConnection } from "@/lib/data-sources/types"
 import type { ShowcaseEntry } from "./types"
 
@@ -37,6 +39,28 @@ const CARD_STATES: Array<{ label: string; connection: PublicConnection | null; c
 
 const noop = () => {}
 
+/** The status didn't load (query failed or timed out). Try again shows its pending state for a moment. */
+function LoadErrorStates() {
+  const [retrying, setRetrying] = React.useState<LoadFailureReason | null>(null)
+  React.useEffect(() => {
+    if (!retrying) return
+    const t = setTimeout(() => setRetrying(null), 1500)
+    return () => clearTimeout(t)
+  }, [retrying])
+  return (
+    <>
+      {(["failed", "timeout"] as const).map((reason) => (
+        <div key={reason} className="flex flex-col gap-2" data-demo-state={`load_error_${reason}`}>
+          <p className="text-meta text-fg-muted">
+            {reason === "failed" ? "Didn't load (the status query failed)" : "Didn't load (no answer within 15 seconds)"}
+          </p>
+          <LoadErrorCard reason={reason} retrying={retrying === reason} onRetry={() => setRetrying(reason)} />
+        </div>
+      ))}
+    </>
+  )
+}
+
 export function DataSourceCardStates() {
   return (
     <div className="flex w-full max-w-3xl flex-col gap-8">
@@ -49,6 +73,7 @@ export function DataSourceCardStates() {
           </div>
         )
       })}
+      <LoadErrorStates />
       <KeyDisclosure />
     </div>
   )
@@ -146,7 +171,7 @@ export const dataSourceCardEntry: ShowcaseEntry = {
   name: "Data sources: Apollo connection",
   group: "Settings",
   description:
-    "Every state of the Apollo card: not connected, connecting, connected (last four, dates), needs reconnect, error, and a member's read-only view. Status is a badge with a label and icon, never color alone. Below: how the key is used.",
+    "Every state of the Apollo card: not connected, connecting, connected (last four, dates), needs reconnect, error, a member's read-only view, and the status that didn't load (failed or timed out) with Try again. Status is a badge with a label and icon, never color alone. Below: how the key is used.",
   render: () => <DataSourceCardStates />,
 }
 

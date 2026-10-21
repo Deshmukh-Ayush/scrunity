@@ -59,6 +59,11 @@ export const DATA_SOURCE_COPY = {
   startBlockedReconnect: "Apollo rejected your saved key. Reconnect Apollo to start campaigns.",
   unavailable: "Data sources aren't available right now. Contact support.",
 
+  loadErrorStatus: "Didn't load",
+  loadErrorText: "Your data sources didn't load, so we can't show whether Apollo is connected. Try again in a moment.",
+  loadErrorTimeoutText: "Your data sources are taking too long to load. Try again in a moment.",
+  retryAction: "Try again",
+
   /** The estimate on the segment step, before "Start". */
   estimate: (perCampaign: number, count: number) =>
     count > 1
