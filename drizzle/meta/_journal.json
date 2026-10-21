@@ -225,6 +225,13 @@
       "when": 1792523109641,
       "tag": "0031_talented_wong",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792620011805,
+      "tag": "0032_light_prism",
+      "breakpoints": true
     }
   ]
 }
