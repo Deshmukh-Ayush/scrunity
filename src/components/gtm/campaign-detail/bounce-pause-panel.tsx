@@ -37,7 +37,8 @@ export function BouncePausePanel() {
 
   const columns: DataTableColumn<Draft>[] = [
     { id: "name", header: "Name", type: "text", cell: (d) => <TextCell value={d.contact.name} className="font-medium text-fg-strong" />, sortValue: (d) => d.contact.name },
-    { id: "email", header: "Email", type: "text", className: "min-w-48", cell: (d) => <TextCell value={d.contact.email} />, sortValue: (d) => d.contact.email },
+    // Addresses wrap instead of truncating: the user checks each one before removing it.
+    { id: "email", header: "Email", type: "text", className: "min-w-48", cell: (d) => <span className="block whitespace-normal [overflow-wrap:anywhere]">{d.contact.email}</span>, sortValue: (d) => d.contact.email },
     { id: "company", header: "Company", type: "text", cell: (d) => <TextCell value={d.company.name} muted />, sortValue: (d) => d.company.name },
   ]
 

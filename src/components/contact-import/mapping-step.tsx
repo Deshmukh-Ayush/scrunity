@@ -60,11 +60,12 @@ export function MappingStep({
             {COPY.mapTitle}
           </h2>
           <p className="text-body text-fg-muted">
-            {COPY.mapDescription} <span className="tabular-nums">{preview.fileName}</span>
+            {COPY.mapDescription} <span className="break-words">{preview.fileName}</span>
           </p>
         </div>
-        <div className="rounded-xl border border-transparent bg-surface shadow-surface">
-          <div aria-hidden="true" className="hidden grid-cols-[minmax(0,1fr)_12rem_minmax(0,1fr)] gap-3 border-b border-border px-4 py-2 text-meta text-fg-muted sm:grid">
+        {/* A container: rows switch to three columns at the list's own width, not the viewport's. */}
+        <div className="@container rounded-xl border border-transparent bg-surface shadow-surface">
+          <div aria-hidden="true" className="hidden grid-cols-[minmax(0,1fr)_12rem_minmax(0,1fr)] gap-3 border-b border-border px-4 py-2 text-meta text-fg-muted @lg:grid">
             <span>{COPY.mapColumnHeader}</span>
             <span>{COPY.mapFieldHeader}</span>
             <span>{COPY.mapSampleHeader}</span>
@@ -74,8 +75,8 @@ export function MappingStep({
               const id = `map-${i}`
               const sample = preview.sample.find((r) => r[i])?.[i] ?? ""
               return (
-                <li key={id} className="grid grid-cols-1 gap-1.5 px-4 py-2.5 sm:grid-cols-[minmax(0,1fr)_12rem_minmax(0,1fr)] sm:items-center sm:gap-3">
-                  <label htmlFor={id} className="min-w-0 truncate text-body font-medium text-fg-strong" title={header}>
+                <li key={id} className="grid grid-cols-1 gap-1.5 px-4 py-2.5 @lg:grid-cols-[minmax(0,1fr)_12rem_minmax(0,1fr)] @lg:items-center @lg:gap-3">
+                  <label htmlFor={id} className="min-w-0 text-body font-medium text-fg-strong [overflow-wrap:anywhere]">
                     {header}
                   </label>
                   <Select
@@ -124,12 +125,12 @@ export function MappingStep({
           <span>{error ?? problemText}</span>
         </p>
       )}
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
         <Button variant="ghost" onClick={onBack} disabled={busy}>
           {COPY.backAction}
         </Button>
         <Button variant="brand" onClick={onContinue} loading={busy} aria-describedby={problemText || error ? "mapping-error" : undefined}>
-          {busy ? COPY.reviewChecking : COPY.continueAction}
+          {COPY.continueAction}
         </Button>
       </div>
     </div>

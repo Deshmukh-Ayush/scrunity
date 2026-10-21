@@ -51,7 +51,7 @@ export function SummaryStep({
         </section>
       )}
 
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
         <Button variant="ghost" onClick={onAnother}>
           {COPY.importAnother}
         </Button>

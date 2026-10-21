@@ -86,7 +86,7 @@ export const IMPORT_COPY = {
 
   listsTitle: "Imported lists",
   listsDescription: "People from your own CSV files. Their addresses aren't verified, so check your bounce rate.",
-  listsEmpty: "No lists yet. Import a CSV of people you want to reach.",
+  listsEmpty: "Import a CSV of people you want to reach.",
   listsImportAction: "Import a list",
   listPeople: (n: number) => count(n, "person", "people"),
   listUploadedBy: (name: string | null) => (name ? `Uploaded by ${name}` : "Uploaded by a former member"),
@@ -144,7 +144,7 @@ export const REJECT_REASON_TEXT: Record<RejectReason, string> = {
 export const IMPORT_CAMPAIGN_FAILURE_TEXT: Record<string, string> = {
   import_list_unavailable: "The imported list for this campaign was deleted or is empty, so there's no one to write to. Start a new campaign from another list.",
   paused_bounce_rate:
-    "Sending is paused to protect your mailbox: more than 5% of the emails sent from this list bounced. Remove the bounced addresses to resume.",
+    "Sending is paused to protect your mailbox: more than 5% of the emails sent from this list bounced. Remove the bounced addresses below to resume.",
 }
 
 /** The bounce-pause panel on the campaign page and its confirm dialog. */

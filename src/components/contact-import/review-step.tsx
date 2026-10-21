@@ -13,7 +13,8 @@ import { ImportCounts } from "./import-counts"
 export function RejectedTable({ result }: { result: ImportReviewResult }) {
   const columns: DataTableColumn<RejectedRow>[] = [
     { id: "row", header: "Row", type: "number", className: "w-16", cell: (r) => <NumberCell value={r.rowNumber} />, sortValue: (r) => r.rowNumber },
-    { id: "reason", header: "Reason", type: "text", className: "min-w-56", cell: (r) => <TextCell value={REJECT_REASON_TEXT[r.reason]} />, sortValue: (r) => r.reason },
+    // The reason wraps instead of truncating: it is what the user came to read.
+    { id: "reason", header: "Reason", type: "text", className: "min-w-56", cell: (r) => <span className="block whitespace-normal">{REJECT_REASON_TEXT[r.reason]}</span>, sortValue: (r) => r.reason },
     ...result.headers.slice(0, 2).map((header, i): DataTableColumn<RejectedRow> => ({
       id: `c${i}`,
       header,
@@ -131,7 +132,7 @@ export function ReviewStep({
           <span>{error}</span>
         </p>
       )}
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
         <Button variant="ghost" onClick={onBack} disabled={busy}>
           {COPY.backAction}
         </Button>

@@ -172,7 +172,9 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
     case "paused":
       status = isCreditsPause(campaign.failureReason)
         ? CREDITS_PAUSED
-        : "Sending is paused for this campaign. Contact support to resume it."
+        : campaign.failureReason && IMPORT_CAMPAIGN_FAILURE_TEXT[campaign.failureReason]
+          ? IMPORT_CAMPAIGN_FAILURE_TEXT[campaign.failureReason]
+          : "Sending is paused for this campaign. Contact support to resume it."
       break
     case "stalled":
       status = `No progress for ${plainDuration(stalledForMs ?? 0)}. Restart this step to try again.`
