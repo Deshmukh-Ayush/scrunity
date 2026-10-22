@@ -2,7 +2,7 @@ import "server-only"
 import { eq } from "drizzle-orm"
 import { db } from "@/utils/db"
 import { gtmCompanyProfile, user } from "@/db/schema"
-import { normalizeWebsiteUrl } from "@/lib/firecrawl"
+import { getFallbackLogoUrl, normalizeWebsiteUrl } from "@/lib/firecrawl"
 import {
   companyProfileColumns,
   toPublicCompanyProfile,
@@ -22,9 +22,17 @@ export async function getCompanyProfile(organizationId: string): Promise<PublicC
   return row ? toPublicCompanyProfile(row.profile, row.updatedByName) : null
 }
 
+/**
+ * Resolved once per save from the website and stored, so Settings and the New
+ * research run card read it instead of calling /api/gtm/fetch-logo (and its
+ * daily quota) on every page view. The same favicon-service URL that route
+ * returns; no network call.
+ */
 function columnsFor(input: CompanyProfileInput, userId: string) {
+  const websiteUrl = normalizeWebsiteUrl(input.websiteUrl)
   return {
-    ...companyProfileColumns({ ...input, websiteUrl: normalizeWebsiteUrl(input.websiteUrl) }),
+    ...companyProfileColumns({ ...input, websiteUrl }),
+    logoUrl: getFallbackLogoUrl(websiteUrl),
     updatedAt: new Date(),
     updatedByUserId: userId,
   }

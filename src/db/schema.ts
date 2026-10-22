@@ -362,6 +362,8 @@ export const gtmCompanyProfile = pgTable("gtm_company_profile", {
     .primaryKey()
     .references(() => organization.id, { onDelete: "cascade" }),
   websiteUrl: text("website_url").notNull(),
+  // Resolved from the website when the profile is saved, so page views never look it up.
+  logoUrl: text("logo_url"),
   companyName: text("company_name").notNull(),
   companyDescription: text("company_description").notNull(),
   companySize: text("company_size", {

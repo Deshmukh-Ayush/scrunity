@@ -33,7 +33,8 @@ export function CompanySettingsClient({ initialView }: { initialView: CompanyPro
   const [errors, setErrors] = React.useState<CompanyFormErrors>({})
   const [status, setStatus] = React.useState<SettingsSaveStatus>("idle")
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
-  const { logoPreview, clearLogo } = useLogoPreview(values.websiteUrl)
+  const savedLogo = profile ? { websiteUrl: profile.values.websiteUrl, logoUrl: profile.logoUrl } : null
+  const { logoPreview, clearLogo } = useLogoPreview(values.websiteUrl, { saved: savedLogo })
 
   const dirty = !companyFormsEqual(values, baseline.values) || mode !== baseline.mode
   useUnsavedChangesWarning(dirty && initialView.canEdit, COPY.unsavedLeave)

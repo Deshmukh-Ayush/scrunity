@@ -6,6 +6,7 @@ import {
   companyFormToInput,
   companyFormsEqual,
   companyInputToForm,
+  savedLogoFor,
   validateCompanyForm,
   type CompanyFormValues,
 } from "./form"
@@ -19,6 +20,7 @@ import {
   type PublicCompanyProfile,
 } from "./input"
 import { initialNewRunState, newRunReducer, savesProfileOnStart } from "./new-run"
+import { handleSaveCompanyProfile, type SaveProfileDeps } from "./save-handler"
 
 const FILLED: CompanyFormValues = {
   ...EMPTY_COMPANY_FORM,
@@ -37,6 +39,7 @@ const row = (overrides: Partial<CompanyProfileRow> = {}): CompanyProfileRow => {
   assert.ok(input)
   return {
     ...companyProfileColumns(input),
+    logoUrl: "https://www.google.com/s2/favicons?domain=routewise.example&sz=128",
     researchFormMode: "use_saved",
     updatedAt: new Date("2026-10-21T09:30:00.000Z"),
     ...overrides,
@@ -147,5 +150,71 @@ describe("who can save the profile", () => {
     assert.equal(requiresManagerRole("GET", "/api/gtm/company-profile"), false)
     assert.equal(MANAGER_ROLES.has("member"), false)
     assert.equal(MANAGER_ROLES.has("admin"), true)
+  })
+})
+
+describe("PUT /api/gtm/company-profile handler", () => {
+  /** Stub store: records every save, never touches the database. */
+  const stubDeps = () => {
+    const saves: unknown[][] = []
+    const deps: SaveProfileDeps = {
+      save: async (...args) => {
+        saves.push(args)
+      },
+      load: async () => ({ profile: saved(), canEdit: true }),
+    }
+    return { deps, saves }
+  }
+  const body = () => ({ ...companyFormToInput(FILLED), researchFormMode: "ask_every_time" })
+
+  it("refuses a member with 403 and writes nothing, even with a valid body", async () => {
+    const { deps, saves } = stubDeps()
+    const result = await handleSaveCompanyProfile({ userId: "u_member", orgId: "org_1", role: "member" }, body(), deps)
+    assert.equal(result.status, 403)
+    assert.equal(saves.length, 0)
+  })
+
+  it("refuses an unknown role the same way", async () => {
+    const { deps, saves } = stubDeps()
+    const result = await handleSaveCompanyProfile({ userId: "u_x", orgId: "org_1", role: "" }, body(), deps)
+    assert.equal(result.status, 403)
+    assert.equal(saves.length, 0)
+  })
+
+  it("saves for an admin with the chosen setting", async () => {
+    const { deps, saves } = stubDeps()
+    const result = await handleSaveCompanyProfile({ userId: "u_admin", orgId: "org_1", role: "admin" }, body(), deps)
+    assert.equal(result.status, 200)
+    assert.equal(saves.length, 1)
+    assert.equal(saves[0][0], "org_1")
+    assert.equal(saves[0][1], "u_admin")
+    assert.equal(saves[0][3], "ask_every_time")
+  })
+
+  it("answers 400 to an invalid body without saving", async () => {
+    const { deps, saves } = stubDeps()
+    const result = await handleSaveCompanyProfile({ userId: "u_owner", orgId: "org_1", role: "owner" }, { companyName: "x" }, deps)
+    assert.equal(result.status, 400)
+    assert.equal(saves.length, 0)
+  })
+})
+
+describe("stored logo", () => {
+  const stored = { websiteUrl: "https://routewise.example", logoUrl: "https://logo.example/routewise.png" }
+
+  it("is used while the website is still the saved one, however it is typed", () => {
+    assert.equal(savedLogoFor("routewise.example", stored), stored.logoUrl)
+    assert.equal(savedLogoFor("HTTPS://Routewise.example/", stored), stored.logoUrl)
+  })
+
+  it("is not used once the website changes, or when none was stored", () => {
+    assert.equal(savedLogoFor("routewise.example.in", stored), null)
+    assert.equal(savedLogoFor("", stored), null)
+    assert.equal(savedLogoFor("routewise.example", { ...stored, logoUrl: null }), null)
+    assert.equal(savedLogoFor("routewise.example", null), null)
+  })
+
+  it("comes back with the loaded profile", () => {
+    assert.equal(saved().logoUrl, "https://www.google.com/s2/favicons?domain=routewise.example&sz=128")
   })
 })

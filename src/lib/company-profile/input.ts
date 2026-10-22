@@ -38,10 +38,12 @@ export const saveCompanyProfileSchema = companyProfileInputSchema.extend({
 
 /**
  * The profile as the browser sees it: the saved values (website already
- * normalized to https://), the setting, and who last changed it.
+ * normalized to https://), its logo (resolved when saved), the setting, and
+ * who last changed it.
  */
 export interface PublicCompanyProfile {
   values: CompanyProfileInput
+  logoUrl: string | null
   researchFormMode: ResearchFormMode
   updatedAt: string
   updatedByName: string | null
@@ -56,6 +58,7 @@ export interface CompanyProfileView {
 /** The columns of a gtm_company_profile row this module reads (no DB import). */
 export interface CompanyProfileRow {
   websiteUrl: string
+  logoUrl: string | null
   companyName: string
   companyDescription: string
   companySize: CompanySize
@@ -93,6 +96,7 @@ export function toPublicCompanyProfile(row: CompanyProfileRow, updatedByName: st
       ownArr: money(row.ownArrAmount, row.ownArrCurrency),
       ownTam: money(row.ownTamAmount, row.ownTamCurrency),
     },
+    logoUrl: row.logoUrl,
     researchFormMode: row.researchFormMode,
     updatedAt: row.updatedAt.toISOString(),
     updatedByName,

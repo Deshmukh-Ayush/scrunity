@@ -32,6 +32,7 @@ const SAVED: PublicCompanyProfile = {
     ownArr: { amount: 18_000_000, currency: "INR" },
     ownTam: null,
   },
+  logoUrl: null,
   researchFormMode: "use_saved",
   updatedAt: "2026-10-21T09:30:00.000Z",
   updatedByName: "Priya Shah",

@@ -114,3 +114,20 @@ export const COMPANY_SIZE_LABELS: Record<CompanySize, string> = {
   "51-200": "51–200 people",
   "200+": "More than 200 people",
 }
+
+/** The website and logo stored with the saved profile. */
+export interface SavedLogo {
+  websiteUrl: string
+  logoUrl: string | null
+}
+
+/**
+ * The stored logo while the typed website is still the saved one, else null.
+ * useLogoPreview shows it without calling /api/gtm/fetch-logo, so loading
+ * Settings or the New research run card never uses the daily logo quota.
+ */
+export function savedLogoFor(websiteUrl: string, saved: SavedLogo | null | undefined): string | null {
+  if (!saved?.logoUrl || !websiteUrl.trim()) return null
+  const same = websiteForDisplay(websiteUrl).toLowerCase() === websiteForDisplay(saved.websiteUrl).toLowerCase()
+  return same ? saved.logoUrl : null
+}

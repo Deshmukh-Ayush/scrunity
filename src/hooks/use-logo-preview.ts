@@ -1,14 +1,25 @@
 import * as React from "react"
+import { savedLogoFor, type SavedLogo } from "@/lib/company-profile/form"
 
 /**
  * Logo for the website being typed: shows Google's favicon immediately, then
  * swaps in the og:image/favicon from /api/gtm/fetch-logo after a short debounce.
+ * While the website is still the saved profile's, the logo stored with the
+ * profile is shown and nothing is fetched (no logo quota on page views).
  */
-export function useLogoPreview(websiteUrl: string, debounceMs = 600) {
-  const [logoPreview, setLogoPreview] = React.useState<string | null>(null)
+export function useLogoPreview(
+  websiteUrl: string,
+  { saved, debounceMs = 600 }: { saved?: SavedLogo | null; debounceMs?: number } = {}
+) {
+  const storedLogo = savedLogoFor(websiteUrl, saved)
+  const [logoPreview, setLogoPreview] = React.useState<string | null>(storedLogo)
   const [isFetchingLogo, setIsFetchingLogo] = React.useState(false)
 
   React.useEffect(() => {
+    if (storedLogo) {
+      setLogoPreview(storedLogo)
+      return
+    }
     const raw = websiteUrl.trim()
     if (!raw || !raw.includes(".")) {
       setLogoPreview(null)
@@ -49,7 +60,7 @@ export function useLogoPreview(websiteUrl: string, debounceMs = 600) {
       clearTimeout(timer)
       controller.abort()
     }
-  }, [websiteUrl, debounceMs])
+  }, [websiteUrl, debounceMs, storedLogo])
 
   return { logoPreview, isFetchingLogo, clearLogo: () => setLogoPreview(null) }
 }

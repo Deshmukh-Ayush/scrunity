@@ -1,5 +1,5 @@
 {
-  "id": "8ef429bf-1549-43f0-af1b-8c738f4ce66b",
+  "id": "c0c1a483-0c7f-4037-bd4c-9f1a398158e5",
   "prevId": "c870a906-7999-4957-b0f0-ebcdc33790a2",
   "version": "7",
   "dialect": "postgresql",
@@ -590,6 +590,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "logo_url": {
+          "name": "logo_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "company_name": {
           "name": "company_name",

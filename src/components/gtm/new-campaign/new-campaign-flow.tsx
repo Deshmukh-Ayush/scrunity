@@ -52,7 +52,10 @@ export function NewCampaignFlow({
   const form = formState.form
   const [fieldErrors, setFieldErrors] = React.useState<CompanyFormErrors>({})
   const updateForm = (patch: Partial<CompanyFormValues>) => dispatchForm({ type: "edit", patch })
-  const { logoPreview, clearLogo } = useLogoPreview(form.websiteUrl)
+  const saved = formState.saved
+  const { logoPreview, clearLogo } = useLogoPreview(form.websiteUrl, {
+    saved: saved ? { websiteUrl: saved.values.websiteUrl, logoUrl: saved.logoUrl } : null,
+  })
 
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [researchRunId, setResearchRunId] = React.useState<string | null>(null)

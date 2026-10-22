@@ -1,6 +1,7 @@
 CREATE TABLE "gtm_company_profile" (
 	"organization_id" text PRIMARY KEY NOT NULL,
 	"website_url" text NOT NULL,
+	"logo_url" text,
 	"company_name" text NOT NULL,
 	"company_description" text NOT NULL,
 	"company_size" text NOT NULL,
