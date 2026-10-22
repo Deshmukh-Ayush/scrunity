@@ -352,6 +352,42 @@ export const gtmResearchRun = pgTable(
   (table) => [index("gtm_research_run_org_idx").on(table.organizationId)]
 )
 
+/**
+ * The organization's saved company details, asked once at onboarding and
+ * reused by new research runs. Each run copies the values into its own
+ * columns, so editing the profile never changes a past run.
+ */
+export const gtmCompanyProfile = pgTable("gtm_company_profile", {
+  organizationId: text("organization_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  websiteUrl: text("website_url").notNull(),
+  companyName: text("company_name").notNull(),
+  companyDescription: text("company_description").notNull(),
+  companySize: text("company_size", {
+    enum: ["1-10", "11-50", "51-200", "200+"],
+  }).notNull(),
+  contextDoc: text("context_doc"),
+  contextDocFileName: text("context_doc_file_name"),
+  targetCountryCode: text("target_country_code").notNull(),
+  targetRegion: text("target_region"),
+  ownArrAmount: bigint("own_arr_amount", { mode: "number" }),
+  ownArrCurrency: text("own_arr_currency"),
+  ownTamAmount: bigint("own_tam_amount", { mode: "number" }),
+  ownTamCurrency: text("own_tam_currency"),
+  // use_saved: new runs start from these details; ask_every_time: an empty form (agencies).
+  researchFormMode: text("research_form_mode", {
+    enum: ["use_saved", "ask_every_time"],
+  })
+    .default("use_saved")
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  updatedByUserId: text("updated_by_user_id").references(() => user.id, {
+    onDelete: "set null",
+  }),
+})
+
 /** One stage attempt's start/end (ISO), duration and outcome. */
 export interface StageTimingAttempt {
   startedAt: string

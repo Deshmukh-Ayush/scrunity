@@ -239,6 +239,13 @@
       "when": 1792622933987,
       "tag": "0033_open_kulan_gath",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792660266366,
+      "tag": "0034_married_colonel_america",
+      "breakpoints": true
     }
   ]
 }
