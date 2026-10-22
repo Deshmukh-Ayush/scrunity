@@ -6,7 +6,9 @@ import { CampaignsCreated } from "@/components/gtm/new-campaign/campaigns-create
 import { CompanyDetailsForm } from "@/components/gtm/new-campaign/company-details-form"
 import { ResearchProgress } from "@/components/gtm/new-campaign/research-progress"
 import { SegmentSelection } from "@/components/gtm/new-campaign/segment-selection"
-import type { CompanyFormErrors, CompanyFormValues } from "@/components/gtm/new-campaign/types"
+import type { CompanyFormErrors } from "@/components/gtm/new-campaign/types"
+import { validateCompanyForm } from "@/lib/company-profile/form"
+import { initialNewRunState, newRunReducer } from "@/lib/company-profile/new-run"
 import { CampaignDetailHeader } from "@/components/gtm/campaign-detail/campaign-detail-header"
 import { CampaignDetailRoot } from "@/components/gtm/campaign-detail/campaign-detail-root"
 import { CampaignProcessCard } from "@/components/gtm/campaign-detail/campaign-process-card"
@@ -30,21 +32,6 @@ import {
 
 const noop = () => {}
 
-const EMPTY_FORM: CompanyFormValues = {
-  websiteUrl: "",
-  companyName: "",
-  companyDescription: "",
-  companySize: "11-50",
-  contextDoc: "",
-  fileName: "",
-  targetCountry: "",
-  targetRegion: "",
-  arrAmount: "",
-  arrCurrency: "USD",
-  tamAmount: "",
-  tamCurrency: "USD",
-}
-
 function Switcher<T extends string>({ value, options, onChange }: { value: T; options: readonly T[]; onChange: (v: T) => void }) {
   return (
     <div role="group" aria-label="Fixture state" className="flex flex-wrap gap-1.5" data-demo-switcher="">
@@ -64,13 +51,13 @@ function Switcher<T extends string>({ value, options, onChange }: { value: T; op
 }
 
 export function ResearchFormDemo() {
-  const [values, setValues] = React.useState(EMPTY_FORM)
+  const [state, dispatch] = React.useReducer(newRunReducer, null, () => initialNewRunState(null))
   const [errors, setErrors] = React.useState<CompanyFormErrors>({})
   return (
     <div className="w-full max-w-[720px]">
       <CompanyDetailsForm
-        values={values}
-        onChange={(patch) => setValues((v) => ({ ...v, ...patch }))}
+        state={state}
+        dispatch={dispatch}
         errors={errors}
         logoPreview={null}
         onLogoError={noop}
@@ -79,14 +66,7 @@ export function ResearchFormDemo() {
         onSubmit={(e) => {
           // Fixture: show the inline errors the real flow shows; never posts.
           e.preventDefault()
-          setErrors({
-            ...(values.websiteUrl ? {} : { websiteUrl: "Enter your website, for example acme.com." }),
-            ...(values.companyName ? {} : { companyName: "Enter your company name." }),
-            ...(values.targetCountry ? {} : { targetCountry: "Choose a country from the list." }),
-            ...(values.companyDescription
-              ? {}
-              : { companyDescription: "Describe what your company does in a sentence or two." }),
-          })
+          setErrors(validateCompanyForm(state.form))
         }}
       />
     </div>

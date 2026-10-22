@@ -32,6 +32,7 @@ export const COMPANY_PROFILE_COPY = {
   changeForRun: "Change for this run",
   useSavedDetails: "Use saved details",
   fillWithSaved: "Fill with saved details",
+  filledWithSaved: "Filled with your saved details.",
   alsoUpdate: "Also update my saved profile",
   alsoUpdateText: "Otherwise these changes apply to this run only.",
   editInSettings: "Edit in Settings",

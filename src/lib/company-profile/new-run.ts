@@ -39,7 +39,8 @@ export function newRunReducer(state: NewRunState, action: NewRunAction): NewRunS
   const savedForm = state.saved ? companyInputToForm(state.saved.values) : null
   switch (action.type) {
     case "edit":
-      return state.view === "summary" ? state : { ...state, form: { ...state.form, ...action.patch } }
+      // Any view: after the run starts, the profile confirmation step edits the description.
+      return { ...state, form: { ...state.form, ...action.patch } }
     case "change_for_run":
       return state.view === "summary" ? { ...state, view: "editing" } : state
     case "use_saved":

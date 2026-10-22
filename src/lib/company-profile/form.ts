@@ -107,3 +107,10 @@ const FORM_KEYS = Object.keys(EMPTY_COMPANY_FORM) as Array<keyof CompanyFormValu
 export function companyFormsEqual(a: CompanyFormValues, b: CompanyFormValues) {
   return FORM_KEYS.every((key) => a[key] === b[key])
 }
+
+export const COMPANY_SIZE_LABELS: Record<CompanySize, string> = {
+  "1-10": "1–10 people",
+  "11-50": "11–50 people",
+  "51-200": "51–200 people",
+  "200+": "More than 200 people",
+}
