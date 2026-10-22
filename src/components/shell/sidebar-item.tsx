@@ -25,7 +25,7 @@ export const sidebarItemClassName = cn(
   "[&_svg]:size-4 [&_svg]:shrink-0"
 )
 
-const selectedClassName = {
+export const sidebarSelectedClassName = {
   list: "aria-[current=page]:bg-surface aria-[current=page]:text-fg-strong aria-[current=page]:shadow-raised",
   nav: cn(
     "aria-[current=page]:bg-nav-selected aria-[current=page]:text-nav-selected-fg",
@@ -60,7 +60,7 @@ export function SidebarItem({
       data-slot="sidebar-item"
       data-tone={tone}
       aria-current={current ? "page" : undefined}
-      className={cn(sidebarItemClassName, selectedClassName[tone], className)}
+      className={cn(sidebarItemClassName, sidebarSelectedClassName[tone], className)}
       {...props}
     >
       {Icon && <Icon className={iconColor} />}
