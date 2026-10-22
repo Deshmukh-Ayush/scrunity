@@ -23,6 +23,8 @@ const MANAGER_ROUTES: { methods: string[]; pattern: RegExp }[] = [
   { methods: ["POST", "DELETE"], pattern: /^\/api\/gtm\/data-sources\/[^/]+$/ },
   // Imported lists: upload (POST .../imports, matched above) and delete
   { methods: ["DELETE"], pattern: /^\/api\/gtm\/data-sources\/imports\/[^/]+$/ },
+  // The organization's saved company profile and research form setting
+  { methods: ["PUT"], pattern: /^\/api\/gtm\/company-profile$/ },
   // Deleting shared records
   { methods: ["DELETE"], pattern: /^\/api\/gtm\/chat\/conversations\/[^/]+$/ },
 ]
