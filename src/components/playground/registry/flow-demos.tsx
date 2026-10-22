@@ -32,7 +32,7 @@ import {
 
 const noop = () => {}
 
-function Switcher<T extends string>({ value, options, onChange }: { value: T; options: readonly T[]; onChange: (v: T) => void }) {
+export function Switcher<T extends string>({ value, options, onChange }: { value: T; options: readonly T[]; onChange: (v: T) => void }) {
   return (
     <div role="group" aria-label="Fixture state" className="flex flex-wrap gap-1.5" data-demo-switcher="">
       {options.map((o) => (

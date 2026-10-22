@@ -36,6 +36,7 @@ import {
   launchFooterEntry,
 } from "./data-sources"
 import { bouncePausedEntry, contactImportEntry, importedListsEntry, sourceChoiceEntry } from "./contact-import"
+import { companySettingsEntry, newRunProfileEntry, onboardingCompanyEntry } from "./company-profile"
 import type { ShowcaseEntry } from "./types"
 
 /**
@@ -73,7 +74,9 @@ export const SHOWCASE: ShowcaseEntry[] = [
   mailboxFilterEntry,
   mailboxBannerEntry,
   mailboxPageEntry,
+  onboardingCompanyEntry,
   researchFormEntry,
+  newRunProfileEntry,
   researchProgressEntry,
   researchProfileEntry,
   researchSegmentsEntry,
@@ -85,6 +88,7 @@ export const SHOWCASE: ShowcaseEntry[] = [
   campaignZeroVerifiedEntry,
   campaignDataSourceStoppedEntry,
   bouncePausedEntry,
+  companySettingsEntry,
   dataSourceCardEntry,
   connectDialogEntry,
   disconnectDialogEntry,
