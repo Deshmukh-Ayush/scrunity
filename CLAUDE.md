@@ -17,6 +17,8 @@ npm run lint           # eslint
 npm run build
 npm run format         # prettier (with tailwind plugin) over **/*.{ts,tsx}
 
+npm run skills:sync    # copy .agents/skills/* into .claude/skills/ (see Agent skills)
+
 npm run db:generate    # schema.ts -> numbered SQL in ./drizzle
 npm run db:migrate     # apply migrations (never db:push against prod)
 npm run db:studio
@@ -25,6 +27,10 @@ npm run db:studio
 **Running heavy processes (permanent rule):** never run more than one heavy process at a time; don't run the dev server, `npm run build` and test scripts in parallel. Small changes run `npm run typecheck` only. `npm run build` runs only before merging into `main` or after large changes, only when the user asks, and always alone (stop the dev server first).
 
 Unit tests (`npm test`) cover pure modules only and must never touch the network or the database: they import nothing that imports `@/utils/db`. Everything else is verified in `scripts/*.ts`: standalone scripts that load `.env` through `dotenv`, import from `../src/...`, and run against the real database (`DATABASE_URL`). Run one with `npx tsx scripts/<name>.ts`, e.g. `npx tsx scripts/test-multi-provider-mailboxes.ts`. They write real rows, so check what a script inserts or cleans up before you run it.
+
+## Agent skills
+
+**`.agents/skills/` is the source.** The skills CLI writes there and pins versions in `skills-lock.json`. Claude Code only finds project skills in `.claude/skills/`, so that folder holds committed copies made by `npm run skills:sync` (real copies, not symlinks, which need Developer Mode on Windows). Never edit `.claude/skills/` by hand. After adding or updating skills (`npx skills add ...`, `npx skills update`, or `npx skills experimental_install` to restore from the lock), run `npm run skills:sync` and commit both folders. `skills add -a claude-code --copy` is not used: it re-downloads from GitHub instead of copying the locked versions.
 
 ## Product state
 

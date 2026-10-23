@@ -8,7 +8,9 @@ import { executeFindCompanies } from "@/inngest/functions/find-companies"
 import { executeFindContacts, STAGE_SUPERSEDED } from "@/inngest/functions/find-contacts"
 import { executeWriteEmails } from "@/inngest/functions/write-emails"
 import { executeQualifyCampaignContacts } from "@/lib/gtm-stage-5-5"
+import { isImportCampaign } from "@/lib/contact-import/campaign-stage"
 import {
+  advanceCampaign,
   claimCampaignStageAttempt,
   claimResearchStage,
   failCampaign,
@@ -30,7 +32,14 @@ export const RESEARCH_STAGES = {
 
 export const CAMPAIGN_STAGES = {
   find_companies: { run: (id: string) => executeFindCompanies(id), next: "find_contacts" },
-  find_contacts: { run: (id: string) => executeFindContacts(id), next: "write_emails" },
+  // An imported list's people are already known (e.g. after Restart Stage): nothing to search.
+  find_contacts: {
+    run: async (id: string) =>
+      (await isImportCampaign(id))
+        ? advanceCampaign(id, "find_contacts", { currentStage: "write_emails" })
+        : executeFindContacts(id),
+    next: "write_emails",
+  },
   // Stage 5.5 qualification gates always run immediately before drafting.
   write_emails: {
     run: async (id: string) => {

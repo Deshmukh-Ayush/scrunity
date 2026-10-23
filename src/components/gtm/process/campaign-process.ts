@@ -2,6 +2,8 @@ import type { ProcessActivityItem, ProcessState } from "@/components/ui/process-
 import { plainDuration } from "./plain-duration"
 import { leadSearchMessage } from "@/lib/lead-search-message"
 import { CAMPAIGN_DATA_SOURCE_FAILURE_TEXT } from "@/lib/data-sources/copy"
+import { deliveryText, IMPORT_CAMPAIGN_FAILURE_TEXT } from "@/lib/contact-import/copy"
+import type { DeliveryCounts } from "@/lib/contact-import/bounce-guard"
 import type { CampaignData, Draft } from "../campaign-detail/types"
 
 /**
@@ -77,6 +79,7 @@ const FAILURE_TEXT: Record<string, string> = {
   search_filters_failed:
     "This segment couldn't be turned into search filters, so nothing was searched or charged. Retry the campaign. If it fails again, contact support.",
   ...CAMPAIGN_DATA_SOURCE_FAILURE_TEXT,
+  ...IMPORT_CAMPAIGN_FAILURE_TEXT,
 }
 
 const CREDITS_PAUSED = "Sending is paused because your AI credits ran out. Top up credits in Billing to continue."
@@ -96,10 +99,24 @@ export function campaignFailureText(reason: string | null | undefined, stageLabe
 const plural = (n: number, one: string, many: string) =>
   `${n} ${new Intl.PluralRules("en").select(n) === "one" ? one : many}`
 
+/** The Sending tile: "23 sent", or "23 sent · 3 bounced" once something bounced. */
+export function sendingDetail(c: Pick<DeliveryCounts, "sent" | "bounced">): string {
+  return c.bounced > 0 ? `${c.sent} sent · ${c.bounced} bounced` : `${c.sent} sent`
+}
+
+/** The contacts tile: verified and from-your-list counted apart. */
+export function contactsDetail(verified: number, fromList: number): string {
+  if (fromList === 0) return `${verified} verified`
+  return verified === 0 ? `${fromList} from your list` : `${verified} verified · ${fromList} from your list`
+}
+
+/** Review counts plus the shared delivery count (sent includes bounced). */
+export type CampaignCounts = { approved: number; rejected: number; pending: number } & DeliveryCounts
+
 export interface CampaignProcessInput {
   data: CampaignData
   drafts: Draft[]
-  counts: { approved: number; sent: number; rejected: number; pending: number }
+  counts: CampaignCounts
   /** From checkStageStaleness, after hydration only. */
   stalledForMs: number | null
 }
@@ -121,9 +138,11 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
   const { campaign, companies } = data
   const stageIndex = STAGE_INDEX[campaign.currentStage] ?? 0
   const verified = data.leadSummary?.verified ?? data.contacts.length
+  // People from an imported list: usable, but never counted as verified.
+  const fromList = data.leadSummary?.fromList ?? 0
+  const usable = verified + fromList
   const reviewed = data.leadSummary?.reviewed ?? 0
   const outcome = campaign.leadSearchOutcome
-  const bounced = drafts.filter((d) => d.hasBounced).length
 
   const atGate = campaign.currentStage === "awaiting_company_selection"
   const atReview = campaign.currentStage === "awaiting_approval"
@@ -134,7 +153,7 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
     noResultsReason = outcome ? leadSearchMessage(outcome) : "No verified contacts were found, so there are no emails to review."
 
   // A review with nothing to review ended at Verified contacts, not at Your review.
-  const current = noResultsReason && atReview && verified === 0 ? 1 : stageIndex
+  const current = noResultsReason && atReview && usable === 0 ? 1 : stageIndex
 
   let state: ProcessState
   if (campaign.status === "failed") state = "failed"
@@ -146,10 +165,10 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
 
   const details: (string | undefined)[] = [
     current > 0 || atGate ? plural(companies.length, "company", "companies") : undefined,
-    current > 1 || reviewed > 0 ? `${verified} verified` : undefined,
+    current > 1 || reviewed > 0 ? contactsDetail(verified, fromList) : undefined,
     drafts.length > 0 ? plural(drafts.length, "draft", "drafts") : undefined,
     counts.approved + counts.sent > 0 ? `${counts.approved + counts.sent} approved` : undefined,
-    counts.sent > 0 ? `${counts.sent} sent` : undefined,
+    counts.sent > 0 ? sendingDetail(counts) : undefined,
   ]
 
   const stage = CAMPAIGN_STAGES[current]
@@ -161,7 +180,9 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
     case "paused":
       status = isCreditsPause(campaign.failureReason)
         ? CREDITS_PAUSED
-        : "Sending is paused for this campaign. Contact support to resume it."
+        : campaign.failureReason && IMPORT_CAMPAIGN_FAILURE_TEXT[campaign.failureReason]
+          ? IMPORT_CAMPAIGN_FAILURE_TEXT[campaign.failureReason]
+          : "Sending is paused for this campaign. Contact support to resume it."
       break
     case "stalled":
       status = `No progress for ${plainDuration(stalledForMs ?? 0)}. Restart this step to try again.`
@@ -170,7 +191,7 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
       status = noResultsReason ?? ""
       break
     case "done":
-      status = counts.sent > 0 ? `Done. ${plural(counts.sent, "email was", "emails were")} sent.` : "Done."
+      status = counts.sent > 0 ? `Done. ${deliveryText(counts)}.` : "Done."
       break
     case "idle":
       status = atGate
@@ -222,7 +243,7 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
     progress = {
       value: counts.sent,
       max: counts.sent + counts.approved,
-      label: `${counts.sent} of ${counts.sent + counts.approved} sent`,
+      label: counts.bounced > 0 ? `${counts.sent} of ${counts.sent + counts.approved} sent · ${counts.bounced} bounced` : `${counts.sent} of ${counts.sent + counts.approved} sent`,
     }
   else if (state === "running" || state === "stalled") progress = { label: "Working on this step" }
 
@@ -238,7 +259,9 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
   const chosen = companies.filter((c) => c.selectionStatus === "selected").length
   if (data.usesCompanyDatabase && chosen > 0 && current > 0)
     activity.push({ id: `chosen-${chosen}`, text: `You chose ${plural(chosen, "company", "companies")} to contact` })
-  if (reviewed > 0)
+  if (fromList > 0)
+    activity.push({ id: `list-${fromList}`, text: `Added ${plural(fromList, "person", "people")} from your list` })
+  if (reviewed > 0 && fromList === 0)
     activity.push({
       id: `checked-${reviewed}-${verified}`,
       text: verified === 0
@@ -248,7 +271,7 @@ export function deriveCampaignProcess({ data, drafts, counts, stalledForMs }: Ca
   if (drafts.length > 0) activity.push({ id: `drafts-${drafts.length}`, text: `Wrote ${plural(drafts.length, "email draft", "email drafts")}` })
   for (const d of [...drafts].filter((d) => d.sentAt).sort((a, b) => String(a.sentAt).localeCompare(String(b.sentAt))))
     activity.push({ id: `sent-${d.id}`, text: `Sent to ${d.contact.name} at ${d.company.name}`, at: d.sentAt })
-  if (bounced > 0) activity.push({ id: `bounced-${bounced}`, text: `${plural(bounced, "address", "addresses")} bounced` })
+  if (counts.bounced > 0) activity.push({ id: `bounced-${counts.bounced}`, text: deliveryText(counts) })
 
   return { state, current, details, status, badge, progress, announcement, activity, noResultsReason }
 }

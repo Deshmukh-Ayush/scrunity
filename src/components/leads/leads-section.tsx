@@ -1,6 +1,6 @@
 import * as React from "react";
 import { toPublicEmailStatus } from "@/lib/data/public-fields";
-import { leadSummarySql, usableLeadSql } from "@/lib/data/lead-visibility";
+import { leadSummarySql, toLeadSummary, usableLeadSql } from "@/lib/data/lead-visibility";
 import { getTenantContext } from "@/lib/tenant-context";
 import { db } from "@/utils/db";
 import {
@@ -215,7 +215,7 @@ export async function LeadsSection({
       initialStatus={statusParam}
       initialSearch={searchParam}
       initialPage={pageParam}
-      initialSummary={{ reviewed: Number(summary?.reviewed ?? 0), verified: Number(summary?.verified ?? 0) }}
+      initialSummary={toLeadSummary(summary)}
     />
   );
 }

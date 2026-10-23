@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { NewCampaignFlow } from "@/components/gtm/new-campaign/new-campaign-flow"
+import { NewResearchRun } from "@/components/gtm/new-campaign/new-research-run"
 
 export const metadata: Metadata = {
   title: "New research run | Scrunity",
@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 
 /** Each step sets its own Container width inside the flow. */
 export default function NewCampaignPage() {
-  return <NewCampaignFlow />
+  return <NewResearchRun />
 }

@@ -9,6 +9,7 @@ import { ConnectionCard } from "./connection-card"
 import { connectionViewState } from "./connection-state"
 import { DisconnectDialog } from "./disconnect-dialog"
 import { KeyDisclosure } from "./key-disclosure"
+import { ImportedLists } from "@/components/contact-import/imported-lists"
 
 const readJson = async (res: Response): Promise<Record<string, unknown>> => {
   try {
@@ -97,6 +98,7 @@ export function DataSourcesClient({ initialStatus }: { initialStatus: DataSource
         onDisconnect={() => setDisconnectOpen(true)}
       />
       <KeyDisclosure />
+      <ImportedLists initialImports={initialStatus.imports} canManage={initialStatus.canManage} />
       <ConnectDialog
         open={connectOpen}
         onOpenChange={setConnectOpen}

@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { formatMoneyAmount, formatTargetMarket } from "@/lib/geo/countries"
 import { LaunchFooter, type LaunchDataSource } from "./launch-footer"
 import { SegmentRow } from "./segment-row"
+import { chosenImport, SourceChoice, type CampaignSource } from "./source-choice"
 import type { IcpSegment, ResearchRunDetails } from "./types"
 
 const count = (n: number, one: string, many: string) =>
@@ -40,6 +41,8 @@ export function SegmentSelection({
   onLaunch,
   onEditDescription,
   dataSource = null,
+  source = { kind: "search" },
+  onSourceChange,
 }: {
   run: ResearchRunDetails | null
   segments: IcpSegment[]
@@ -51,6 +54,9 @@ export function SegmentSelection({
   onEditDescription: () => void
   /** The organization's data source: the credit estimate, or why starting is blocked. */
   dataSource?: LaunchDataSource | null
+  /** Search or an imported list (the choice shows once the data sources have loaded). */
+  source?: CampaignSource
+  onSourceChange?: (source: CampaignSource) => void
 }) {
   const selected = selectedIds.size
   const allSelected = segments.length > 0 && selected === segments.length
@@ -78,6 +84,8 @@ export function SegmentSelection({
         {run && <MarketLine run={run} />}
       </div>
 
+      {dataSource && onSourceChange && <SourceChoice status={dataSource} source={source} onChange={onSourceChange} />}
+
       <section aria-labelledby="segments-heading" className="rounded-xl border border-transparent bg-surface shadow-surface">
         <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
           <h2 id="segments-heading" className="text-section text-fg-default tabular-nums">
@@ -99,7 +107,13 @@ export function SegmentSelection({
         </ul>
       </section>
 
-      <LaunchFooter selected={selected} isLaunching={isLaunching} onLaunch={onLaunch} dataSource={dataSource} />
+      <LaunchFooter
+        selected={selected}
+        isLaunching={isLaunching}
+        onLaunch={onLaunch}
+        dataSource={dataSource}
+        importList={chosenImport(dataSource, source)}
+      />
     </div>
   )
 }

@@ -1,50 +1,48 @@
 "use client"
 
 import * as React from "react"
-import { Globe } from "@/components/ui/icons"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-  FieldLegend,
-  FieldSet,
-} from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { ContextDocField } from "./context-doc-field"
-import { TargetMarketFields } from "./target-market-fields"
-import type { CompanyFormErrors, CompanyFormValues, CompanySize } from "./types"
+import { FieldError } from "@/components/ui/field"
+import { CompanyProfileFields } from "@/components/company-profile/company-profile-fields"
+import { ProfileDetails } from "@/components/company-profile/profile-details"
+import { COMPANY_PROFILE_COPY as COPY } from "@/lib/company-profile/copy"
+import type { CompanyFormErrors, CompanyFormValues } from "@/lib/company-profile/form"
+import { showsForm, type NewRunAction, type NewRunState } from "@/lib/company-profile/new-run"
+import { COMPANY_PROFILE_HREF } from "@/components/shell/nav-config"
 
-const SIZES: { value: CompanySize; label: string }[] = [
-  { value: "1-10", label: "1–10 people" },
-  { value: "11-50", label: "11–50 people" },
-  { value: "51-200", label: "51–200 people" },
-  { value: "200+", label: "More than 200 people" },
-]
-
-// A fieldset legend sits in the fieldset's top border, so the divider goes on a wrapper.
-const dividerClass = "border-t border-border pt-6 first:border-t-0 first:pt-0"
-const sectionClass = "gap-4"
-const legendClass = "mb-4 text-section text-fg-strong"
+/** "Also update my saved profile": unticked, this run's details stay with this run. */
+function AlsoUpdateProfile({ checked, onChange }: { checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <label htmlFor="alsoUpdateProfile" className="flex cursor-pointer items-start gap-2.5">
+      <input
+        id="alsoUpdateProfile"
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        aria-describedby="alsoUpdateProfile-text"
+        className="mt-0.5 size-4 shrink-0 cursor-pointer accent-foreground"
+      />
+      <span className="flex flex-col gap-0.5">
+        <span className="text-body text-fg-strong">{COPY.alsoUpdate}</span>
+        <span id="alsoUpdateProfile-text" className="text-body text-fg-muted">
+          {COPY.alsoUpdateText}
+        </span>
+      </span>
+    </label>
+  )
+}
 
 /**
- * Step 1 of a new research run: three sections (your company, who you want
- * to reach, context), inline errors next to the field that failed, and one
- * brand button at the end. Submitting is the flow's existing handler.
+ * Step 1 of a new research run. What it shows depends on the saved company
+ * profile (lib/company-profile/new-run.ts): the full form on a first run, a
+ * summary card with "Change for this run" when the saved details are used,
+ * or an empty form with "Fill with saved details" when the organization asks
+ * every time. One brand button, "Start research", in every view.
  */
 export function CompanyDetailsForm({
-  values,
-  onChange,
+  state,
+  dispatch,
   errors,
   logoPreview,
   onLogoError,
@@ -52,8 +50,8 @@ export function CompanyDetailsForm({
   errorMessage,
   onSubmit,
 }: {
-  values: CompanyFormValues
-  onChange: (patch: Partial<CompanyFormValues>) => void
+  state: NewRunState
+  dispatch: (action: NewRunAction) => void
   errors: CompanyFormErrors
   logoPreview: string | null
   onLogoError: () => void
@@ -61,6 +59,19 @@ export function CompanyDetailsForm({
   errorMessage: string | null
   onSubmit: (e: React.FormEvent) => void
 }) {
+  const { view, form, alsoUpdate, saved } = state
+  const changeRef = React.useRef<HTMLButtonElement>(null)
+  const [announcement, setAnnouncement] = React.useState("")
+  // Focus follows the view: into the form after "Change for this run", back to the button after "Use saved details".
+  const previousView = React.useRef(view)
+  React.useEffect(() => {
+    if (previousView.current === "summary" && view === "editing") document.getElementById("websiteUrl")?.focus()
+    if (previousView.current === "editing" && view === "summary") changeRef.current?.focus()
+    previousView.current = view
+  }, [view])
+
+  const onChange = (patch: Partial<CompanyFormValues>) => dispatch({ type: "edit", patch })
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
@@ -77,120 +88,75 @@ export function CompanyDetailsForm({
         noValidate
         className="flex flex-col gap-6 rounded-xl border border-transparent bg-surface p-4 shadow-surface sm:p-6"
       >
-        <FieldGroup className="gap-6">
-          <div className={dividerClass}>
-          <FieldSet className={sectionClass}>
-            <FieldLegend className={legendClass}>Your company</FieldLegend>
-            <Field data-invalid={Boolean(errors.websiteUrl) || undefined}>
-              <FieldLabel htmlFor="websiteUrl">Website</FieldLabel>
-              <div className="relative">
-                <span className="pointer-events-none absolute inset-y-0 start-2.5 flex items-center text-fg-muted">
-                  {logoPreview ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={logoPreview} alt="" className="size-4 rounded-sm object-contain" onError={onLogoError} />
-                  ) : (
-                    <Globe className="size-4" />
-                  )}
-                </span>
-                <Input
-                  id="websiteUrl"
-                  inputMode="url"
-                  autoComplete="url"
-                  placeholder="acme.com"
-                  className="ps-8"
-                  value={values.websiteUrl}
-                  onChange={(e) => onChange({ websiteUrl: e.target.value })}
-                  aria-invalid={Boolean(errors.websiteUrl) || undefined}
-                  aria-describedby={errors.websiteUrl ? "websiteUrl-error" : undefined}
-                />
-              </div>
-              <FieldError id="websiteUrl-error">{errors.websiteUrl}</FieldError>
-            </Field>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field data-invalid={Boolean(errors.companyName) || undefined}>
-                <FieldLabel htmlFor="companyName">Company name</FieldLabel>
-                <Input
-                  id="companyName"
-                  autoComplete="organization"
-                  placeholder="Acme"
-                  value={values.companyName}
-                  onChange={(e) => onChange({ companyName: e.target.value })}
-                  aria-invalid={Boolean(errors.companyName) || undefined}
-                  aria-describedby={errors.companyName ? "companyName-error" : undefined}
-                />
-                <FieldError id="companyName-error">{errors.companyName}</FieldError>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="companySize">Company size</FieldLabel>
-                <Select
-                  items={SIZES}
-                  value={values.companySize}
-                  onValueChange={(value) => {
-                    if (value) onChange({ companySize: value as CompanySize })
-                  }}
-                >
-                  <SelectTrigger id="companySize" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SIZES.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+        {view === "summary" && saved && (
+          <section aria-labelledby="saved-details-title" className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 id="saved-details-title" className="text-section text-fg-strong">
+                {COPY.summaryTitle}
+              </h2>
+              <Button ref={changeRef} type="button" onClick={() => dispatch({ type: "change_for_run" })}>
+                {COPY.changeForRun}
+              </Button>
             </div>
-          </FieldSet>
-          </div>
+            <ProfileDetails values={saved.values} />
+            <Link
+              href={COMPANY_PROFILE_HREF}
+              className="focus-ring w-fit rounded-sm text-body text-fg-muted underline underline-offset-2 hover:text-fg-strong"
+            >
+              {COPY.editInSettings}
+            </Link>
+          </section>
+        )}
 
-          <div className={dividerClass}>
-          <FieldSet className={sectionClass}>
-            <FieldLegend className={legendClass}>Who you want to reach</FieldLegend>
-            <TargetMarketFields values={values} onChange={onChange} countryError={errors.targetCountry} />
-          </FieldSet>
+        {view === "editing" && (
+          <div className="flex justify-start">
+            <Button type="button" variant="ghost" onClick={() => dispatch({ type: "use_saved" })}>
+              {COPY.useSavedDetails}
+            </Button>
           </div>
+        )}
 
-          <div className={dividerClass}>
-          <FieldSet className={sectionClass}>
-            <FieldLegend className={legendClass}>Context</FieldLegend>
-            <Field data-invalid={Boolean(errors.companyDescription) || undefined}>
-              <FieldLabel htmlFor="companyDescription">What your company does</FieldLabel>
-              <Textarea
-                id="companyDescription"
-                rows={4}
-                placeholder="We help mid-size logistics firms cut fuel costs with route-planning software."
-                value={values.companyDescription}
-                onChange={(e) => onChange({ companyDescription: e.target.value })}
-                aria-invalid={Boolean(errors.companyDescription) || undefined}
-                aria-describedby={
-                  errors.companyDescription ? "companyDescription-error" : "companyDescription-help"
-                }
-              />
-              <FieldDescription id="companyDescription-help">
-                Say what you sell, who buys it and the problem it solves.
-              </FieldDescription>
-              <FieldError id="companyDescription-error">{errors.companyDescription}</FieldError>
-            </Field>
-            <ContextDocField
-              fileName={values.fileName}
-              characters={values.contextDoc.length}
-              onLoad={(fileName, contextDoc) => onChange({ fileName, contextDoc })}
-              onClear={() => onChange({ fileName: "", contextDoc: "" })}
-            />
-          </FieldSet>
+        {view === "ask" && saved && (
+          <div className="flex justify-start">
+            <Button
+              type="button"
+              onClick={() => {
+                dispatch({ type: "fill_saved" })
+                setAnnouncement(COPY.filledWithSaved)
+              }}
+            >
+              {COPY.fillWithSaved}
+            </Button>
           </div>
-        </FieldGroup>
+        )}
+
+        {showsForm(view) && (
+          <CompanyProfileFields
+            values={form}
+            onChange={onChange}
+            errors={errors}
+            logoPreview={logoPreview}
+            onLogoError={onLogoError}
+          />
+        )}
+
+        {(view === "editing" || view === "ask") && (
+          <div className="border-t border-border pt-6">
+            <AlsoUpdateProfile checked={alsoUpdate} onChange={(checked) => dispatch({ type: "set_also_update", checked })} />
+          </div>
+        )}
 
         {errorMessage && <FieldError scope="form">{errorMessage}</FieldError>}
 
-        <div className="flex justify-end border-t border-border pt-6">
-          <Button variant="brand" size="lg" type="submit" loading={isSubmitting} className="w-full sm:w-auto">
+        <div className="flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-end">
+          {view === "first_run" && <p className="text-body text-fg-muted sm:me-auto">{COPY.savedForNextTime}</p>}
+          <Button variant="brand" size="lg" type="submit" loading={isSubmitting} className="w-full shrink-0 sm:w-auto">
             Start research
           </Button>
         </div>
+        <p role="status" className="sr-only">
+          {announcement}
+        </p>
       </form>
     </div>
   )

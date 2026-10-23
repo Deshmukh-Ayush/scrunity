@@ -352,6 +352,44 @@ export const gtmResearchRun = pgTable(
   (table) => [index("gtm_research_run_org_idx").on(table.organizationId)]
 )
 
+/**
+ * The organization's saved company details, asked once at onboarding and
+ * reused by new research runs. Each run copies the values into its own
+ * columns, so editing the profile never changes a past run.
+ */
+export const gtmCompanyProfile = pgTable("gtm_company_profile", {
+  organizationId: text("organization_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  websiteUrl: text("website_url").notNull(),
+  // Resolved from the website when the profile is saved, so page views never look it up.
+  logoUrl: text("logo_url"),
+  companyName: text("company_name").notNull(),
+  companyDescription: text("company_description").notNull(),
+  companySize: text("company_size", {
+    enum: ["1-10", "11-50", "51-200", "200+"],
+  }).notNull(),
+  contextDoc: text("context_doc"),
+  contextDocFileName: text("context_doc_file_name"),
+  targetCountryCode: text("target_country_code").notNull(),
+  targetRegion: text("target_region"),
+  ownArrAmount: bigint("own_arr_amount", { mode: "number" }),
+  ownArrCurrency: text("own_arr_currency"),
+  ownTamAmount: bigint("own_tam_amount", { mode: "number" }),
+  ownTamCurrency: text("own_tam_currency"),
+  // use_saved: new runs start from these details; ask_every_time: an empty form (agencies).
+  researchFormMode: text("research_form_mode", {
+    enum: ["use_saved", "ask_every_time"],
+  })
+    .default("use_saved")
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  updatedByUserId: text("updated_by_user_id").references(() => user.id, {
+    onDelete: "set null",
+  }),
+})
+
 /** One stage attempt's start/end (ISO), duration and outcome. */
 export interface StageTimingAttempt {
   startedAt: string
@@ -545,6 +583,13 @@ export const gtmOutreachCampaign = pgTable(
     stageAttemptStartedAt: timestamp("stage_attempt_started_at"),
     // Stepwise verified-lead search state (Stage 5): titles and stop reason.
     leadSearchState: jsonb("lead_search_state").$type<LeadSearchCampaignState>(),
+    // Imported lists: the bounce-rate pause counts only emails sent since this
+    // moment (set when the user removes bounced addresses and resumes).
+    bounceGuardSince: timestamp("bounce_guard_since"),
+    // Set when the campaign uses an imported list instead of company and people search.
+    sourceImportId: text("source_import_id").references(() => gtmContactImport.id, {
+      onDelete: "set null",
+    }),
     // Verified leads Stage 5 searches for; null uses GTM_TARGET_VERIFIED_LEADS.
     targetVerifiedLeads: integer("target_verified_leads"),
     // How Stage 5's verified-lead search ended (lib/pipeline/lead-search-budget.ts).
@@ -603,6 +648,85 @@ export const gtmProviderConnection = pgTable(
   ]
 )
 
+/**
+ * A list the customer uploaded as CSV (lib/contact-import/). The file itself is
+ * never stored: its parsed, cleaned rows live in gtm_contact_import_row until
+ * a campaign turns them into companies and contacts. `attestedAt` and
+ * `attestationVersion` record the user's confirmation that they may contact
+ * these people (uploadedByUserId is who confirmed it). Deleting a list is a
+ * soft delete (status "deleted"): the rows go, the record of the upload stays.
+ */
+export const gtmContactImport = pgTable(
+  "gtm_contact_import",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    uploadedByUserId: text("uploaded_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    fileName: text("file_name").notNull(),
+    totalRows: integer("total_rows").notNull(),
+    importedCount: integer("imported_count").default(0).notNull(),
+    duplicateCount: integer("duplicate_count").default(0).notNull(),
+    invalidCount: integer("invalid_count").default(0).notNull(),
+    suppressedCount: integer("suppressed_count").default(0).notNull(),
+    personalEmailCount: integer("personal_email_count").default(0).notNull(),
+    attestedAt: timestamp("attested_at").notNull(),
+    attestationVersion: text("attestation_version").notNull(),
+    // importing -> active, or failed (rows removed); active -> deleted.
+    status: text("status", { enum: ["importing", "active", "failed", "deleted"] })
+      .default("importing")
+      .notNull(),
+    deletedAt: timestamp("deleted_at"),
+    deletedByUserId: text("deleted_by_user_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [index("gtm_contact_import_org_idx").on(table.organizationId, table.status)]
+)
+
+/** One cleaned person from an imported list (only mapped fields are kept). */
+export const gtmContactImportRow = pgTable(
+  "gtm_contact_import_row",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => nanoid()),
+    importId: text("import_id")
+      .notNull()
+      .references(() => gtmContactImport.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    rowNumber: integer("row_number").notNull(),
+    // Always stored trimmed and lowercased.
+    email: text("email"),
+    firstName: text("first_name"),
+    lastName: text("last_name"),
+    fullName: text("full_name"),
+    title: text("title"),
+    companyName: text("company_name"),
+    companyDomain: text("company_domain"),
+    website: text("website"),
+    linkedinUrl: text("linkedin_url"),
+    phone: text("phone"),
+    city: text("city"),
+    country: text("country"),
+    notes: text("notes"),
+    personalEmail: boolean("personal_email").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("gtm_contact_import_row_import_idx").on(table.importId, table.rowNumber),
+    index("gtm_contact_import_row_org_email_idx").on(table.organizationId, table.email),
+  ]
+)
+
 export const gtmProspectCompany = pgTable(
   "gtm_prospect_company",
   {
@@ -625,6 +749,10 @@ export const gtmProspectCompany = pgTable(
       () => gtmProviderConnection.id,
       { onDelete: "set null" }
     ),
+    // The imported list this company came from (source = "csv_import").
+    sourceImportId: text("source_import_id").references(() => gtmContactImport.id, {
+      onDelete: "set null",
+    }),
     providerId: text("provider_id"),
     website: text("website"),
     country: text("country"),
@@ -654,6 +782,7 @@ export const gtmProspectCompany = pgTable(
   (table) => [
     index("gtm_prospect_company_campaign_idx").on(table.outreachCampaignId),
     index("gtm_prospect_company_source_connection_idx").on(table.sourceConnectionId),
+    index("gtm_prospect_company_source_import_idx").on(table.sourceImportId),
   ]
 )
 
@@ -775,6 +904,8 @@ export const gtmContact = pgTable(
         "company_fallback",
         // Returned by the email-enrichment vendor (see lib/email-verification.ts).
         "vendor_lookup",
+        // From the customer's own imported list.
+        "user_provided",
         "none",
       ],
     })
@@ -791,6 +922,9 @@ export const gtmContact = pgTable(
         // The only status that may be qualified, approved or sent: an enrichment
         // vendor checked the mailbox itself (lib/email-verification.ts).
         "mailbox_verified",
+        // From the customer's imported list: nobody verified it, but the customer
+        // vouched for it, so it may be sent (lib/email-verification.ts).
+        "user_provided",
       ],
     })
       .default("unverified")
@@ -820,6 +954,10 @@ export const gtmContact = pgTable(
       () => gtmProviderConnection.id,
       { onDelete: "set null" }
     ),
+    // The imported list this person came from (source = "csv_import").
+    sourceImportId: text("source_import_id").references(() => gtmContactImport.id, {
+      onDelete: "set null",
+    }),
     providerPersonId: text("provider_person_id"),
     emailStatus: text("email_status", {
       enum: ["not_looked_up", "verified", "unverified", "not_found"],
@@ -841,6 +979,7 @@ export const gtmContact = pgTable(
   (table) => [
     index("gtm_contact_company_idx").on(table.prospectCompanyId),
     index("gtm_contact_source_connection_idx").on(table.sourceConnectionId),
+    index("gtm_contact_source_import_idx").on(table.sourceImportId),
   ]
 )
 

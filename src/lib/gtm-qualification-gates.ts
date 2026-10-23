@@ -1,4 +1,4 @@
-import { isVerifiedEmail } from "./email-verification";
+import { isSendableEmail, isUserProvidedStatus } from "./email-verification";
 
 export interface ContactGateData {
   id?: string;
@@ -24,8 +24,9 @@ export interface GateCheckResult {
 /**
  * Gate 1: Verified email only
  * Passes only an address an email vendor verified at mailbox level (see
- * lib/email-verification.ts). Pattern guesses, MX-only, catch-all, scraped and
- * company fallback addresses are all refused.
+ * lib/email-verification.ts), or one from the customer's own imported list
+ * (user_provided). Pattern guesses, MX-only, catch-all, scraped and company
+ * fallback addresses are all refused.
  */
 export function checkEmailConfidenceFloor(contact: ContactGateData): {
   passed: boolean;
@@ -34,7 +35,7 @@ export function checkEmailConfidenceFloor(contact: ContactGateData): {
   if (!contact.email?.trim()) {
     return { passed: false, reason: "No verified email address" };
   }
-  if (!isVerifiedEmail(contact)) {
+  if (!isSendableEmail(contact)) {
     return { passed: false, reason: "Email address is not verified" };
   }
   return { passed: true };
@@ -55,6 +56,8 @@ export function checkLinkedInProfileGate(contact: ContactGateData): {
   passed: boolean;
   reason?: string;
 } {
+  // The customer chose this person from their own list; no LinkedIn profile is required.
+  if (isUserProvidedStatus(contact.verificationStatus)) return { passed: true };
   const li = contact.linkedinUrl?.trim();
   if (!li || !isLinkedInProfileUrl(li)) {
     return {

@@ -7,6 +7,23 @@ const active = { id: "conn_1", provider: "apollo" as const, status: "active" as 
 const internal = new Set(["org_internal"])
 
 describe("resolvePeopleProvider decision", () => {
+  it("uses the campaign's imported list without any connection", () => {
+    assert.deepEqual(
+      decidePeopleProvider({ organizationId: "org_customer", importId: "imp_1", connection: null, platformOrgIds: new Set(), platformMode: "none" }),
+      { kind: "csv_import", importId: "imp_1" }
+    )
+  })
+
+  it("prefers the imported list over a connected account or platform data", () => {
+    const withConnection = decidePeopleProvider({ organizationId: "org_internal", importId: "imp_1", connection: active, platformOrgIds: internal, platformMode: "firecrawl" })
+    assert.equal(withConnection.kind, "csv_import")
+  })
+
+  it("ignores an empty import id", () => {
+    const resolution = decidePeopleProvider({ organizationId: "org_customer", importId: null, connection: null, platformOrgIds: new Set(), platformMode: "firecrawl" })
+    assert.equal(resolution.kind, "not_connected")
+  })
+
   it("uses the organization's active connection", () => {
     assert.deepEqual(
       decidePeopleProvider({ organizationId: "org_customer", connection: active, platformOrgIds: new Set(), platformMode: "firecrawl" }),

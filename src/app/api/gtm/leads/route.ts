@@ -10,7 +10,7 @@ import {
 import { eq, and, sql, desc } from "drizzle-orm";
 import { resolveAuthAndOrg } from "@/lib/gtm-auth";
 import { toPublicEmailStatus } from "@/lib/data/public-fields";
-import { leadSummarySql, usableLeadSql } from "@/lib/data/lead-visibility";
+import { leadSummarySql, toLeadSummary, usableLeadSql } from "@/lib/data/lead-visibility";
 
 export async function GET(req: NextRequest) {
   try {
@@ -216,7 +216,7 @@ export async function GET(req: NextRequest) {
       totalPages,
       campaigns,
       view,
-      summary: { reviewed: Number(summary?.reviewed ?? 0), verified: Number(summary?.verified ?? 0) },
+      summary: toLeadSummary(summary),
     });
   } catch (err: any) {
     console.error("[GET /api/gtm/leads] Error:", err);

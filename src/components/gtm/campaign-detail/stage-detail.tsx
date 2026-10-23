@@ -11,6 +11,7 @@ import { STAGE_DETAIL_ID } from "./campaign-process-card"
 import { CompanySelection } from "./company-selection/company-selection"
 import { DraftReviewSection } from "./draft-review-section"
 import { CompaniesTable, ContactsTable, DraftsTable } from "./stage-tables"
+import { deliveryText } from "@/lib/contact-import/copy"
 
 const plural = (n: number, one: string, many: string) =>
   `${n} ${new Intl.PluralRules("en").select(n) === "one" ? one : many}`
@@ -57,7 +58,7 @@ function CompaniesStage() {
 
 function ContactsStage() {
   const { data, process } = useCampaignDetail()
-  const summary = data.leadSummary ?? { reviewed: 0, verified: 0 }
+  const summary = data.leadSummary ?? { reviewed: 0, verified: 0, fromList: 0 }
   const skipped = data.skippedContacts ?? []
   const outcome = data.campaign.leadSearchOutcome
 
@@ -79,7 +80,7 @@ function ContactsStage() {
             actions={process.state === "no-results" ? newRunLink : undefined}
           />
         </div>
-        <LeadSummaryLine reviewed={summary.reviewed} verified={summary.verified} className="text-body text-fg-muted" />
+        <LeadSummaryLine reviewed={summary.reviewed} verified={summary.verified} fromList={summary.fromList} className="text-body text-fg-muted" />
         <SkippedLeads count={skipped.length} leads={skipped} />
       </div>
     )
@@ -89,7 +90,7 @@ function ContactsStage() {
     <>
       <div className="flex flex-col gap-0.5">
         {outcome && <p className="text-body text-fg-default">{leadSearchMessage(outcome)}</p>}
-        <LeadSummaryLine reviewed={summary.reviewed} verified={summary.verified} className="text-body text-fg-muted" />
+        <LeadSummaryLine reviewed={summary.reviewed} verified={summary.verified} fromList={summary.fromList} className="text-body text-fg-muted" />
       </div>
       <ContactsTable />
       <SkippedLeads count={skipped.length} leads={skipped} />
@@ -133,7 +134,7 @@ function SendingStage() {
   return (
     <>
       <p className="text-body text-fg-muted tabular-nums">
-        {counts.sent} of {counts.sent + counts.approved} sent.
+        {counts.sent} of {counts.sent + counts.approved} sent{counts.bounced > 0 ? ` (${deliveryText(counts)})` : ""}.
         {mailbox ? " Emails go out a few at a time so they read as personal mail." : " Connect a mailbox to send."}
       </p>
       <DraftsTable drafts={queue} showSentAt />

@@ -7,7 +7,10 @@ import {
   type StageStalenessResult,
 } from "@/lib/gtm-staleness"
 import { useHydrated } from "@/hooks/use-hydrated"
-import { deriveCampaignProcess, type CampaignProcess } from "../process/campaign-process"
+import { deriveCampaignProcess, type CampaignCounts, type CampaignProcess } from "../process/campaign-process"
+import { deliveryCounts } from "@/lib/contact-import/bounce-guard"
+import { toDeliveryDraft } from "./delivery"
+import { BOUNCE_COPY } from "@/lib/contact-import/copy"
 import type { CampaignData, Draft, MailboxInfo } from "./types"
 
 const POLL_INTERVAL_MS = 4000
@@ -22,7 +25,8 @@ interface CampaignDetailContextValue {
   drafts: Draft[]
   mailbox: MailboxInfo | null
   staleness: Pick<StageStalenessResult, "isStalled" | "elapsedMs">
-  counts: { approved: number; sent: number; rejected: number; pending: number }
+  /** Review counts, plus sent / delivered / bounced from the shared delivery count. */
+  counts: CampaignCounts
   /** The campaign as ProcessCard state, plain words included. */
   process: CampaignProcess
   /** Stage whose detail shows under the card (0-4); follows the current stage until picked. */
@@ -42,6 +46,8 @@ interface CampaignDetailContextValue {
   restartStage: () => Promise<void>
   restartPipeline: () => Promise<void>
   startSending: () => Promise<void>
+  /** Bounce pause: removes the bounced addresses and resumes. True when it worked. */
+  resumeAfterBounces: () => Promise<boolean>
   disconnectMailbox: () => Promise<void>
 }
 
@@ -222,6 +228,21 @@ export function CampaignDetailRoot({
     }
   }
 
+  const resumeAfterBounces = async () => {
+    setIsDispatching(true)
+    try {
+      const res = await postJson<{ next?: string }>(`/api/gtm/campaigns/${campaignId}/bounces`)
+      toast.success(res.next === "send" ? BOUNCE_COPY.resumedToast : BOUNCE_COPY.resumedNoSendToast)
+      await refresh()
+      return true
+    } catch (err) {
+      toast.error(errorMessage(err, BOUNCE_COPY.failedToast))
+      return false
+    } finally {
+      setIsDispatching(false)
+    }
+  }
+
   // The confirm dialog lives in the mailbox line (MailboxStatusBar).
   const disconnectMailbox = async () => {
     try {
@@ -247,11 +268,12 @@ export function CampaignDetailRoot({
       })
     : NOT_STALLED
 
-  const counts = {
+  const counts: CampaignCounts = {
     approved: drafts.filter((d) => d.status === "approved").length,
-    sent: drafts.filter((d) => d.status === "sent").length,
     rejected: drafts.filter((d) => d.status === "rejected").length,
     pending: drafts.filter((d) => d.status === "draft").length,
+    // Bounced emails count as sent: they left the mailbox.
+    ...deliveryCounts(drafts.map(toDeliveryDraft)),
   }
 
   const process = deriveCampaignProcess({
@@ -283,6 +305,7 @@ export function CampaignDetailRoot({
     restartStage: fixture ? inert : restartStage,
     restartPipeline: fixture ? inert : restartPipeline,
     startSending: fixture ? inert : startSending,
+    resumeAfterBounces: fixture ? async () => (await inert(), false) : resumeAfterBounces,
     disconnectMailbox: fixture ? inert : disconnectMailbox,
   }
 

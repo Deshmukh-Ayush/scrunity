@@ -18,6 +18,8 @@ import {
 import { isValidPersonName } from "@/lib/gtm-contact-matcher";
 import { checkLeadQualificationGates } from "@/lib/gtm-stage-5-5";
 import { getSendBlock } from "@/lib/send-eligibility";
+import { pauseIfBounceRateHigh } from "@/lib/contact-import/bounce-pause";
+import { IMPORT_CAMPAIGN_FAILURE_TEXT } from "@/lib/contact-import/copy";
 
 export interface SendEmailsResult {
   sentCount: number;
@@ -172,8 +174,20 @@ export async function executeSendEmails({
   let stoppedAtCredits = false;
 
   let blockedCount = 0;
+  let stoppedAtBounces = false;
   for (let i = 0; i < approvedDrafts.length; i++) {
     const draft = approvedDrafts[i];
+
+    // Imported lists are unverified: stop before the next send once too many
+    // bounced (lib/contact-import/bounce-guard.ts). Approved drafts stay approved.
+    if (campaign.sourceImportId && (await pauseIfBounceRateHigh(outreachCampaignId))) {
+      stoppedAtBounces = true;
+      await safeRealtimePublish(outreachCampaignChannel(outreachCampaignId).failed, {
+        stage: "send_emails",
+        error: IMPORT_CAMPAIGN_FAILURE_TEXT.paused_bounce_rate,
+      });
+      break;
+    }
 
     // Send-time eligibility: holds even if an approval was forced (direct API
     // call or database edit). Opted out (this org), hard bounce or suppression
@@ -397,7 +411,7 @@ export async function executeSendEmails({
   }
 
   // If all intended drafts processed without hitting cap or running out of credits, mark campaign completed
-  if (!stoppedAtCap && !stoppedAtCredits && !draftId) {
+  if (!stoppedAtCap && !stoppedAtCredits && !stoppedAtBounces && !draftId) {
     await db
       .update(gtmOutreachCampaign)
       .set({

@@ -26,7 +26,9 @@ export async function confirmCompanySelection(
   const result = await db.execute(sql`
     WITH advanced AS (
       UPDATE ${gtmOutreachCampaign}
-      SET current_stage = 'find_contacts',
+      -- An imported list's people are already known, so it skips the lead search.
+      SET current_stage = CASE WHEN ${gtmOutreachCampaign.sourceImportId} IS NULL
+                               THEN 'find_contacts' ELSE 'write_emails' END,
           status = 'in_progress',
           failure_reason = NULL,
           stage_started_at = ${now}::timestamp,

@@ -13,7 +13,7 @@ const MANAGER_ROUTES: { methods: string[]; pattern: RegExp }[] = [
   { methods: ["POST"], pattern: /^\/api\/gtm\/research-runs\/[^/]+\/restart-stage$/ },
   { methods: ["POST"], pattern: /^\/api\/gtm\/segments\/[^/]+\/digest$/ },
   // Campaign control: send, approve/reject, restart, company selection
-  { methods: ["POST"], pattern: /^\/api\/gtm\/campaigns\/[^/]+\/(send|rerun|restart-stage|confirm-selection|drafts)$/ },
+  { methods: ["POST"], pattern: /^\/api\/gtm\/campaigns\/[^/]+\/(send|rerun|restart-stage|confirm-selection|drafts|bounces)$/ },
   { methods: ["POST"], pattern: /^\/api\/gtm\/campaigns\/[^/]+\/drafts\/[^/]+$/ },
   { methods: ["POST"], pattern: /^\/api\/gtm\/leads\/[^/]+\/send$/ },
   // Mailbox: connect, reconnect, disconnect
@@ -21,6 +21,10 @@ const MANAGER_ROUTES: { methods: string[]; pattern: RegExp }[] = [
   { methods: ["GET", "POST"], pattern: /^\/api\/gtm\/mailbox\/(connect|callback|imap-smtp\/connect|microsoft\/connect|microsoft\/callback)$/ },
   // Data sources (the organization's own provider accounts): connect, disconnect
   { methods: ["POST", "DELETE"], pattern: /^\/api\/gtm\/data-sources\/[^/]+$/ },
+  // Imported lists: upload (POST .../imports, matched above) and delete
+  { methods: ["DELETE"], pattern: /^\/api\/gtm\/data-sources\/imports\/[^/]+$/ },
+  // The organization's saved company profile and research form setting
+  { methods: ["PUT"], pattern: /^\/api\/gtm\/company-profile$/ },
   // Deleting shared records
   { methods: ["DELETE"], pattern: /^\/api\/gtm\/chat\/conversations\/[^/]+$/ },
 ]

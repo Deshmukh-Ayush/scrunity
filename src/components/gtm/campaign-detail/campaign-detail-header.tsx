@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { LocalDate } from "@/components/ui/local-date"
 import { formatTargetMarket } from "@/lib/geo/countries"
 import type { ProcessState } from "@/components/ui/process-card"
+import { PAUSED_BOUNCE_RATE } from "@/lib/contact-import/bounce-guard"
 import { useCampaignDetail } from "./campaign-detail-root"
 
 const BADGE_ICON: Record<ProcessState, React.ReactNode> = {
@@ -37,7 +38,8 @@ export function CampaignDetailHeader() {
   const { campaign, segment } = data
   const market = formatTargetMarket(campaign.targetCountryCode, campaign.targetRegion)
   const canRerun = campaign.status !== "in_progress" && campaign.status !== "failed"
-  const canSend = counts.approved > 0 && campaign.currentStage !== "send_emails"
+  // Paused for bounces: the bounce panel's Remove and resume is the way forward, not Send.
+  const canSend = counts.approved > 0 && campaign.currentStage !== "send_emails" && campaign.status !== PAUSED_BOUNCE_RATE
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

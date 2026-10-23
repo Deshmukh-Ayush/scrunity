@@ -225,6 +225,27 @@
       "when": 1792523109641,
       "tag": "0031_talented_wong",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792620011805,
+      "tag": "0032_light_prism",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792622933987,
+      "tag": "0033_open_kulan_gath",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792662501387,
+      "tag": "0034_curly_justice",
+      "breakpoints": true
     }
   ]
 }

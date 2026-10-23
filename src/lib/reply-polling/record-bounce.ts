@@ -9,6 +9,7 @@ import {
   gtmResearchRun,
 } from "@/db/schema"
 import { recordSuppressionEntry } from "@/lib/gtm-suppression"
+import { pauseIfBounceRateHigh } from "@/lib/contact-import/bounce-pause"
 
 /**
  * Records a delivery bounce event for a sent draft and updates draft status cleanly.
@@ -108,6 +109,17 @@ export async function recordBounceForDraft({
       `[Poll Replies] Failed to write hard_bounce suppression entry for draft ${draftId}:`,
       suppressErr
     )
+  }
+
+  // Imported-list campaigns pause once too many of their emails bounced.
+  try {
+    const [owner] = await db
+      .select({ campaignId: gtmEmailDraft.outreachCampaignId })
+      .from(gtmEmailDraft)
+      .where(eq(gtmEmailDraft.id, draftId))
+    if (owner) await pauseIfBounceRateHigh(owner.campaignId)
+  } catch (guardErr) {
+    console.error(`[Poll Replies] Bounce-rate check failed for draft ${draftId}:`, guardErr instanceof Error ? guardErr.name : "error")
   }
 
   return true

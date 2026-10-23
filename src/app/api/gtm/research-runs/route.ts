@@ -8,17 +8,20 @@ import { dispatchResearchRun } from "@/lib/pipeline/dispatch";
 import { getFallbackLogoUrl, normalizeWebsiteUrl } from "@/lib/firecrawl";
 import { listOrgResearchRuns } from "@/lib/data/research-runs";
 import { z } from "zod";
-import { targetMarketInputSchema } from "@/lib/gtm-target-market";
 import { hasSpendAccess, noAccessMessage } from "@/lib/pilot/access";
 import { QUOTAS, consumeOrgQuota } from "@/lib/org-quota";
+import {
+  companyProfileInputSchema,
+  profileWriteForNewRun,
+  researchRunSnapshot,
+} from "@/lib/company-profile/input";
+import { saveCompanyProfile, saveCompanyProfileIfMissing } from "@/lib/company-profile/store";
 
-const createResearchRunSchema = z.object({
-  websiteUrl: z.string().min(1, "Website URL is required"),
-  companyName: z.string().min(1, "Company name is required"),
-  companyDescription: z.string().min(1, "Company description is required"),
-  companySize: z.enum(["1-10", "11-50", "51-200", "200+"]),
-  contextDoc: z.string().optional().nullable(),
-}).extend(targetMarketInputSchema.shape);
+// saveToProfile: "Also update my saved profile" was ticked. Without it the
+// profile is only created when the organization has none (its first run).
+const createResearchRunSchema = companyProfileInputSchema.extend({
+  saveToProfile: z.boolean().optional(),
+});
 
 export async function POST(req: NextRequest) {
   try {
@@ -39,19 +42,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const {
-      websiteUrl: rawWebsiteUrl,
-      companyName,
-      companyDescription,
-      companySize,
-      contextDoc,
-      targetCountryCode,
-      targetRegion,
-      ownArr,
-      ownTam,
-    } = parsed.data;
-
-    const websiteUrl = normalizeWebsiteUrl(rawWebsiteUrl);
+    const { saveToProfile, ...input } = parsed.data;
+    const websiteUrl = normalizeWebsiteUrl(input.websiteUrl);
 
     // Step 1: Idempotency check - if a run for this org & website is already in progress, return it
     const [existingActiveRun] = await db
@@ -94,23 +86,14 @@ export async function POST(req: NextRequest) {
     // High quality favicon without incurring Firecrawl scrape credits before row exists
     const logoUrl = getFallbackLogoUrl(websiteUrl);
 
-    // Insert research run row
+    // Insert research run row with its own copy of the details (later profile
+    // edits never change it).
     const [run] = await db
       .insert(gtmResearchRun)
       .values({
         organizationId: auth.orgId,
         createdBy: auth.userId,
-        websiteUrl,
-        companyName,
-        companyDescription,
-        companySize,
-        contextDoc: contextDoc || null,
-        targetCountryCode,
-        targetRegion,
-        ownArrAmount: ownArr?.amount ?? null,
-        ownArrCurrency: ownArr?.currency ?? null,
-        ownTamAmount: ownTam?.amount ?? null,
-        ownTamCurrency: ownTam?.currency ?? null,
+        ...researchRunSnapshot({ ...input, websiteUrl }),
         logoUrl,
         status: "in_progress",
         currentStage: "research_company",
@@ -119,10 +102,23 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
+    // The run has started either way; a profile that didn't save is reported, not fatal.
+    let profileSaved = true;
+    try {
+      if (profileWriteForNewRun(saveToProfile) === "upsert") {
+        await saveCompanyProfile(auth.orgId, auth.userId, input);
+      } else {
+        await saveCompanyProfileIfMissing(auth.orgId, auth.userId, input);
+      }
+    } catch (profileErr) {
+      profileSaved = false;
+      console.error("[POST /api/gtm/research-runs] Company profile not saved:", profileErr);
+    }
+
     // Exactly one executor (Inngest or in-process) picks the run up.
     await dispatchResearchRun(run.id);
 
-    return NextResponse.json({ success: true, researchRun: run }, { status: 201 });
+    return NextResponse.json({ success: true, researchRun: run, profileSaved }, { status: 201 });
   } catch (err: any) {
     console.error("[POST /api/gtm/research-runs] Error:", err);
     return NextResponse.json(

@@ -7,6 +7,7 @@ import { asJson } from "@/lib/data/serialize"
 import { CampaignDetailRoot } from "./campaign-detail-root"
 import { CampaignDetailHeader } from "./campaign-detail-header"
 import { CampaignProcessCard } from "./campaign-process-card"
+import { BouncePausePanel } from "./bounce-pause-panel"
 import { MailboxStatusBar } from "./mailbox-status-bar"
 import { StageDetail } from "./stage-detail"
 import type { CampaignData, Draft, MailboxInfo } from "./types"
@@ -49,6 +50,7 @@ export async function CampaignDetail({ campaignId }: { campaignId: string }) {
         <MailboxStatusBar />
       </div>
       <CampaignProcessCard />
+      <BouncePausePanel />
       <StageDetail />
     </CampaignDetailRoot>
   )

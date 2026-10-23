@@ -70,8 +70,9 @@ export function CompanySelectionRoot({
   const peopleByCompany = React.useMemo(() => {
     const map = new Map<string, Contact[]>()
     for (const contact of contacts) {
-      if (!contact.prospectCompanyId || contact.emailStatus !== "verified")
-        continue
+      // Verified decision makers, or people from the customer's imported list.
+      const usable = contact.emailStatus === "verified" || contact.emailSource === "user_provided"
+      if (!contact.prospectCompanyId || !usable) continue
       map.set(contact.prospectCompanyId, [
         ...(map.get(contact.prospectCompanyId) ?? []),
         contact,

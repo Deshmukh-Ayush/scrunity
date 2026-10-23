@@ -131,6 +131,8 @@ export function providersFor(resolution: DataSourceResolution): CampaignProvider
     }
   }
   if (resolution.kind === "not_connected") throw new DataSourceNotConnectedError()
+  // Imported-list campaigns search nothing (lib/contact-import/campaign-stage.ts); asking is a bug.
+  if (resolution.kind === "csv_import") throw new Error("An imported-list campaign has no search providers")
   const discovery = getDiscoveryMode()
   return {
     discovery,

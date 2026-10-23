@@ -9,12 +9,16 @@ import { CompanyDetailsForm } from "./company-details-form"
 import { ResearchProgress } from "./research-progress"
 import { SegmentSelection } from "./segment-selection"
 import { useLogoPreview } from "@/hooks/use-logo-preview"
-import { countryCodeFromName } from "@/lib/geo/countries"
+import { focusFirstInvalid } from "@/components/company-profile/company-profile-fields"
+import { COMPANY_PROFILE_COPY } from "@/lib/company-profile/copy"
+import { companyFormToInput, validateCompanyForm, type CompanyFormValues } from "@/lib/company-profile/form"
+import type { PublicCompanyProfile } from "@/lib/company-profile/input"
+import { initialNewRunState, newRunReducer, savesProfileOnStart } from "@/lib/company-profile/new-run"
 import type { DataSourcesStatus } from "@/lib/data-sources/types"
 import type { LaunchDataSource } from "./launch-footer"
+import { defaultSource, type CampaignSource } from "./source-choice"
 import type {
   CompanyFormErrors,
-  CompanyFormValues,
   Competitor,
   FlowStep,
   IcpSegment,
@@ -23,53 +27,35 @@ import type {
 
 const POLL_INTERVAL_MS = 2500
 
-const INITIAL_FORM: CompanyFormValues = {
-  websiteUrl: "",
-  companyName: "",
-  companyDescription: "",
-  companySize: "11-50",
-  contextDoc: "",
-  fileName: "",
-  targetCountry: "",
-  targetRegion: "",
-  arrAmount: "",
-  arrCurrency: "USD",
-  tamAmount: "",
-  tamCurrency: "USD",
-}
-
-/** "" -> null, otherwise { amount, currency } for the API. */
-function moneyPayload(amount: string, currency: string) {
-  const parsed = parseInt(amount, 10)
-  return Number.isFinite(parsed) && parsed > 0 ? { amount: parsed, currency } : null
-}
-
 const errorText = (err: unknown, fallback: string) =>
   err instanceof Error ? err.message : fallback
 
-/** Inline errors for the required fields; empty when the form can be sent. */
-function validate(form: CompanyFormValues): CompanyFormErrors {
-  const errors: CompanyFormErrors = {}
-  if (!form.websiteUrl.trim()) errors.websiteUrl = "Enter your website, for example acme.com."
-  if (!form.companyName.trim()) errors.companyName = "Enter your company name."
-  if (!countryCodeFromName(form.targetCountry)) errors.targetCountry = "Choose a country from the list."
-  if (!form.companyDescription.trim())
-    errors.companyDescription = "Describe what your company does in a sentence or two."
-  return errors
-}
-
 /**
  * New research run → profile confirmation → segment selection → campaigns.
- * Starts a research run from the form, polls it until the last research step
- * finishes, then starts one outreach campaign per selected segment.
+ * Starts a research run from the form (or the saved company profile), polls
+ * it until the last research step finishes, then starts one outreach
+ * campaign per selected segment.
  */
-export function NewCampaignFlow() {
+export function NewCampaignFlow({
+  initialProfile,
+  profileLoaded = true,
+}: {
+  /** The saved company profile; null when none was saved. */
+  initialProfile: PublicCompanyProfile | null
+  /** False when the profile didn't load: the full form, and nothing is saved. */
+  profileLoaded?: boolean
+}) {
   const [step, setStep] = React.useState<FlowStep>("FORM")
-  const [form, setForm] = React.useState(INITIAL_FORM)
+  const [formState, dispatchForm] = React.useReducer(newRunReducer, null, () =>
+    initialNewRunState(initialProfile, profileLoaded)
+  )
+  const form = formState.form
   const [fieldErrors, setFieldErrors] = React.useState<CompanyFormErrors>({})
-  const updateForm = (patch: Partial<CompanyFormValues>) =>
-    setForm((prev) => ({ ...prev, ...patch }))
-  const { logoPreview, clearLogo } = useLogoPreview(form.websiteUrl)
+  const updateForm = (patch: Partial<CompanyFormValues>) => dispatchForm({ type: "edit", patch })
+  const saved = formState.saved
+  const { logoPreview, clearLogo } = useLogoPreview(form.websiteUrl, {
+    saved: saved ? { websiteUrl: saved.values.websiteUrl, logoUrl: saved.logoUrl } : null,
+  })
 
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [researchRunId, setResearchRunId] = React.useState<string | null>(null)
@@ -91,6 +77,7 @@ export function NewCampaignFlow() {
   >([])
   const [launchError, setLaunchError] = React.useState<string | null>(null)
   const [dataSource, setDataSource] = React.useState<LaunchDataSource | null>(null)
+  const [source, setSource] = React.useState<CampaignSource>({ kind: "search" })
 
   // The segment step shows the Apollo credit estimate, or blocks the start
   // when no data source is connected. Unknown (failed fetch): the server
@@ -105,8 +92,10 @@ export function NewCampaignFlow() {
         setDataSource({
           access: status.access,
           estimate: status.estimate,
+          imports: status.imports ?? [],
           needsReconnect: status.connection?.status === "invalid",
         })
+        setSource(defaultSource({ access: status.access, imports: status.imports ?? [] }))
       })
       .catch(() => {})
     return () => {
@@ -116,14 +105,16 @@ export function NewCampaignFlow() {
 
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault()
-    const errors = validate(form)
+    const errors = validateCompanyForm(form)
     setFieldErrors(errors)
-    const targetCountryCode = countryCodeFromName(form.targetCountry)
-    const firstInvalid = Object.keys(errors)[0]
-    if (firstInvalid || !targetCountryCode) {
-      if (firstInvalid) document.getElementById(firstInvalid)?.focus()
+    const input = companyFormToInput(form)
+    if (!input) {
+      // Saved details that no longer validate open the form so they can be fixed.
+      dispatchForm({ type: "change_for_run" })
+      requestAnimationFrame(() => focusFirstInvalid(errors))
       return
     }
+    const saveToProfile = savesProfileOnStart(formState)
 
     setIsSubmitting(true)
     setErrorMessage(null)
@@ -131,22 +122,13 @@ export function NewCampaignFlow() {
       const res = await fetch("/api/gtm/research-runs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          websiteUrl: `https://${form.websiteUrl.trim().replace(/^(?:https?:\/*)+/i, "")}`,
-          companyName: form.companyName.trim(),
-          companyDescription: form.companyDescription.trim(),
-          companySize: form.companySize,
-          contextDoc: form.contextDoc.trim() || null,
-          targetCountryCode,
-          targetRegion: form.targetRegion.trim() || null,
-          ownArr: moneyPayload(form.arrAmount, form.arrCurrency),
-          ownTam: moneyPayload(form.tamAmount, form.tamCurrency),
-        }),
+        body: JSON.stringify({ ...input, saveToProfile }),
       })
       const data = await res.json()
       if (!res.ok)
         throw new Error(data.error || "Research didn't start. Check your connection and try again.")
 
+      if (saveToProfile && data.profileSaved === false) toast.error(COMPANY_PROFILE_COPY.profileNotSaved)
       setResearchRunId(data.researchRun.id)
       setRunDetails(data.researchRun)
       setStep("RUNNING")
@@ -272,7 +254,7 @@ export function NewCampaignFlow() {
         const res = await fetch("/api/gtm/campaigns", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ icpSegmentId }),
+          body: JSON.stringify(source.kind === "import" ? { icpSegmentId, importId: source.importId } : { icpSegmentId }),
         })
         const data = await res.json()
         if (res.ok && data.campaign?.id) createdIds.push(data.campaign.id)
@@ -293,8 +275,8 @@ export function NewCampaignFlow() {
       case "FORM":
         return (
           <CompanyDetailsForm
-            values={form}
-            onChange={updateForm}
+            state={formState}
+            dispatch={dispatchForm}
             errors={fieldErrors}
             logoPreview={logoPreview}
             onLogoError={clearLogo}
@@ -344,6 +326,8 @@ export function NewCampaignFlow() {
             isLaunching={isLaunching}
             onLaunch={handleLaunchCampaigns}
             dataSource={dataSource}
+            source={source}
+            onSourceChange={setSource}
             onEditDescription={() => {
               setIsEditingDescription(true)
               setStep("PROFILE_CONFIRMATION")

@@ -1,6 +1,5 @@
 import type { SynthesizedProfile } from "../company-profile-confirmation"
 import type { MarketContextFields } from "../market-context"
-import type { Currency } from "@/lib/geo/countries"
 
 export type FlowStep =
   | "FORM"
@@ -9,24 +8,9 @@ export type FlowStep =
   | "SEGMENT_SELECTION"
   | "COMPLETED"
 
-export type CompanySize = "1-10" | "11-50" | "51-200" | "200+"
-
-export interface CompanyFormValues {
-  websiteUrl: string
-  companyName: string
-  companyDescription: string
-  companySize: CompanySize
-  contextDoc: string
-  fileName: string
-  /** Country name as typed or picked; mapped to its ISO code on submit. */
-  targetCountry: string
-  targetRegion: string
-  /** Kept as typed so the input can be cleared; parsed on submit. */
-  arrAmount: string
-  arrCurrency: Currency
-  tamAmount: string
-  tamCurrency: Currency
-}
+// The company form is shared with onboarding and Settings; its types live with the profile.
+export type { CompanySize } from "@/lib/company-profile/input"
+export type { CompanyFormErrors, CompanyFormValues } from "@/lib/company-profile/form"
 
 export interface IcpSegment {
   id: string
@@ -60,8 +44,3 @@ export interface ResearchRunDetails extends MarketContextFields {
   stageStartedAt?: string | null
   lastProgressAt?: string | null
 }
-
-/** Inline errors for the company form, keyed by field; shown after a submit attempt. */
-export type CompanyFormErrors = Partial<
-  Record<"websiteUrl" | "companyName" | "companyDescription" | "targetCountry", string>
->

@@ -4,7 +4,8 @@ import type { DataSourceResolution, ProviderConnectionRecord } from "./types"
  * The provider decision, pure so every branch is tested without a database
  * (lib/data-sources/resolve.ts feeds it the stored connection and env).
  *
- * Order: an active customer connection always wins. Otherwise only an
+ * Order: a campaign started from an imported list uses that list, whatever
+ * else is connected. Then an active customer connection. Otherwise only an
  * allowlisted internal organization gets platform-paid data, and only while
  * PEOPLE_DATA_PROVIDER allows it. Everyone else is not connected.
  */
@@ -28,15 +29,19 @@ export function parsePlatformOrgIds(env: NodeJS.ProcessEnv = process.env): Set<s
 
 export function decidePeopleProvider({
   organizationId,
+  importId = null,
   connection,
   platformOrgIds,
   platformMode,
 }: {
   organizationId: string
+  /** The campaign's imported list (gtm_outreach_campaign.source_import_id), if any. */
+  importId?: string | null
   connection: Pick<ProviderConnectionRecord, "id" | "provider" | "status" | "encryptedSecret"> | null
   platformOrgIds: ReadonlySet<string>
   platformMode: "firecrawl" | "legacy" | "none"
 }): DataSourceResolution {
+  if (importId) return { kind: "csv_import", importId }
   if (connection?.status === "active" && connection.encryptedSecret) {
     return { kind: "customer", provider: connection.provider, connectionId: connection.id }
   }

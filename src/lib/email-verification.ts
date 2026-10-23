@@ -35,6 +35,27 @@ export function isVerifiedEmail(contact: {
   return Boolean(contact.email?.trim()) && isVerifiedStatus(contact.verificationStatus)
 }
 
+/**
+ * An address from the customer's own imported list (lib/contact-import/).
+ * Not verified, and never shown as verified: the customer vouched for it when
+ * they confirmed the import. It may be qualified, approved and sent, with the
+ * bounce-rate pause protecting their mailbox (lib/contact-import/bounce-guard.ts).
+ * Only the import writes this status.
+ */
+export const USER_PROVIDED = "user_provided"
+
+export function isUserProvidedStatus(status: string | null | undefined): boolean {
+  return status?.trim() === USER_PROVIDED
+}
+
+/** May this address be emailed: vendor-verified, or from the customer's own list. */
+export function isSendableEmail(contact: {
+  email?: string | null
+  verificationStatus?: string | null
+}): boolean {
+  return isVerifiedEmail(contact) || (Boolean(contact.email?.trim()) && isUserProvidedStatus(contact.verificationStatus))
+}
+
 /** What one vendor lookup established for one person. */
 export type EmailLookupStatus = "verified" | "unverified" | "not_found"
 

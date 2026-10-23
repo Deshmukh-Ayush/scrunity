@@ -15,7 +15,8 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test \"src/**/*.test.ts\"",
-    "inngest:dev": "inngest dev -u http://localhost:3000/api/inngest"
+    "inngest:dev": "inngest dev -u http://localhost:3000/api/inngest",
+    "skills:sync": "tsx scripts/sync-skills.ts"
   },
   "dependencies": {
     "@ai-sdk/groq": "^4.0.26",

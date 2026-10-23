@@ -1,7 +1,9 @@
 import { completeFindContacts } from "@/inngest/functions/find-contacts"
 import { campaignEmailProvider } from "./lead-search-executor"
 import { finishLeadSearch } from "./lead-search-state"
+import { isImportCampaign } from "@/lib/contact-import/campaign-stage"
 import {
+  advanceCampaign,
   claimCampaignStageAttempt,
   failCampaign,
   recordStageTiming,
@@ -32,6 +34,8 @@ export async function leadSearchStep(
   attempt: StageAttempt
 ): Promise<LeadSearchStepResult | { status: "failed"; reason: string }> {
   try {
+    // An imported list's people are already known: the finish step moves it on.
+    if (await isImportCampaign(campaignId)) return { status: "done", waitMs: 0, ms: 0, polled: 0, started: 0, searched: 0 }
     const result = await runLeadSearchStep(campaignId, attempt.attemptId)
     console.log(
       `[Lead search step] campaign ${campaignId}: ${result.status} in ${result.ms} ms (polled ${result.polled}, started ${result.started}, searched ${result.searched})${result.status === "waiting" ? `, next in ${result.waitMs} ms` : ""}`
@@ -55,8 +59,12 @@ export async function finishLeadSearchStage(
   attempt: StageAttempt
 ): Promise<"completed" | "skipped"> {
   if (!(await touchCampaignAttempt(campaignId, "find_contacts", attempt.attemptId))) return "skipped"
-  const outcome = await finishLeadSearch(campaignId, await campaignEmailProvider(campaignId))
-  await completeFindContacts(campaignId, outcome)
+  if (await isImportCampaign(campaignId)) {
+    await advanceCampaign(campaignId, "find_contacts", { currentStage: "write_emails" })
+  } else {
+    const outcome = await finishLeadSearch(campaignId, await campaignEmailProvider(campaignId))
+    await completeFindContacts(campaignId, outcome)
+  }
   await recordStageTiming("campaign", campaignId, "find_contacts", new Date(attempt.startedAt), "completed")
   console.log(`[Pipeline] Campaign ${campaignId}: stage "find_contacts" completed -> "write_emails"`)
   return "completed"

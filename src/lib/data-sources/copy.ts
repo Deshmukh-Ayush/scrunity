@@ -11,7 +11,7 @@ const credits = (n: number) => `${n} Apollo ${pluralRules.select(n) === "one" ? 
 
 export const DATA_SOURCE_COPY = {
   pageTitle: "Data sources",
-  pageDescription: "Campaigns find companies and decision makers with your own Apollo account and its credits.",
+  pageDescription: "Campaigns find companies and decision makers with your own Apollo account, or use people from a list you import.",
   apolloName: "Apollo",
   apolloDescription: "Finds companies, decision makers and verified work emails.",
 
@@ -33,7 +33,7 @@ export const DATA_SOURCE_COPY = {
   disclosure: [
     "Your key is used only to run your campaigns.",
     "It is stored encrypted.",
-    "Apollo's terms limit how tools like Scrunity may use customer keys. We have asked Apollo to approve this integration. Until they do, Apollo could restrict your account.",
+    "Apollo's terms limit how tools like Scrunity may use customer keys. We are asking Apollo to approve this integration. Until they do, Apollo could restrict your account.",
   ],
 
   connectAction: "Connect Apollo",

@@ -9,6 +9,8 @@ import {
 import { eq, and } from "drizzle-orm";
 import { resolveAuthAndOrg, verifyCampaignAccess } from "@/lib/gtm-auth";
 import { dispatchCampaignSend } from "@/lib/pipeline/dispatch";
+import { PAUSED_BOUNCE_RATE } from "@/lib/contact-import/bounce-guard";
+import { IMPORT_CAMPAIGN_FAILURE_TEXT } from "@/lib/contact-import/copy";
 
 export async function POST(
   _req: NextRequest,
@@ -29,6 +31,15 @@ export async function POST(
       return NextResponse.json(
         { error: "Forbidden: Campaign not found or unauthorized" },
         { status: 403 }
+      );
+    }
+
+    // Paused for bounces: sending again would pause at once. The way forward is
+    // removing the bounced addresses (POST .../bounces), which resumes sending.
+    if (verified.campaign.status === PAUSED_BOUNCE_RATE) {
+      return NextResponse.json(
+        { error: IMPORT_CAMPAIGN_FAILURE_TEXT.paused_bounce_rate, bouncePaused: true },
+        { status: 409 }
       );
     }
 
