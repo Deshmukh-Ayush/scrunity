@@ -446,6 +446,10 @@ export async function generateOutreachEmailDraft({
   senderCompanyDescription: string;
 }) {
   const firstName = contactName.split(" ")[0] || contactName;
+  // Imported companies are not researched, so their description is empty; say so
+  // instead of letting the model invent a "concrete detail".
+  const prospectDetails = companyDescription.trim() || "None. Nothing is known about this company beyond its name.";
+  const prospect = contactTitle.trim() ? `${firstName} (${contactTitle.trim()})` : firstName;
 
   return await generateStructuredWithFallback({
     schema: emailDraftSchema,
@@ -459,12 +463,16 @@ export async function generateOutreachEmailDraft({
       "- NEVER explain the sales psychology or reasoning behind your wording.\n" +
       "- NEVER include disclaimers, hedging, or 'Here is your email:' preamble.\n" +
       "- Output ONLY the final personalized outreach email.\n\n" +
+      "TRUTHFULNESS RULES:\n" +
+      "- Use ONLY facts stated in the input. NEVER invent events, launches, expansions, growth, hiring, news or anything you 'noticed' about the prospect.\n" +
+      "- NEVER invent numbers, percentages, savings, results or customer names, for the prospect or for our company.\n" +
+      "- If the prospect company details are empty or say nothing is known, do not claim any detail about the company: ask a short question about whether the pain point applies to them instead.\n\n" +
       "Structure:\n" +
       "1. Friendly greeting using their first name.\n" +
-      "2. Specific personalization line referencing one concrete detail from their company.\n" +
+      "2. One personalization line: a concrete detail from the prospect company details if there is one, otherwise a question tying the pain point to their company or role.\n" +
       "3. Direct reference to the specific pain point and how our company uniquely helps.\n" +
       "4. One single, low-friction, polite call to action.",
-    prompt: `Prospect: ${firstName} (${contactTitle}) at ${companyName}\nProspect Company Details: ${companyDescription}\nTarget Pain Point: ${segmentPainPoint}\nOur Company: ${senderCompanyName}\nWhat We Do: ${senderCompanyDescription}`,
+    prompt: `Prospect: ${prospect} at ${companyName}\nProspect Company Details: ${prospectDetails}\nTarget Pain Point: ${segmentPainPoint}\nOur Company: ${senderCompanyName}\nWhat We Do: ${senderCompanyDescription}`,
   });
 }
 
