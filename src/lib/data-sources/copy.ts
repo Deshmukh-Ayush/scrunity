@@ -33,7 +33,7 @@ export const DATA_SOURCE_COPY = {
   disclosure: [
     "Your key is used only to run your campaigns.",
     "It is stored encrypted.",
-    "Apollo's terms limit how tools like Scrunity may use customer keys. We have asked Apollo to approve this integration. Until they do, Apollo could restrict your account.",
+    "Apollo's terms limit how tools like Scrunity may use customer keys. We are asking Apollo to approve this integration. Until they do, Apollo could restrict your account.",
   ],
 
   connectAction: "Connect Apollo",
